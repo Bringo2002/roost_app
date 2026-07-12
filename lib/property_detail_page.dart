@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PropertyDetailPage extends StatelessWidget {
   final dynamic property;
@@ -126,7 +127,15 @@ class PropertyDetailPage extends StatelessWidget {
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () {},
+                onPressed: () async {
+                  final phone = property['landlordPhone'];
+                  if (phone != null) {
+                    final uri = Uri.parse('tel:$phone');
+                    if (await canLaunchUrl(uri)) {
+                      await launchUrl(uri);
+                    }
+                  }
+                },
                 child: const Text(
                   'Contact Landlord',
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
