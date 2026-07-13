@@ -1,14 +1,21 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import '../config.dart';
 
+class AuthResult {
+  final bool success;
+  final String? error;
+  AuthResult({required this.success, this.error});
+}
+
 class AuthService {
   static final String baseUrl = '${AppConfig.baseurl}/api/auth';
   static const String _tokenKey = 'jwt_token';
 
-  static Future<bool> signup(String name, String email, String password, String role) async {
+  static Future<AuthResult> signup(String name, String email, String password, String role) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/signup'),
@@ -17,23 +24,40 @@ class AuthService {
           'name': name,
           'email': email,
           'password': password,
-          'role': role
+          'role': role,
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _saveToken(data['token']);
-        return true;
+        return AuthResult(success: true);
       }
-      return false;
+
+      // Try to extract error message from response
+      String errorMsg = 'Signup failed (${response.statusCode})';
+      try {
+        final body = jsonDecode(response.body);
+        if (body['error'] != null) {
+          errorMsg = body['error'];
+        } else if (body['message'] != null) {
+          errorMsg = body['message'];
+        }
+      } catch (_) {}
+      return AuthResult(success: false, error: errorMsg);
+    } on SocketException {
+      return AuthResult(success: false, error: 'Cannot reach server. Check your internet connection.');
+    } on http.ClientException {
+      return AuthResult(success: false, error: 'Connection error. The server may be down.');
     } catch (e) {
-      print('Signup error: $e');
-      return false;
+      if (e.toString().contains('TimeoutException')) {
+        return AuthResult(success: false, error: 'Request timed out. Please try again.');
+      }
+      return AuthResult(success: false, error: 'Unexpected error: $e');
     }
   }
 
-  static Future<bool> login(String email, String password) async {
+  static Future<AuthResult> login(String email, String password) async {
     try {
       final response = await http.post(
         Uri.parse('$baseUrl/login'),
@@ -42,17 +66,33 @@ class AuthService {
           'email': email,
           'password': password,
         }),
-      );
+      ).timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _saveToken(data['token']);
-        return true;
+        return AuthResult(success: true);
       }
-      return false;
+
+      String errorMsg = 'Login failed (${response.statusCode})';
+      try {
+        final body = jsonDecode(response.body);
+        if (body['error'] != null) {
+          errorMsg = body['error'];
+        } else if (body['message'] != null) {
+          errorMsg = body['message'];
+        }
+      } catch (_) {}
+      return AuthResult(success: false, error: errorMsg);
+    } on SocketException {
+      return AuthResult(success: false, error: 'Cannot reach server. Check your internet connection.');
+    } on http.ClientException {
+      return AuthResult(success: false, error: 'Connection error. The server may be down.');
     } catch (e) {
-      print('Login error: $e');
-      return false;
+      if (e.toString().contains('TimeoutException')) {
+        return AuthResult(success: false, error: 'Request timed out. Please try again.');
+      }
+      return AuthResult(success: false, error: 'Unexpected error: $e');
     }
   }
 

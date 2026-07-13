@@ -26,7 +26,7 @@ class _SignupPageState extends State<SignupPage> {
     }
 
     setState(() => _isLoading = true);
-    bool success = await AuthService.signup(
+    final result = await AuthService.signup(
       _nameCtrl.text.trim(),
       _emailCtrl.text.trim(),
       _passwordCtrl.text,
@@ -34,7 +34,7 @@ class _SignupPageState extends State<SignupPage> {
     );
     setState(() => _isLoading = false);
 
-    if (success) {
+    if (result.success) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
@@ -42,7 +42,10 @@ class _SignupPageState extends State<SignupPage> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Signup failed. Please try again.')),
+        SnackBar(
+          content: Text(result.error ?? 'Signup failed. Please try again.'),
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }

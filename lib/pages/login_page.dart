@@ -24,10 +24,10 @@ class _LoginPageState extends State<LoginPage> {
     }
 
     setState(() => _isLoading = true);
-    bool success = await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
+    final result = await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
     setState(() => _isLoading = false);
 
-    if (success) {
+    if (result.success) {
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
@@ -35,7 +35,10 @@ class _LoginPageState extends State<LoginPage> {
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Login failed. Please check your credentials.')),
+        SnackBar(
+          content: Text(result.error ?? 'Login failed. Please check your credentials.'),
+          duration: const Duration(seconds: 4),
+        ),
       );
     }
   }
