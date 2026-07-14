@@ -177,15 +177,6 @@ class _HomePageState extends State<HomePage> {
     return Scaffold(
       appBar: AppBar(
         title: Text(_titles[_currentIndex]),
-        actions: [
-          if (_currentIndex == 0) ...[
-            IconButton(
-              icon: const Icon(Icons.map_outlined, color: Colors.white),
-              tooltip: 'Search on Map',
-              onPressed: _openMapView,
-            ),
-          ],
-        ],
       ),
       body: IndexedStack(
         index: _currentIndex,
@@ -298,19 +289,6 @@ class _HomePageState extends State<HomePage> {
       ),
     );
   }
-
-  void _openMapView() async {
-    try {
-      final jsonList = await ApiService.get('/api/properties');
-      final properties = (jsonList as List).map((j) => Property.fromJson(j)).toList();
-      if (mounted) {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => MapViewPage(properties: properties)),
-        );
-      }
-    } catch (_) {}
-  }
 }
 
 // ─── Property Feed Page (Tab 0) ──────────────────────────────────────────────
@@ -322,28 +300,58 @@ class _PropertyFeedPage extends StatefulWidget {
   State<_PropertyFeedPage> createState() => _PropertyFeedPageState();
 }
 
-class _PropertyFeedPageState extends State<_PropertyFeedPage> {
+class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerProviderStateMixin {
   List<Property> properties = [];
   List<Property> filtered = [];
   Set<int> favoriteIds = {};
   bool loading = true;
   final TextEditingController searchController = TextEditingController();
+  final FocusNode _searchFocus = FocusNode();
   String selectedType = 'all';
   bool sortAscending = true;
   String? _error;
+  bool _showSearchBar = false;
+  late AnimationController _searchAnimCtrl;
+  late Animation<double> _searchAnimation;
 
   @override
   void initState() {
     super.initState();
     _loadData();
     searchController.addListener(_filterProperties);
+    _searchAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 250),
+    );
+    _searchAnimation = CurvedAnimation(
+      parent: _searchAnimCtrl,
+      curve: Curves.easeOutCubic,
+    );
   }
 
   @override
   void dispose() {
     searchController.removeListener(_filterProperties);
     searchController.dispose();
+    _searchFocus.dispose();
+    _searchAnimCtrl.dispose();
     super.dispose();
+  }
+
+  void _toggleSearch() {
+    setState(() {
+      _showSearchBar = !_showSearchBar;
+      if (_showSearchBar) {
+        _searchAnimCtrl.forward();
+        Future.delayed(const Duration(milliseconds: 200), () {
+          _searchFocus.requestFocus();
+        });
+      } else {
+        _searchAnimCtrl.reverse();
+        searchController.clear();
+        _searchFocus.unfocus();
+      }
+    });
   }
 
   Future<void> _loadData() async {
@@ -458,7 +466,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: Colors.black.withOpacity(0.6),
+                  color: const Color(0x99000000),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -481,28 +489,57 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
 
     return Column(
       children: [
-        // Search bar
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: TextField(
-            controller: searchController,
-            style: const TextStyle(color: Colors.white),
-            decoration: InputDecoration(
-              hintText: 'Search by location or title...',
-              hintStyle: TextStyle(color: Colors.grey[600]),
-              prefixIcon: const Icon(Icons.search, color: Colors.white, size: 20),
-              filled: true,
-              fillColor: Colors.grey[900],
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(14),
-                borderSide: BorderSide.none,
+        // ── Search bar (animated slide-down) ──
+        SizeTransition(
+          sizeFactor: _searchAnimation,
+          axisAlignment: -1.0,
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Container(
+              height: 48,
+              decoration: BoxDecoration(
+                color: Colors.grey[900],
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.grey[800]!, width: 0.5),
+              ),
+              child: Row(
+                children: [
+                  const SizedBox(width: 16),
+                  Icon(Icons.search, color: Colors.grey[500], size: 20),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: TextField(
+                      controller: searchController,
+                      focusNode: _searchFocus,
+                      style: const TextStyle(color: Colors.white, fontSize: 15),
+                      decoration: InputDecoration(
+                        hintText: 'Search location or title...',
+                        hintStyle: TextStyle(color: Colors.grey[600], fontSize: 15),
+                        border: InputBorder.none,
+                        contentPadding: EdgeInsets.zero,
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  if (searchController.text.isNotEmpty)
+                    GestureDetector(
+                      onTap: () {
+                        searchController.clear();
+                      },
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        child: Icon(Icons.close, color: Colors.grey[500], size: 18),
+                      ),
+                    )
+                  else
+                    const SizedBox(width: 16),
+                ],
               ),
             ),
           ),
         ),
 
-        // Filter chips + sort
+        // ── Filter row: chips + search toggle + sort ──
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -515,29 +552,30 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                       final isSelected = selectedType == type;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
-                        child: FilterChip(
-                          label: Text(
-                            type.toUpperCase(),
-                            style: TextStyle(
-                              color: isSelected ? Colors.black : Colors.white,
-                              fontSize: 12,
-                              fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          selected: isSelected,
-                          onSelected: (selected) {
+                        child: GestureDetector(
+                          onTap: () {
                             setState(() => selectedType = type);
                             _filterProperties();
                           },
-                          backgroundColor: Colors.grey[900],
-                          selectedColor: Colors.white,
-                          checkmarkColor: Colors.black,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
-                              color: isSelected ? Colors.white : Colors.grey[800]!,
-                              width: 1,
+                          child: AnimatedContainer(
+                            duration: const Duration(milliseconds: 200),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: isSelected ? Colors.white : Colors.transparent,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected ? Colors.white : Colors.grey[800]!,
+                                width: 1,
+                              ),
+                            ),
+                            child: Text(
+                              type.toUpperCase(),
+                              style: TextStyle(
+                                color: isSelected ? Colors.black : Colors.grey[400],
+                                fontSize: 11,
+                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
+                                letterSpacing: 0.8,
+                              ),
                             ),
                           ),
                         ),
@@ -546,23 +584,55 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                   ),
                 ),
               ),
-              IconButton(
-                onPressed: () {
+              const SizedBox(width: 4),
+              // Search toggle
+              GestureDetector(
+                onTap: _toggleSearch,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    color: _showSearchBar ? Colors.white : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: _showSearchBar ? Colors.white : Colors.grey[800]!,
+                      width: 1,
+                    ),
+                  ),
+                  child: Icon(
+                    Icons.search,
+                    color: _showSearchBar ? Colors.black : Colors.grey[500],
+                    size: 18,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 6),
+              // Sort toggle
+              GestureDetector(
+                onTap: () {
                   setState(() => sortAscending = !sortAscending);
                   _filterProperties();
                 },
-                icon: Icon(
-                  sortAscending ? Icons.arrow_upward : Icons.arrow_downward,
-                  color: Colors.white,
-                  size: 20,
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(color: Colors.grey[800]!, width: 1),
+                  ),
+                  child: Icon(
+                    sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                    color: Colors.grey[500],
+                    size: 18,
+                  ),
                 ),
-                tooltip: 'Sort by price',
               ),
             ],
           ),
         ),
 
-        const SizedBox(height: 4),
+        const SizedBox(height: 12),
 
         // Results count
         Padding(
@@ -571,7 +641,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
             alignment: Alignment.centerLeft,
             child: Text(
               '${filtered.length} ${filtered.length == 1 ? 'property' : 'properties'} found',
-              style: TextStyle(color: Colors.grey[600], fontSize: 13),
+              style: TextStyle(color: Colors.grey[600], fontSize: 12, letterSpacing: 0.3),
             ),
           ),
         ),
@@ -656,7 +726,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                                                 Container(
                                                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                                   decoration: BoxDecoration(
-                                                    color: Colors.white.withOpacity(0.1),
+                                                    color: const Color(0x1AFFFFFF),
                                                     borderRadius: BorderRadius.circular(4),
                                                     border: Border.all(color: Colors.white54),
                                                   ),

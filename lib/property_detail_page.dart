@@ -372,11 +372,15 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
   /// Builds the hero image section at the top of the detail page.
   Widget _buildHeroImage() {
-    final urls = widget.property.imageUrls.isNotEmpty 
-        ? widget.property.imageUrls 
-        : (widget.property.imageUrl != null && widget.property.imageUrl!.isNotEmpty 
-            ? [widget.property.imageUrl!] 
-            : <String>[]);
+    final List<String> urls = [];
+    if (widget.property.imageUrl != null && widget.property.imageUrl!.isNotEmpty) {
+      urls.add(widget.property.imageUrl!);
+    }
+    for (final url in widget.property.imageUrls) {
+      if (url.isNotEmpty && !urls.contains(url)) {
+        urls.add(url);
+      }
+    }
 
     Widget content;
     if (urls.isEmpty) {
