@@ -1,6 +1,6 @@
-import 'api_service.dart';
-import '../models/user.dart';
-import '../models/message.dart';
+import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/models/user.dart';
+import 'package:roost_app/models/message.dart';
 
 class ChatService {
   static Future<List<User>> getActiveChats() async {

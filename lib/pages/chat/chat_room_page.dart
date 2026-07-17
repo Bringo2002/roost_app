@@ -1,9 +1,9 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import '../models/user.dart';
-import '../models/message.dart';
-import '../services/chat_service.dart';
-import '../services/auth_service.dart';
+import 'package:roost_app/models/user.dart';
+import 'package:roost_app/models/message.dart';
+import 'package:roost_app/services/chat_service.dart';
+import 'package:roost_app/services/auth_service.dart';
 import 'package:intl/intl.dart';
 
 class ChatRoomPage extends StatefulWidget {

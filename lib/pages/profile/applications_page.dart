@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import '../services/api_service.dart';
-import '../property_detail_page.dart';
-import '../models/property.dart';
+import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/pages/search/property_detail_page.dart';
+import 'package:roost_app/models/property.dart';
 
 class ApplicationsPage extends StatefulWidget {
   const ApplicationsPage({super.key});

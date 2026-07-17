@@ -1,24 +1,20 @@
-import 'dart:convert';
 import 'dart:async';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:roost_app/add_property_page.dart';
-import 'package:roost_app/property_detail_page.dart';
+import 'package:roost_app/pages/landlord/add_property_page.dart';
+import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
-import 'package:roost_app/pages/welcome_page.dart';
-import 'package:roost_app/pages/search_page.dart';
-import 'package:roost_app/pages/saved_page.dart';
-import 'package:roost_app/pages/active_chats_page.dart';
-import 'package:roost_app/pages/profile_page.dart';
+import 'package:roost_app/pages/auth/welcome_page.dart';
+import 'package:roost_app/pages/search/search_page.dart';
+import 'package:roost_app/pages/chat/active_chats_page.dart';
+import 'package:roost_app/pages/profile/profile_page.dart';
 import 'package:intl/intl.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
-
-import 'config.dart';
 
 void main() {
   runApp(const MyApp());

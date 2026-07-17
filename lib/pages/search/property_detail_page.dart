@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -6,9 +5,8 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:intl/intl.dart';
 import 'package:roost_app/services/favorites_service.dart';
-import 'package:roost_app/pages/chat_room_page.dart';
+import 'package:roost_app/pages/chat/chat_room_page.dart';
 import 'package:video_player/video_player.dart';
-import 'config.dart';
 
 class PropertyDetailPage extends StatefulWidget {
   final Property property;

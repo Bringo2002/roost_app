@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import '../services/auth_service.dart';
-import '../main.dart';
+import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/main.dart';
 
 class SignupPage extends StatefulWidget {
   const SignupPage({super.key});

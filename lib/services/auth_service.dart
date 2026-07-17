@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
-import '../config.dart';
+import 'package:roost_app/config.dart';
 
 class AuthResult {
   final bool success;

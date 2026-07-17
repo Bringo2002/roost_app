@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
-import 'package:roost_app/property_detail_page.dart';
 
 class LandlordDashboardPage extends StatefulWidget {
   const LandlordDashboardPage({super.key});

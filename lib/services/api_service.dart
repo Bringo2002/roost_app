@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import '../config.dart';
-import 'auth_service.dart';
+import 'package:roost_app/config.dart';
+import 'package:roost_app/services/auth_service.dart';
 
 class ApiException implements Exception {
   final String message;

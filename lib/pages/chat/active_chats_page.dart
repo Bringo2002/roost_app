@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/user.dart';
-import '../services/chat_service.dart';
-import 'chat_room_page.dart';
+import 'package:roost_app/models/user.dart';
+import 'package:roost_app/services/chat_service.dart';
+import 'package:roost_app/pages/chat/chat_room_page.dart';
 
 class ActiveChatsPage extends StatefulWidget {
   const ActiveChatsPage({super.key});

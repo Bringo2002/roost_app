@@ -1,10 +1,8 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:roost_app/services/api_service.dart';
-import 'config.dart';
 
 import 'package:latlong2/latlong.dart';
-import 'package:roost_app/pages/location_picker_page.dart';
+import 'package:roost_app/pages/search/location_picker_page.dart';
 
 class AddPropertyPage extends StatefulWidget {
   const AddPropertyPage({super.key});

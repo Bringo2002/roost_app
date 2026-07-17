@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
-import 'package:roost_app/pages/welcome_page.dart';
+import 'package:roost_app/pages/auth/welcome_page.dart';
 
-import 'package:roost_app/pages/landlord_dashboard_page.dart';
-import 'package:roost_app/pages/booking_history_page.dart';
-import 'package:roost_app/pages/saved_page.dart';
-import 'package:roost_app/pages/applications_page.dart';
+import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
+import 'package:roost_app/pages/profile/booking_history_page.dart';
+import 'package:roost_app/pages/profile/saved_page.dart';
+import 'package:roost_app/pages/profile/applications_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});

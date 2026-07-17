@@ -1,5 +1,5 @@
-import 'user.dart';
-import 'property.dart';
+import 'package:roost_app/models/user.dart';
+import 'package:roost_app/models/property.dart';
 
 class Application {
   final int id;

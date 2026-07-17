@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
-import 'package:roost_app/property_detail_page.dart';
+import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:intl/intl.dart';
 
 class SearchPage extends StatefulWidget {

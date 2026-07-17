@@ -1,4 +1,4 @@
-import 'user.dart';
+import 'package:roost_app/models/user.dart';
 
 class Message {
   final int id;
