@@ -1,0 +1,41 @@
+diff --git a/lib/widgets/property/property_card.dart b/lib/widgets/property/property_card.dart
+index cacb012..0000000 100644
+--- a/lib/widgets/property/property_card.dart
++++ b/lib/widgets/property/property_card.dart
+@@ -77,8 +77,8 @@ class _PropertyCardState extends State<PropertyCard> {
+           curve: Curves.easeOut,
+           margin: widget.margin,
+           transform: Matrix4.identity()
+-            ..translate(0.0, lift)
+-            ..scale(scale),
++            ..translateByDouble(0.0, lift, 0.0, 1.0)
++            ..scaleByDouble(scale, scale, scale, 1.0),
+           transformAlignment: Alignment.center,
+           decoration: BoxDecoration(
+             color: AppColors.surfaceRaised,
+diff --git a/lib/widgets/property/property_image.dart b/lib/widgets/property/property_image.dart
+index 0171413..0000000 100644
+--- a/lib/widgets/property/property_image.dart
++++ b/lib/widgets/property/property_image.dart
+@@ -96,14 +96,14 @@ class _PropertyImageState extends State<PropertyImage> {
+     return CachedNetworkImage(
+       imageUrl: url,
+       fit: BoxFit.cover,
+       fadeInDuration: const Duration(milliseconds: 200),
+-      placeholder: (_, __) => Container(
++      placeholder: (_, _) => Container(
+         color: AppColors.surface,
+         alignment: Alignment.center,
+         child: const SizedBox(
+           width: 22,
+           height: 22,
+           child: CircularProgressIndicator(
+             strokeWidth: 2,
+             color: AppColors.grey400,
+           ),
+         ),
+       ),
+-      errorWidget: (_, __, ___) => _fallback(),
++      errorWidget: (_, _, _) => _fallback(),
+     );
+   }

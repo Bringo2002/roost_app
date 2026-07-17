@@ -77,8 +77,8 @@ class _PropertyCardState extends State<PropertyCard> {
           curve: Curves.easeOut,
           margin: widget.margin,
           transform: Matrix4.identity()
-            ..translate(0.0, lift)
-            ..scale(scale),
+            ..translateByDouble(0.0, lift, 0.0, 1.0)
+            ..scaleByDouble(scale, scale, scale, 1.0),
           transformAlignment: Alignment.center,
           decoration: BoxDecoration(
             color: AppColors.surfaceRaised,

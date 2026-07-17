@@ -96,7 +96,7 @@ class _PropertyImageState extends State<PropertyImage> {
       imageUrl: url,
       fit: BoxFit.cover,
       fadeInDuration: const Duration(milliseconds: 200),
-      placeholder: (_, __) => Container(
+      placeholder: (_, _) => Container(
         color: AppColors.surface,
         alignment: Alignment.center,
         child: const SizedBox(
