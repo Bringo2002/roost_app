@@ -126,6 +126,16 @@ class AuthService {
 
   static Future<bool> isLoggedIn() async {
     final token = await getToken();
-    return token != null && token.isNotEmpty;
+    if (token == null || token.isEmpty) return false;
+    try {
+      if (JwtDecoder.isExpired(token)) {
+        await logout();
+        return false;
+      }
+      return true;
+    } catch (_) {
+      await logout();
+      return false;
+    }
   }
 }
