@@ -1,20 +1,20 @@
 import 'dart:async';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:roost_app/pages/landlord/add_property_page.dart';
-import 'package:roost_app/pages/search/property_detail_page.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/pages/auth/welcome_page.dart';
+import 'package:roost_app/pages/chat/active_chats_page.dart';
+import 'package:roost_app/pages/landlord/add_property_page.dart';
+import 'package:roost_app/pages/profile/profile_page.dart';
+import 'package:roost_app/pages/search/property_detail_page.dart';
+import 'package:roost_app/pages/search/search_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
-import 'package:roost_app/pages/auth/welcome_page.dart';
-import 'package:roost_app/pages/search/search_page.dart';
-import 'package:roost_app/pages/chat/active_chats_page.dart';
-import 'package:roost_app/pages/profile/profile_page.dart';
-import 'package:intl/intl.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:roost_app/widgets/property/property_card.dart';
+import 'package:roost_app/widgets/property/property_filter_chip.dart';
 
 void main() {
   runApp(const MyApp());
@@ -74,7 +74,8 @@ class _AuthCheckState extends State<AuthCheck> {
   }
 
   Future<void> _checkAuth() async {
-    bool loggedIn = await AuthService.isLoggedIn();
+    final loggedIn = await AuthService.isLoggedIn();
+    if (!mounted) return;
     setState(() {
       _isLoggedIn = loggedIn;
       _isLoading = false;
@@ -104,7 +105,6 @@ class HomePage extends StatefulWidget {
 class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   String _userRole = 'TENANT';
-  bool _loadingRole = true;
   int _unreadCount = 0;
   Timer? _unreadTimer;
   Key _feedKey = UniqueKey();
@@ -134,7 +134,7 @@ class _HomePageState extends State<HomePage> {
 
   void _startUnreadPolling() {
     _fetchUnreadCount();
-    _unreadTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
+    _unreadTimer = Timer.periodic(const Duration(seconds: 10), (_) {
       _fetchUnreadCount();
     });
   }
@@ -142,30 +142,21 @@ class _HomePageState extends State<HomePage> {
   Future<void> _fetchUnreadCount() async {
     try {
       final res = await ApiService.get('/api/chat/unread-count');
-      if (mounted) {
-        setState(() {
-          _unreadCount = res['count'] ?? 0;
-        });
-      }
+      if (!mounted) return;
+      setState(() {
+        _unreadCount = res['count'] ?? 0;
+      });
     } catch (_) {}
   }
 
   Future<void> _loadUserRole() async {
     try {
       final user = await ApiService.get('/api/users/me');
-      if (mounted) {
-        setState(() {
-          _userRole = user['role'] ?? 'TENANT';
-          _loadingRole = false;
-        });
-      }
-    } catch (_) {
-      if (mounted) {
-        setState(() {
-          _loadingRole = false;
-        });
-      }
-    }
+      if (!mounted) return;
+      setState(() {
+        _userRole = user['role'] ?? 'TENANT';
+      });
+    } catch (_) {}
   }
 
   @override
@@ -177,10 +168,7 @@ class _HomePageState extends State<HomePage> {
       body: SafeArea(
         top: _currentIndex == 0,
         bottom: false,
-        child: IndexedStack(
-          index: _currentIndex,
-          children: _pages,
-        ),
+        child: IndexedStack(index: _currentIndex, children: _pages),
       ),
       floatingActionButton: (_currentIndex == 0 && _userRole == 'LANDLORD')
           ? FloatingActionButton(
@@ -214,77 +202,68 @@ class _HomePageState extends State<HomePage> {
           unselectedItemColor: Colors.grey[700],
           selectedFontSize: 11,
           unselectedFontSize: 11,
-          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.w700, letterSpacing: 0.5),
+          selectedLabelStyle: const TextStyle(
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+          ),
           items: [
-            const BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'Home'),
-            const BottomNavigationBarItem(icon: Icon(Icons.search), activeIcon: Icon(Icons.search), label: 'Search'),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.home_outlined),
+              activeIcon: Icon(Icons.home),
+              label: 'Home',
+            ),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.search),
+              activeIcon: Icon(Icons.search),
+              label: 'Search',
+            ),
             BottomNavigationBarItem(
               icon: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   const Icon(Icons.message_outlined),
-                  if (_unreadCount > 0)
-                    Positioned(
-                      right: -6,
-                      top: -6,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '$_unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
+                  if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
                 ],
               ),
               activeIcon: Stack(
                 clipBehavior: Clip.none,
                 children: [
                   const Icon(Icons.message),
-                  if (_unreadCount > 0)
-                    Positioned(
-                      right: -6,
-                      top: -6,
-                      child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
-                        ),
-                        child: Text(
-                          '$_unreadCount',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 10,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                    ),
+                  if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
                 ],
               ),
               label: 'Messages',
             ),
-            const BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'Profile'),
+            const BottomNavigationBarItem(
+              icon: Icon(Icons.person_outline),
+              activeIcon: Icon(Icons.person),
+              label: 'Profile',
+            ),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUnreadBadge(int count) {
+    return Positioned(
+      right: -6,
+      top: -6,
+      child: Container(
+        padding: const EdgeInsets.all(2),
+        decoration: BoxDecoration(
+          color: Colors.red,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+        child: Text(
+          '$count',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 10,
+            fontWeight: FontWeight.bold,
+          ),
+          textAlign: TextAlign.center,
         ),
       ),
     );
@@ -300,20 +279,26 @@ class _PropertyFeedPage extends StatefulWidget {
   State<_PropertyFeedPage> createState() => _PropertyFeedPageState();
 }
 
-class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerProviderStateMixin {
+class _PropertyFeedPageState extends State<_PropertyFeedPage>
+    with SingleTickerProviderStateMixin {
   List<Property> properties = [];
   List<Property> filtered = [];
   Set<int> favoriteIds = {};
   bool loading = true;
+
   final TextEditingController searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
   final ScrollController _scrollController = ScrollController();
+
   String selectedType = 'all';
   String? _error;
   bool _showSearchBar = false;
   bool _showScrollToTop = false;
+
   late AnimationController _searchAnimCtrl;
   late Animation<double> _searchAnimation;
+
+  static const List<String> _types = ['all', 'rental', 'sale', 'airbnb'];
 
   @override
   void initState() {
@@ -354,7 +339,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
       if (_showSearchBar) {
         _searchAnimCtrl.forward();
         Future.delayed(const Duration(milliseconds: 200), () {
-          _searchFocus.requestFocus();
+          if (mounted) _searchFocus.requestFocus();
         });
       } else {
         _searchAnimCtrl.reverse();
@@ -373,7 +358,9 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
       final jsonList = await ApiService.get('/api/properties');
       if (!mounted) return;
       setState(() {
-        properties = (jsonList as List).map((json) => Property.fromJson(json)).toList();
+        properties = (jsonList as List)
+            .map((json) => Property.fromJson(json))
+            .toList();
         filtered = properties;
         _error = null;
         loading = false;
@@ -385,14 +372,15 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
         loading = false;
         _error = e.toString();
       });
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error loading properties: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error loading properties: $e')));
     }
   }
 
   Future<void> _loadFavorites() async {
     final ids = await FavoritesService.getFavoriteIds();
+    if (!mounted) return;
     setState(() => favoriteIds = ids.toSet());
   }
 
@@ -403,94 +391,26 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
 
   void _filterProperties() {
     final query = searchController.text.toLowerCase();
+
     setState(() {
       filtered = properties.where((p) {
-        final matchesQuery = p.location.toLowerCase().contains(query) ||
+        final matchesQuery =
+            p.location.toLowerCase().contains(query) ||
             p.title.toLowerCase().contains(query);
-        final matchesType = selectedType == 'all' ||
+        final matchesType =
+            selectedType == 'all' ||
             p.type.toLowerCase() == selectedType.toLowerCase();
         return matchesQuery && matchesType;
-      }).toList();
-
-      filtered.sort((a, b) => a.price.compareTo(b.price));
+      }).toList()..sort((a, b) => a.price.compareTo(b.price));
     });
-  }
-
-  Widget _buildCardImage(Property property) {
-    final imageUrl = property.imageUrl;
-
-    Widget imageWidget;
-    if (imageUrl != null && imageUrl.isNotEmpty) {
-      imageWidget = CachedNetworkImage(
-        imageUrl: imageUrl,
-        height: 180,
-        width: double.infinity,
-        fit: BoxFit.cover,
-        placeholder: (context, url) => Container(
-          height: 180,
-          color: Colors.grey[900],
-          child: const Center(
-            child: CircularProgressIndicator(color: Colors.white24, strokeWidth: 2),
-          ),
-        ),
-        errorWidget: (context, url, error) => Container(
-          height: 180,
-          color: Colors.grey[900],
-          child: const Center(
-            child: Icon(Icons.broken_image, color: Colors.grey, size: 40),
-          ),
-        ),
-      );
-    } else {
-      imageWidget = Container(
-        height: 180,
-        width: double.infinity,
-        color: Colors.grey[900],
-        child: Center(
-          child: Icon(Icons.home_outlined, color: Colors.grey[700], size: 56),
-        ),
-      );
-    }
-
-    return Stack(
-      children: [
-        Hero(
-          tag: 'property-image-${property.id}',
-          child: ClipRRect(
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
-            child: imageWidget,
-          ),
-        ),
-        // Favorite button overlay
-        if (property.id != null)
-          Positioned(
-            top: 10,
-            right: 10,
-            child: GestureDetector(
-              onTap: () => _toggleFavorite(property.id!),
-              child: Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: const Color(0x99000000),
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  favoriteIds.contains(property.id) ? Icons.favorite : Icons.favorite_border,
-                  color: Colors.white,
-                  size: 18,
-                ),
-              ),
-            ),
-          ),
-      ],
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(
+        child: CircularProgressIndicator(color: Colors.white),
+      );
     }
 
     return Column(
@@ -520,7 +440,10 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
                       style: const TextStyle(color: Colors.white, fontSize: 15),
                       decoration: InputDecoration(
                         hintText: 'Search location or title...',
-                        hintStyle: TextStyle(color: Colors.grey[600], fontSize: 15),
+                        hintStyle: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 15,
+                        ),
                         border: InputBorder.none,
                         contentPadding: EdgeInsets.zero,
                         isDense: true,
@@ -529,12 +452,14 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
                   ),
                   if (searchController.text.isNotEmpty)
                     GestureDetector(
-                      onTap: () {
-                        searchController.clear();
-                      },
+                      onTap: searchController.clear,
                       child: Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Icon(Icons.close, color: Colors.grey[500], size: 18),
+                        child: Icon(
+                          Icons.close,
+                          color: Colors.grey[500],
+                          size: 18,
+                        ),
                       ),
                     )
                   else
@@ -545,7 +470,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
           ),
         ),
 
-        // ── Filter row: chips + search toggle + sort ──
+        // ── Filter row: chips + search toggle ──
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
@@ -554,36 +479,17 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
                 child: SingleChildScrollView(
                   scrollDirection: Axis.horizontal,
                   child: Row(
-                    children: ['all', 'rental', 'sale', 'airbnb'].map((type) {
+                    children: _types.map((type) {
                       final isSelected = selectedType == type;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8.0),
-                        child: GestureDetector(
+                        child: PropertyFilterChip(
+                          label: type.toUpperCase(),
+                          selected: isSelected,
                           onTap: () {
                             setState(() => selectedType = type);
                             _filterProperties();
                           },
-                          child: AnimatedContainer(
-                            duration: const Duration(milliseconds: 200),
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: isSelected ? Colors.white : Colors.transparent,
-                              borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: isSelected ? Colors.white : Colors.grey[800]!,
-                                width: 1,
-                              ),
-                            ),
-                            child: Text(
-                              type.toUpperCase(),
-                              style: TextStyle(
-                                color: isSelected ? Colors.black : Colors.grey[400],
-                                fontSize: 11,
-                                fontWeight: isSelected ? FontWeight.w800 : FontWeight.w500,
-                                letterSpacing: 0.8,
-                              ),
-                            ),
-                          ),
                         ),
                       );
                     }).toList(),
@@ -591,7 +497,6 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
                 ),
               ),
               const SizedBox(width: 4),
-              // Search toggle
               GestureDetector(
                 onTap: _toggleSearch,
                 child: AnimatedContainer(
@@ -626,7 +531,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
             alignment: Alignment.centerLeft,
             child: Text(
               '${filtered.length} ${filtered.length == 1 ? 'property' : 'properties'} found',
-              style: TextStyle(color: Colors.grey[600], fontSize: 12, letterSpacing: 0.3),
+              style: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 12,
+                letterSpacing: 0.3,
+              ),
             ),
           ),
         ),
@@ -638,182 +547,62 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
           child: Stack(
             children: [
               filtered.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(_error != null ? Icons.error_outline : Icons.search_off, color: Colors.grey[700], size: 64),
-                        const SizedBox(height: 16),
-                        Text(
-                          _error ?? 'No properties found',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                        ),
-                      ],
-                    ),
-                  )
-                : RefreshIndicator(
-                    color: Colors.white,
-                    backgroundColor: Colors.grey[900],
-                    onRefresh: _loadData,
-                    child: ListView.builder(
-                      controller: _scrollController,
-                    itemCount: filtered.length,
-                    padding: const EdgeInsets.only(bottom: 80),
-                    itemBuilder: (context, index) {
-                      final property = filtered[index];
-                      return InkWell(
-                        onTap: () async {
-                          await Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => PropertyDetailPage(property: property),
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            _error != null
+                                ? Icons.error_outline
+                                : Icons.search_off,
+                            color: Colors.grey[700],
+                            size: 64,
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            _error ?? 'No properties found',
+                            style: TextStyle(
+                              color: Colors.grey[600],
+                              fontSize: 16,
                             ),
-                          );
-                          _loadFavorites(); // Refresh favorites on return
-                        },
-                        child: Card(
-                          color: Colors.grey[900],
-                          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(16),
                           ),
-                          clipBehavior: Clip.antiAlias,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildCardImage(property),
-                              Padding(
-                                padding: const EdgeInsets.all(16),
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Expanded(
-                                          child: Row(
-                                            children: [
-                                              Expanded(
-                                                child: Text(
-                                                  property.title,
-                                                  style: const TextStyle(
-                                                    color: Colors.white,
-                                                    fontSize: 18,
-                                                    fontWeight: FontWeight.bold,
-                                                  ),
-                                                  maxLines: 1,
-                                                  overflow: TextOverflow.ellipsis,
-                                                ),
-                                              ),
-                                              if (property.verified) ...[
-                                                const SizedBox(width: 4),
-                                                const Icon(Icons.verified, color: Colors.white, size: 18),
-                                              ],
-                                              if (property.holdingFeePaid) ...[
-                                                const SizedBox(width: 8),
-                                                Container(
-                                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                                                  decoration: BoxDecoration(
-                                                    color: const Color(0x1AFFFFFF),
-                                                    borderRadius: BorderRadius.circular(4),
-                                                    border: Border.all(color: Colors.white54),
-                                                  ),
-                                                  child: const Text(
-                                                    'UNDER OFFER',
-                                                    style: TextStyle(color: Colors.white70, fontSize: 10, fontWeight: FontWeight.bold),
-                                                  ),
-                                                ),
-                                              ],
-                                            ],
-                                          ),
-                                        ),
-                                        Container(
-                                          width: 10,
-                                          height: 10,
-                                          decoration: BoxDecoration(
-                                            color: property.available ? Colors.white : Colors.grey[700],
-                                            shape: BoxShape.circle,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      children: [
-                                        Icon(Icons.location_on, color: Colors.grey[500], size: 14),
-                                        const SizedBox(width: 4),
-                                        Expanded(
-                                          child: Text(
-                                            property.location,
-                                            style: TextStyle(color: Colors.grey[400]),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 12),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Text(
-                                          'KES ${NumberFormat('#,##0').format(property.price)}',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 18,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                        Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                          decoration: BoxDecoration(
-                                            border: Border.all(color: Colors.grey[700]!),
-                                            borderRadius: BorderRadius.circular(20),
-                                          ),
-                                          child: Text(
-                                            property.type.toUpperCase(),
-                                            style: const TextStyle(color: Colors.white, fontSize: 11, letterSpacing: 0.5),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                    const SizedBox(height: 8),
-                                    Row(
-                                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                      children: [
-                                        Row(
-                                          children: [
-                                            Icon(Icons.bed_outlined, color: Colors.grey[600], size: 16),
-                                            const SizedBox(width: 4),
-                                            Text(
-                                              '${property.bedrooms} bedroom',
-                                              style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                                            ),
-                                          ],
-                                        ),
-                                        if (property.reviewCount > 0)
-                                          Row(
-                                            children: [
-                                              const Icon(Icons.star, color: Colors.amber, size: 16),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                '${property.averageRating.toStringAsFixed(1)} (${property.reviewCount})',
-                                                style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.bold),
-                                              ),
-                                            ],
-                                          ),
-                                      ],
-                                    ),
-                                  ],
+                        ],
+                      ),
+                    )
+                  : RefreshIndicator(
+                      color: Colors.white,
+                      backgroundColor: Colors.grey[900],
+                      onRefresh: _loadData,
+                      child: ListView.builder(
+                        controller: _scrollController,
+                        itemCount: filtered.length,
+                        padding: const EdgeInsets.only(bottom: 80),
+                        itemBuilder: (context, index) {
+                          final property = filtered[index];
+                          return PropertyCard(
+                            property: property,
+                            heroTag: 'property-image-${property.id}',
+                            isFavorite:
+                                property.id != null &&
+                                favoriteIds.contains(property.id),
+                            onFavoriteTap: property.id == null
+                                ? null
+                                : () => _toggleFavorite(property.id!),
+                            onTap: () async {
+                              await Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      PropertyDetailPage(property: property),
                                 ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ),
+                              );
+                              _loadFavorites();
+                            },
+                          );
+                        },
+                      ),
+                    ),
+
               // Scroll-to-top button
               if (_showScrollToTop)
                 Positioned(
@@ -833,14 +622,14 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
                       child: Container(
                         width: 44,
                         height: 44,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: Colors.white,
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: const Color(0x40000000),
+                              color: Color(0x40000000),
                               blurRadius: 8,
-                              offset: const Offset(0, 2),
+                              offset: Offset(0, 2),
                             ),
                           ],
                         ),
@@ -870,7 +659,9 @@ class MapViewPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final geoProperties = properties.where((p) => p.latitude != null && p.longitude != null).toList();
+    final geoProperties = properties
+        .where((p) => p.latitude != null && p.longitude != null)
+        .toList();
 
     return Scaffold(
       appBar: AppBar(
