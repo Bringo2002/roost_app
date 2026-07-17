@@ -13,6 +13,7 @@ import 'package:roost_app/pages/search/search_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
+import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/widgets/property/property_filter_chip.dart';
 
@@ -28,27 +29,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Roost',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Colors.black,
-          elevation: 0,
-          iconTheme: IconThemeData(color: Colors.white),
-          titleTextStyle: TextStyle(
-            color: Colors.white,
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-          ),
-        ),
-        colorScheme: const ColorScheme.dark(
-          primary: Colors.white,
-          onPrimary: Colors.black,
-          surface: Colors.black,
-        ),
-        useMaterial3: true,
-      ),
+      theme: AppTheme.darkTheme,
       home: const AuthCheck(),
     );
   }

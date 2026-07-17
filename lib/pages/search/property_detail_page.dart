@@ -449,7 +449,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                     });
                   },
                   itemBuilder: (context, idx) {
-                    return CachedNetworkImage(
+                    final image = CachedNetworkImage(
                       imageUrl: urls[idx],
                       height: 320,
                       width: double.infinity,
@@ -472,6 +472,17 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                         ),
                       ),
                     );
+
+                    // Only the first image participates in the shared-element
+                    // transition from the property card (matches the tag
+                    // `'property-image-${property.id}'` used in main.dart).
+                    if (idx == 0 && widget.property.id != null) {
+                      return Hero(
+                        tag: 'property-image-${widget.property.id}',
+                        child: image,
+                      );
+                    }
+                    return image;
                   },
                 ),
                 // Premium Slide Counter Badge

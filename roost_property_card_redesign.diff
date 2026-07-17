@@ -1,0 +1,1015 @@
+diff --git a/lib/main.dart b/lib/main.dart
+index 255c641..51c5b82 100644
+--- a/lib/main.dart
++++ b/lib/main.dart
+@@ -13,6 +13,7 @@ import 'package:roost_app/pages/search/search_page.dart';
+ import 'package:roost_app/services/api_service.dart';
+ import 'package:roost_app/services/auth_service.dart';
+ import 'package:roost_app/services/favorites_service.dart';
++import 'package:roost_app/theme/app_theme.dart';
+ import 'package:roost_app/widgets/property/property_card.dart';
+ import 'package:roost_app/widgets/property/property_filter_chip.dart';
+ 
+@@ -28,27 +29,7 @@ class MyApp extends StatelessWidget {
+     return MaterialApp(
+       title: 'Roost',
+       debugShowCheckedModeBanner: false,
+-      theme: ThemeData(
+-        brightness: Brightness.dark,
+-        scaffoldBackgroundColor: Colors.black,
+-        appBarTheme: const AppBarTheme(
+-          backgroundColor: Colors.black,
+-          elevation: 0,
+-          iconTheme: IconThemeData(color: Colors.white),
+-          titleTextStyle: TextStyle(
+-            color: Colors.white,
+-            fontSize: 22,
+-            fontWeight: FontWeight.w800,
+-            letterSpacing: 2,
+-          ),
+-        ),
+-        colorScheme: const ColorScheme.dark(
+-          primary: Colors.white,
+-          onPrimary: Colors.black,
+-          surface: Colors.black,
+-        ),
+-        useMaterial3: true,
+-      ),
++      theme: AppTheme.darkTheme,
+       home: const AuthCheck(),
+     );
+   }
+diff --git a/lib/pages/search/property_detail_page.dart b/lib/pages/search/property_detail_page.dart
+index 525355e..6c07bce 100644
+--- a/lib/pages/search/property_detail_page.dart
++++ b/lib/pages/search/property_detail_page.dart
+@@ -449,7 +449,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
+                     });
+                   },
+                   itemBuilder: (context, idx) {
+-                    return CachedNetworkImage(
++                    final image = CachedNetworkImage(
+                       imageUrl: urls[idx],
+                       height: 320,
+                       width: double.infinity,
+@@ -472,6 +472,17 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
+                         ),
+                       ),
+                     );
++
++                    // Only the first image participates in the shared-element
++                    // transition from the property card (matches the tag
++                    // `'property-image-${property.id}'` used in main.dart).
++                    if (idx == 0 && widget.property.id != null) {
++                      return Hero(
++                        tag: 'property-image-${widget.property.id}',
++                        child: image,
++                      );
++                    }
++                    return image;
+                   },
+                 ),
+                 // Premium Slide Counter Badge
+diff --git a/lib/theme/app_colors.dart b/lib/theme/app_colors.dart
+index e69de29..b7657c9 100644
+--- a/lib/theme/app_colors.dart
++++ b/lib/theme/app_colors.dart
+@@ -0,0 +1,44 @@
++import 'package:flutter/material.dart';
++
++/// Roost's monochrome brand palette. Black, white, and a grey scale only —
++/// no accent colors. Every widget should pull colors from here rather than
++/// referencing `Colors.xxx` directly.
++class AppColors {
++  AppColors._();
++
++  // Core brand
++  static const Color black = Color(0xFF000000);
++  static const Color white = Color(0xFFFFFFFF);
++
++  // Surfaces
++  static const Color background = black;
++  static const Color surface = Color(0xFF121212);
++  static const Color surfaceRaised = Color(0xFF1A1A1A);
++
++  // Greys (100 = lightest, 900 = darkest)
++  static const Color grey100 = Color(0xFFF5F5F5);
++  static const Color grey200 = Color(0xFFE0E0E0);
++  static const Color grey300 = Color(0xFFBDBDBD);
++  static const Color grey400 = Color(0xFF9E9E9E);
++  static const Color grey500 = Color(0xFF757575);
++  static const Color grey600 = Color(0xFF616161);
++  static const Color grey700 = Color(0xFF424242);
++  static const Color grey800 = Color(0xFF2C2C2C);
++  static const Color grey900 = Color(0xFF1E1E1E);
++
++  // Text
++  static const Color textPrimary = white;
++  static const Color textSecondary = grey300;
++  static const Color textTertiary = grey500;
++
++  // Borders / dividers
++  static const Color border = grey700;
++  static const Color divider = grey800;
++
++  // Overlays (used sparingly, e.g. favorite button backing, image scrims)
++  static Color scrimDark = black.withValues(alpha: 0.45);
++  static Color scrimLight = white.withValues(alpha: 0.12);
++
++  // Shadow
++  static Color shadow = black.withValues(alpha: 0.06);
++}
+diff --git a/lib/theme/app_text_styles.dart b/lib/theme/app_text_styles.dart
+index e69de29..871531b 100644
+--- a/lib/theme/app_text_styles.dart
++++ b/lib/theme/app_text_styles.dart
+@@ -0,0 +1,66 @@
++import 'package:flutter/material.dart';
++import 'app_colors.dart';
++
++/// Centralized type scale for Roost. Widgets should reference these instead
++/// of constructing inline TextStyles.
++class AppTextStyles {
++  AppTextStyles._();
++
++  // Property card
++  static const TextStyle price = TextStyle(
++    color: AppColors.textPrimary,
++    fontSize: 22,
++    fontWeight: FontWeight.bold,
++    height: 1.2,
++  );
++
++  static const TextStyle priceCompact = TextStyle(
++    color: AppColors.textPrimary,
++    fontSize: 18,
++    fontWeight: FontWeight.bold,
++    height: 1.2,
++  );
++
++  static const TextStyle title = TextStyle(
++    color: AppColors.textPrimary,
++    fontSize: 16,
++    fontWeight: FontWeight.w600,
++    height: 1.3,
++  );
++
++  static const TextStyle location = TextStyle(
++    color: AppColors.textSecondary,
++    fontSize: 14,
++    fontWeight: FontWeight.w500,
++    height: 1.3,
++  );
++
++  static const TextStyle meta = TextStyle(
++    color: AppColors.textTertiary,
++    fontSize: 13,
++    fontWeight: FontWeight.w400,
++    height: 1.3,
++  );
++
++  static const TextStyle chipLabel = TextStyle(
++    color: AppColors.textPrimary,
++    fontSize: 11,
++    fontWeight: FontWeight.w600,
++    letterSpacing: 0.4,
++  );
++
++  // App-wide
++  static const TextStyle appBarTitle = TextStyle(
++    color: AppColors.textPrimary,
++    fontSize: 22,
++    fontWeight: FontWeight.w800,
++    letterSpacing: 2,
++  );
++
++  static const TextStyle body = TextStyle(
++    color: AppColors.textPrimary,
++    fontSize: 14,
++    fontWeight: FontWeight.w400,
++    height: 1.4,
++  );
++}
+diff --git a/lib/theme/app_theme.dart b/lib/theme/app_theme.dart
+index e69de29..f88ac75 100644
+--- a/lib/theme/app_theme.dart
++++ b/lib/theme/app_theme.dart
+@@ -0,0 +1,60 @@
++import 'package:flutter/material.dart';
++import 'app_colors.dart';
++import 'app_text_styles.dart';
++
++/// Shared corner-radius tokens.
++class AppRadii {
++  AppRadii._();
++
++  static const double card = 20;
++  static const double button = 16;
++  static const double pill = 999;
++}
++
++/// Shared spacing tokens (4pt-ish scale).
++class AppSpacing {
++  AppSpacing._();
++
++  static const double xs = 4;
++  static const double sm = 8;
++  static const double md = 12;
++  static const double lg = 16;
++  static const double xl = 24;
++}
++
++/// Shared soft-shadow tokens — subtle depth, no Material elevation.
++class AppShadows {
++  AppShadows._();
++
++  static List<BoxShadow> card = [
++    BoxShadow(
++      color: AppColors.shadow,
++      blurRadius: 20,
++      offset: const Offset(0, 8),
++    ),
++  ];
++}
++
++/// App-wide ThemeData, built from AppColors / AppTextStyles.
++class AppTheme {
++  AppTheme._();
++
++  static ThemeData get darkTheme {
++    return ThemeData(
++      brightness: Brightness.dark,
++      scaffoldBackgroundColor: AppColors.background,
++      appBarTheme: AppBarTheme(
++        backgroundColor: AppColors.background,
++        elevation: 0,
++        iconTheme: const IconThemeData(color: AppColors.textPrimary),
++        titleTextStyle: AppTextStyles.appBarTitle,
++      ),
++      colorScheme: const ColorScheme.dark(
++        primary: AppColors.white,
++        onPrimary: AppColors.black,
++        surface: AppColors.background,
++      ),
++      useMaterial3: true,
++    );
++  }
++}
+diff --git a/lib/widgets/property/property_card.dart b/lib/widgets/property/property_card.dart
+index efe5c85..1a4d6cb 100644
+--- a/lib/widgets/property/property_card.dart
++++ b/lib/widgets/property/property_card.dart
+@@ -1,10 +1,16 @@
+ import 'package:flutter/material.dart';
+ import 'package:roost_app/models/property.dart';
++import 'package:roost_app/theme/app_colors.dart';
++import 'package:roost_app/theme/app_text_styles.dart';
++import 'package:roost_app/theme/app_theme.dart';
+ import 'package:roost_app/widgets/property/property_image.dart';
+ import 'package:roost_app/widgets/property/property_location.dart';
+ import 'package:roost_app/widgets/property/property_price.dart';
+ 
+-class PropertyCard extends StatelessWidget {
++/// The primary listing card used across search results, saved properties,
++/// and landlord dashboards. Premium black & white styling, driven entirely
++/// by AppColors / AppTextStyles / AppTheme tokens.
++class PropertyCard extends StatefulWidget {
+   const PropertyCard({
+     super.key,
+     required this.property,
+@@ -14,6 +20,7 @@ class PropertyCard extends StatelessWidget {
+     this.margin = const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+     this.showTopImage = true,
+     this.compact = false,
++    this.heroTag,
+   });
+ 
+   final Property property;
+@@ -24,91 +31,252 @@ class PropertyCard extends StatelessWidget {
+   final bool showTopImage;
+   final bool compact;
+ 
++  /// Optional Hero tag for a shared-element transition into the detail
++  /// page. Callers pass e.g. `'property-image-${property.id}'`.
++  final Object? heroTag;
++
++  @override
++  State<PropertyCard> createState() => _PropertyCardState();
++}
++
++class _PropertyCardState extends State<PropertyCard> {
++  bool _pressed = false;
++  bool _hovered = false;
++
++  Property get property => widget.property;
++
++  List<String> get _galleryUrls {
++    final urls = <String>[];
++    if (property.imageUrl != null && property.imageUrl!.trim().isNotEmpty) {
++      urls.add(property.imageUrl!);
++    }
++    for (final url in property.imageUrls) {
++      if (url.trim().isNotEmpty && !urls.contains(url)) {
++        urls.add(url);
++      }
++    }
++    return urls;
++  }
++
+   @override
+   Widget build(BuildContext context) {
+-    return Card(
+-      color: Colors.grey[900],
+-      margin: margin,
+-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+-      clipBehavior: Clip.antiAlias,
+-      child: InkWell(
+-        onTap: onTap,
+-        child: Column(
+-          crossAxisAlignment: CrossAxisAlignment.start,
+-          children: [
+-            if (showTopImage)
+-              PropertyImage(
+-                imageUrl: property.imageUrl,
+-                height: compact ? 140 : 180,
+-                overlay: _buildTopOverlay(),
+-              ),
+-            Padding(
+-              padding: EdgeInsets.all(compact ? 12 : 16),
+-              child: Column(
+-                crossAxisAlignment: CrossAxisAlignment.start,
+-                children: [
+-                  _titleRow(),
+-                  SizedBox(height: compact ? 6 : 8),
+-                  PropertyLocation(
+-                    location: property.location,
+-                    compact: compact,
+-                  ),
+-                  SizedBox(height: compact ? 10 : 12),
+-                  Row(
+-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+-                    children: [
+-                      Expanded(
+-                        child: PropertyPrice(
+-                          amount: property.price,
+-                          fontSize: compact ? 16 : 18,
++    final scale = _pressed ? 0.98 : 1.0;
++    final lift = _hovered && !_pressed ? -2.0 : 0.0;
++
++    return MouseRegion(
++      cursor: SystemMouseCursors.click,
++      onEnter: (_) => setState(() => _hovered = true),
++      onExit: (_) => setState(() => _hovered = false),
++      child: GestureDetector(
++        onTap: widget.onTap,
++        onTapDown: (_) => setState(() => _pressed = true),
++        onTapUp: (_) => setState(() => _pressed = false),
++        onTapCancel: () => setState(() => _pressed = false),
++        child: AnimatedContainer(
++          duration: const Duration(milliseconds: 180),
++          curve: Curves.easeOut,
++          margin: widget.margin,
++          transform: Matrix4.identity()
++            ..translate(0.0, lift)
++            ..scale(scale),
++          transformAlignment: Alignment.center,
++          decoration: BoxDecoration(
++            color: AppColors.surfaceRaised,
++            borderRadius: BorderRadius.circular(AppRadii.card),
++            boxShadow: _hovered ? _elevatedShadow : AppShadows.card,
++            border: Border.all(color: AppColors.divider, width: 1),
++          ),
++          clipBehavior: Clip.antiAlias,
++          child: Column(
++            crossAxisAlignment: CrossAxisAlignment.start,
++            mainAxisSize: MainAxisSize.min,
++            children: [
++              if (widget.showTopImage) _buildImage(),
++              Padding(
++                padding: EdgeInsets.all(widget.compact ? 12 : 16),
++                child: Column(
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  children: [
++                    _TitleRow(property: property, compact: widget.compact),
++                    SizedBox(height: widget.compact ? 6 : 8),
++                    PropertyLocation(
++                      location: property.location,
++                      compact: widget.compact,
++                    ),
++                    SizedBox(height: widget.compact ? 10 : 12),
++                    Row(
++                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
++                      crossAxisAlignment: CrossAxisAlignment.end,
++                      children: [
++                        Expanded(
++                          child: PropertyPrice(
++                            amount: property.price,
++                            compact: widget.compact,
++                          ),
+                         ),
+-                      ),
+-                      const SizedBox(width: 8),
+-                      _typePill(property.type),
+-                    ],
+-                  ),
+-                  SizedBox(height: compact ? 8 : 10),
+-                  _metaRow(),
+-                ],
++                        const SizedBox(width: 8),
++                        _TypeChip(label: property.type),
++                      ],
++                    ),
++                    SizedBox(height: widget.compact ? 8 : 10),
++                    _AttributeRow(property: property),
++                  ],
++                ),
+               ),
+-            ),
+-          ],
++            ],
++          ),
+         ),
+       ),
+     );
+   }
+ 
+-  Widget _buildTopOverlay() {
+-    return Stack(
+-      children: [
+-        if (onFavoriteTap != null)
+-          Positioned(
+-            right: 10,
+-            top: 10,
+-            child: Material(
+-              color: Colors.black45,
+-              shape: const CircleBorder(),
+-              child: InkWell(
+-                customBorder: const CircleBorder(),
+-                onTap: onFavoriteTap,
+-                child: Padding(
+-                  padding: const EdgeInsets.all(8),
++  List<BoxShadow> get _elevatedShadow => [
++    BoxShadow(
++      color: AppColors.shadow,
++      blurRadius: 28,
++      offset: const Offset(0, 14),
++    ),
++  ];
++
++  Widget _buildImage() {
++    return PropertyImage(
++      imageUrls: _galleryUrls,
++      height: widget.compact ? 140 : 180,
++      heroTag: widget.heroTag,
++      topRight: widget.onFavoriteTap != null
++          ? _FavoriteButton(
++              isFavorite: widget.isFavorite,
++              onTap: widget.onFavoriteTap!,
++            )
++          : null,
++      topLeft: property.holdingFeePaid
++          ? const _StatusBadge(label: 'UNDER OFFER')
++          : null,
++    );
++  }
++}
++
++/// Circular, semi-transparent favorite toggle with a 48x48 touch target.
++class _FavoriteButton extends StatefulWidget {
++  const _FavoriteButton({required this.isFavorite, required this.onTap});
++
++  final bool isFavorite;
++  final VoidCallback onTap;
++
++  @override
++  State<_FavoriteButton> createState() => _FavoriteButtonState();
++}
++
++class _FavoriteButtonState extends State<_FavoriteButton>
++    with SingleTickerProviderStateMixin {
++  late final AnimationController _controller = AnimationController(
++    vsync: this,
++    duration: const Duration(milliseconds: 220),
++    lowerBound: 0.9,
++    upperBound: 1.0,
++    value: 1.0,
++  );
++
++  @override
++  void dispose() {
++    _controller.dispose();
++    super.dispose();
++  }
++
++  Future<void> _handleTap() async {
++    await _controller.reverse();
++    await _controller.forward();
++    widget.onTap();
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    return Semantics(
++      button: true,
++      label: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
++      child: SizedBox(
++        width: 48,
++        height: 48,
++        child: Material(
++          color: Colors.transparent,
++          shape: const CircleBorder(),
++          child: InkWell(
++            customBorder: const CircleBorder(),
++            onTap: _handleTap,
++            child: Center(
++              child: ScaleTransition(
++                scale: _controller,
++                child: Container(
++                  width: 34,
++                  height: 34,
++                  decoration: BoxDecoration(
++                    color: AppColors.scrimDark,
++                    shape: BoxShape.circle,
++                  ),
++                  alignment: Alignment.center,
+                   child: Icon(
+-                    isFavorite ? Icons.favorite : Icons.favorite_border,
+-                    color: Colors.white,
++                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
++                    color: AppColors.white,
+                     size: 18,
+                   ),
+                 ),
+               ),
+             ),
+           ),
+-        if (property.holdingFeePaid)
+-          Positioned(left: 10, top: 10, child: _badge('UNDER OFFER')),
+-      ],
++        ),
++      ),
++    );
++  }
++}
++
++class _StatusBadge extends StatelessWidget {
++  const _StatusBadge({required this.label});
++
++  final String label;
++
++  @override
++  Widget build(BuildContext context) {
++    return Container(
++      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
++      decoration: BoxDecoration(
++        color: AppColors.scrimDark,
++        borderRadius: BorderRadius.circular(AppRadii.pill),
++        border: Border.all(color: AppColors.white.withValues(alpha: 0.4)),
++      ),
++      child: Text(label, style: AppTextStyles.chipLabel),
+     );
+   }
++}
+ 
+-  Widget _titleRow() {
++class _TypeChip extends StatelessWidget {
++  const _TypeChip({required this.label});
++
++  final String label;
++
++  @override
++  Widget build(BuildContext context) {
++    return Container(
++      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
++      decoration: BoxDecoration(
++        border: Border.all(color: AppColors.border),
++        borderRadius: BorderRadius.circular(AppRadii.pill),
++      ),
++      child: Text(
++        label.toUpperCase(),
++        style: AppTextStyles.chipLabel.copyWith(color: AppColors.textSecondary),
++      ),
++    );
++  }
++}
++
++class _TitleRow extends StatelessWidget {
++  const _TitleRow({required this.property, required this.compact});
++
++  final Property property;
++  final bool compact;
++
++  @override
++  Widget build(BuildContext context) {
+     return Row(
+       children: [
+         Expanded(
+@@ -116,93 +284,64 @@ class PropertyCard extends StatelessWidget {
+             property.title,
+             maxLines: 1,
+             overflow: TextOverflow.ellipsis,
+-            style: TextStyle(
+-              color: Colors.white,
+-              fontSize: compact ? 16 : 18,
+-              fontWeight: FontWeight.bold,
++            style: AppTextStyles.title.copyWith(
++              fontSize: compact ? 15 : 16,
+             ),
+           ),
+         ),
+         if (property.verified) ...[
+           const SizedBox(width: 6),
+-          const Icon(Icons.verified, color: Colors.white, size: 18),
++          const Icon(Icons.verified, color: AppColors.white, size: 16),
+         ],
+         const SizedBox(width: 8),
+         Container(
+-          width: 10,
+-          height: 10,
++          width: 8,
++          height: 8,
+           decoration: BoxDecoration(
+-            color: property.available ? Colors.white : Colors.grey[700],
++            color: property.available ? AppColors.white : AppColors.grey700,
+             shape: BoxShape.circle,
+           ),
+         ),
+       ],
+     );
+   }
++}
+ 
+-  Widget _metaRow() {
++/// Bedrooms + rating, the only two attribute fields the Property model
++/// currently supports. Bathrooms / square footage will slot in here once
++/// those fields exist on the model.
++class _AttributeRow extends StatelessWidget {
++  const _AttributeRow({required this.property});
++
++  final Property property;
++
++  @override
++  Widget build(BuildContext context) {
+     return Row(
+       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+       children: [
+         Row(
+           children: [
+-            Icon(Icons.bed_outlined, color: Colors.grey[600], size: 16),
++            const Icon(Icons.bed_outlined, color: AppColors.grey500, size: 15),
+             const SizedBox(width: 4),
+             Text(
+               '${property.bedrooms} bedroom${property.bedrooms == 1 ? '' : 's'}',
+-              style: TextStyle(color: Colors.grey[500], fontSize: 13),
++              style: AppTextStyles.meta,
+             ),
+           ],
+         ),
+         if (property.reviewCount > 0)
+           Row(
+             children: [
+-              const Icon(Icons.star, color: Colors.amber, size: 14),
++              const Icon(Icons.star, color: AppColors.grey300, size: 14),
+               const SizedBox(width: 4),
+               Text(
+                 '${property.averageRating.toStringAsFixed(1)} (${property.reviewCount})',
+-                style: TextStyle(color: Colors.grey[400], fontSize: 12),
++                style: AppTextStyles.meta,
+               ),
+             ],
+           ),
+       ],
+     );
+   }
+-
+-  Widget _typePill(String type) {
+-    return Container(
+-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+-      decoration: BoxDecoration(
+-        border: Border.all(color: Colors.grey[700]!),
+-        borderRadius: BorderRadius.circular(20),
+-      ),
+-      child: Text(
+-        type.toUpperCase(),
+-        style: const TextStyle(
+-          color: Colors.white,
+-          fontSize: 11,
+-          letterSpacing: 0.5,
+-        ),
+-      ),
+-    );
+-  }
+-
+-  Widget _badge(String text) {
+-    return Container(
+-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+-      decoration: BoxDecoration(
+-        color: Colors.black54,
+-        borderRadius: BorderRadius.circular(6),
+-        border: Border.all(color: Colors.white54),
+-      ),
+-      child: Text(
+-        text,
+-        style: const TextStyle(
+-          color: Colors.white,
+-          fontSize: 10,
+-          fontWeight: FontWeight.bold,
+-        ),
+-      ),
+-    );
+-  }
+ }
+diff --git a/lib/widgets/property/property_image.dart b/lib/widgets/property/property_image.dart
+index 07ce30e..32c9b56 100644
+--- a/lib/widgets/property/property_image.dart
++++ b/lib/widgets/property/property_image.dart
+@@ -1,64 +1,150 @@
+ import 'package:cached_network_image/cached_network_image.dart';
+ import 'package:flutter/material.dart';
++import 'package:roost_app/theme/app_colors.dart';
+ 
+-class PropertyImage extends StatelessWidget {
++/// Displays a property's image (or swipeable gallery, when more than one
++/// URL is provided) with a fade-in placeholder, a graceful error fallback,
++/// an optional Hero transition, and optional overlay slots for a favorite
++/// button / status badge supplied by the caller.
++class PropertyImage extends StatefulWidget {
+   const PropertyImage({
+     super.key,
+-    required this.imageUrl,
+-    this.height = 180,
++    required this.imageUrls,
++    this.height = 220,
+     this.width = double.infinity,
+     this.borderRadius = BorderRadius.zero,
+-    this.overlay,
++    this.heroTag,
++    this.topLeft,
++    this.topRight,
+   });
+ 
+-  final String? imageUrl;
++  /// All image URLs for this listing, already de-duplicated by the caller.
++  /// An empty list renders the fallback state.
++  final List<String> imageUrls;
+   final double height;
+   final double width;
+   final BorderRadius borderRadius;
+-  final Widget? overlay;
++
++  /// When set, wraps the image in a [Hero] for a shared-element transition
++  /// into the property detail page.
++  final Object? heroTag;
++
++  final Widget? topLeft;
++  final Widget? topRight;
++
++  @override
++  State<PropertyImage> createState() => _PropertyImageState();
++}
++
++class _PropertyImageState extends State<PropertyImage> {
++  final PageController _controller = PageController();
++  int _index = 0;
++
++  @override
++  void dispose() {
++    _controller.dispose();
++    super.dispose();
++  }
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final hasImage = imageUrl != null && imageUrl!.trim().isNotEmpty;
+-
+-    return ClipRRect(
+-      borderRadius: borderRadius,
+-      child: Stack(
+-        children: [
+-          SizedBox(
+-            height: height,
+-            width: width,
+-            child: hasImage
+-                ? CachedNetworkImage(
+-                    imageUrl: imageUrl!,
+-                    fit: BoxFit.cover,
+-                    placeholder: (_, __) => Container(
+-                      color: Colors.grey[850],
+-                      alignment: Alignment.center,
+-                      child: const SizedBox(
+-                        width: 22,
+-                        height: 22,
+-                        child: CircularProgressIndicator(
+-                          strokeWidth: 2,
+-                          color: Colors.white,
+-                        ),
+-                      ),
+-                    ),
+-                    errorWidget: (_, __, ___) => _fallback(),
+-                  )
+-                : _fallback(),
++    Widget content = ClipRRect(
++      borderRadius: widget.borderRadius,
++      child: SizedBox(
++        height: widget.height,
++        width: widget.width,
++        child: Stack(
++          fit: StackFit.expand,
++          children: [
++            _buildGallery(),
++            if (widget.imageUrls.length > 1) _buildPageIndicator(),
++            if (widget.topLeft != null)
++              Positioned(left: 10, top: 10, child: widget.topLeft!),
++            if (widget.topRight != null)
++              Positioned(right: 10, top: 10, child: widget.topRight!),
++          ],
++        ),
++      ),
++    );
++
++    if (widget.heroTag != null) {
++      content = Hero(tag: widget.heroTag!, child: content);
++    }
++
++    return content;
++  }
++
++  Widget _buildGallery() {
++    if (widget.imageUrls.isEmpty) return _fallback();
++
++    if (widget.imageUrls.length == 1) {
++      return _networkImage(widget.imageUrls.first);
++    }
++
++    return PageView.builder(
++      controller: _controller,
++      itemCount: widget.imageUrls.length,
++      onPageChanged: (i) => setState(() => _index = i),
++      itemBuilder: (_, i) => _networkImage(widget.imageUrls[i]),
++    );
++  }
++
++  Widget _networkImage(String url) {
++    if (url.trim().isEmpty) return _fallback();
++
++    return CachedNetworkImage(
++      imageUrl: url,
++      fit: BoxFit.cover,
++      fadeInDuration: const Duration(milliseconds: 200),
++      placeholder: (_, __) => Container(
++        color: AppColors.surface,
++        alignment: Alignment.center,
++        child: const SizedBox(
++          width: 22,
++          height: 22,
++          child: CircularProgressIndicator(
++            strokeWidth: 2,
++            color: AppColors.grey400,
+           ),
+-          if (overlay != null) Positioned.fill(child: overlay!),
+-        ],
++        ),
+       ),
++      errorWidget: (_, __, ___) => _fallback(),
+     );
+   }
+ 
+   Widget _fallback() {
+     return Container(
+-      color: Colors.grey[850],
++      color: AppColors.surface,
+       alignment: Alignment.center,
+-      child: Icon(Icons.home_outlined, color: Colors.grey[600], size: 34),
++      child: const Icon(
++        Icons.home_outlined,
++        color: AppColors.grey600,
++        size: 34,
++      ),
++    );
++  }
++
++  Widget _buildPageIndicator() {
++    return Positioned(
++      bottom: 10,
++      left: 0,
++      right: 0,
++      child: Row(
++        mainAxisAlignment: MainAxisAlignment.center,
++        children: List.generate(widget.imageUrls.length, (i) {
++          final active = i == _index;
++          return AnimatedContainer(
++            duration: const Duration(milliseconds: 200),
++            margin: const EdgeInsets.symmetric(horizontal: 2),
++            width: active ? 14 : 5,
++            height: 5,
++            decoration: BoxDecoration(
++              color: active ? AppColors.white : AppColors.scrimLight,
++              borderRadius: BorderRadius.circular(999),
++            ),
++          );
++        }),
++      ),
+     );
+   }
+ }
+diff --git a/lib/widgets/property/property_location.dart b/lib/widgets/property/property_location.dart
+index 8d14e2d..f2fe645 100644
+--- a/lib/widgets/property/property_location.dart
++++ b/lib/widgets/property/property_location.dart
+@@ -1,27 +1,25 @@
+ import 'package:flutter/material.dart';
++import 'package:roost_app/theme/app_colors.dart';
++import 'package:roost_app/theme/app_text_styles.dart';
+ 
+ class PropertyLocation extends StatelessWidget {
+   const PropertyLocation({
+     super.key,
+     required this.location,
+     this.compact = false,
+-    this.iconColor,
+-    this.textColor,
+   });
+ 
+   final String location;
+   final bool compact;
+-  final Color? iconColor;
+-  final Color? textColor;
+ 
+   @override
+   Widget build(BuildContext context) {
+     return Row(
+       children: [
+         Icon(
+-          Icons.location_on,
++          Icons.location_on_outlined,
+           size: compact ? 13 : 14,
+-          color: iconColor ?? (compact ? Colors.grey[600] : Colors.grey[500]),
++          color: AppColors.textTertiary,
+         ),
+         const SizedBox(width: 4),
+         Expanded(
+@@ -29,10 +27,8 @@ class PropertyLocation extends StatelessWidget {
+             location,
+             maxLines: 1,
+             overflow: TextOverflow.ellipsis,
+-            style: TextStyle(
+-              color:
+-                  textColor ?? (compact ? Colors.grey[500] : Colors.grey[400]),
+-              fontSize: compact ? 12 : 13,
++            style: AppTextStyles.location.copyWith(
++              fontSize: compact ? 12 : 14,
+             ),
+           ),
+         ),
+diff --git a/lib/widgets/property/property_price.dart b/lib/widgets/property/property_price.dart
+index 11f3f9b..eb2f894 100644
+--- a/lib/widgets/property/property_price.dart
++++ b/lib/widgets/property/property_price.dart
+@@ -1,5 +1,6 @@
+ import 'package:flutter/material.dart';
+ import 'package:intl/intl.dart';
++import 'package:roost_app/theme/app_text_styles.dart';
+ 
+ class PropertyPrice extends StatelessWidget {
+   const PropertyPrice({
+@@ -7,31 +8,29 @@ class PropertyPrice extends StatelessWidget {
+     required this.amount,
+     this.currency = 'KES',
+     this.periodSuffix,
+-    this.fontSize = 18,
+-    this.fontWeight = FontWeight.bold,
+-    this.color = Colors.white,
++    this.style,
++    this.compact = false,
+   });
+ 
+   final num amount;
+   final String currency;
+   final String? periodSuffix;
+-  final double fontSize;
+-  final FontWeight fontWeight;
+-  final Color color;
++
++  /// Overrides the default price style entirely, if provided.
++  final TextStyle? style;
++  final bool compact;
+ 
+   @override
+   Widget build(BuildContext context) {
+     final formatted = NumberFormat('#,##0').format(amount);
++    final effectiveStyle =
++        style ?? (compact ? AppTextStyles.priceCompact : AppTextStyles.price);
+ 
+     return Text(
+       '$currency $formatted${periodSuffix != null ? ' /$periodSuffix' : ''}',
+       maxLines: 1,
+       overflow: TextOverflow.ellipsis,
+-      style: TextStyle(
+-        color: color,
+-        fontSize: fontSize,
+-        fontWeight: fontWeight,
+-      ),
++      style: effectiveStyle,
+     );
+   }
+ }

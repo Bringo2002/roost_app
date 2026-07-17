@@ -1,27 +1,25 @@
 import 'package:flutter/material.dart';
+import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/theme/app_text_styles.dart';
 
 class PropertyLocation extends StatelessWidget {
   const PropertyLocation({
     super.key,
     required this.location,
     this.compact = false,
-    this.iconColor,
-    this.textColor,
   });
 
   final String location;
   final bool compact;
-  final Color? iconColor;
-  final Color? textColor;
 
   @override
   Widget build(BuildContext context) {
     return Row(
       children: [
         Icon(
-          Icons.location_on,
+          Icons.location_on_outlined,
           size: compact ? 13 : 14,
-          color: iconColor ?? (compact ? Colors.grey[600] : Colors.grey[500]),
+          color: AppColors.textTertiary,
         ),
         const SizedBox(width: 4),
         Expanded(
@@ -29,10 +27,8 @@ class PropertyLocation extends StatelessWidget {
             location,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color:
-                  textColor ?? (compact ? Colors.grey[500] : Colors.grey[400]),
-              fontSize: compact ? 12 : 13,
+            style: AppTextStyles.location.copyWith(
+              fontSize: compact ? 12 : 14,
             ),
           ),
         ),
