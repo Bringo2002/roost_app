@@ -27,6 +27,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   String _imageUrl = '';
   List<String> _imageUrls = [];
   final _imageUrlCtrl = TextEditingController();
+  String _videoUrl = '';
   double? _latitude;
   double? _longitude;
 
@@ -66,6 +67,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           'description': _description,
           'imageUrl': _imageUrl,
           'imageUrls': _imageUrls,
+          'videoUrl': _videoUrl,
           'latitude': _latitude,
           'longitude': _longitude,
         },
@@ -225,6 +227,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         }).toList(),
                       ),
                     ],
+                    const SizedBox(height: 16),
+                    _buildTextField(
+                      label: 'Walkthrough Video URL (optional)',
+                      keyboardType: TextInputType.url,
+                      onSaved: (v) => _videoUrl = v ?? '',
+                    ),
                     const SizedBox(height: 16),
                     _buildTextField(
                       label: 'Description',

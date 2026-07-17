@@ -19,6 +19,7 @@ class Property {
   final List<String> imageUrls;
   final double averageRating;
   final int reviewCount;
+  final String? videoUrl;
 
   Property({
     this.id,
@@ -39,6 +40,7 @@ class Property {
     this.imageUrls = const [],
     this.averageRating = 0.0,
     this.reviewCount = 0,
+    this.videoUrl,
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -61,6 +63,7 @@ class Property {
       imageUrls: json['imageUrls'] != null ? List<String>.from(json['imageUrls']) : [],
       averageRating: (json['averageRating'] ?? 0.0).toDouble(),
       reviewCount: json['reviewCount'] ?? 0,
+      videoUrl: json['videoUrl'],
     );
   }
 
@@ -81,6 +84,7 @@ class Property {
       'latitude': latitude,
       'longitude': longitude,
       'imageUrls': imageUrls,
+      'videoUrl': videoUrl,
     };
   }
 }

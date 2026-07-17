@@ -175,12 +175,16 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_titles[_currentIndex]),
-      ),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _pages,
+      appBar: _currentIndex == 0
+          ? null
+          : AppBar(title: Text(_titles[_currentIndex])),
+      body: SafeArea(
+        top: _currentIndex == 0,
+        bottom: false,
+        child: IndexedStack(
+          index: _currentIndex,
+          children: _pages,
+        ),
       ),
       floatingActionButton: (_currentIndex == 0 && _userRole == 'LANDLORD')
           ? FloatingActionButton(
@@ -307,10 +311,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
   bool loading = true;
   final TextEditingController searchController = TextEditingController();
   final FocusNode _searchFocus = FocusNode();
+  final ScrollController _scrollController = ScrollController();
   String selectedType = 'all';
-  bool sortAscending = true;
   String? _error;
   bool _showSearchBar = false;
+  bool _showScrollToTop = false;
   late AnimationController _searchAnimCtrl;
   late Animation<double> _searchAnimation;
 
@@ -319,6 +324,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
     super.initState();
     _loadData();
     searchController.addListener(_filterProperties);
+    _scrollController.addListener(_onScroll);
     _searchAnimCtrl = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 250),
@@ -334,8 +340,16 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
     searchController.removeListener(_filterProperties);
     searchController.dispose();
     _searchFocus.dispose();
+    _scrollController.dispose();
     _searchAnimCtrl.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    final show = _scrollController.offset > 600;
+    if (show != _showScrollToTop) {
+      setState(() => _showScrollToTop = show);
+    }
   }
 
   void _toggleSearch() {
@@ -402,11 +416,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
         return matchesQuery && matchesType;
       }).toList();
 
-      filtered.sort((a, b) {
-        return sortAscending
-            ? a.price.compareTo(b.price)
-            : b.price.compareTo(a.price);
-      });
+      filtered.sort((a, b) => a.price.compareTo(b.price));
     });
   }
 
@@ -607,27 +617,6 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
                   ),
                 ),
               ),
-              const SizedBox(width: 6),
-              // Sort toggle
-              GestureDetector(
-                onTap: () {
-                  setState(() => sortAscending = !sortAscending);
-                  _filterProperties();
-                },
-                child: Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.grey[800]!, width: 1),
-                  ),
-                  child: Icon(
-                    sortAscending ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
-                    color: Colors.grey[500],
-                    size: 18,
-                  ),
-                ),
-              ),
             ],
           ),
         ),
@@ -650,25 +639,28 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
 
         // Property list with pull-to-refresh
         Expanded(
-          child: filtered.isEmpty
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(_error != null ? Icons.error_outline : Icons.search_off, color: Colors.grey[700], size: 64),
-                      const SizedBox(height: 16),
-                      Text(
-                        _error ?? 'No properties found',
-                        style: TextStyle(color: Colors.grey[600], fontSize: 16),
-                      ),
-                    ],
-                  ),
-                )
-              : RefreshIndicator(
-                  color: Colors.white,
-                  backgroundColor: Colors.grey[900],
-                  onRefresh: _loadData,
-                  child: ListView.builder(
+          child: Stack(
+            children: [
+              filtered.isEmpty
+                ? Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(_error != null ? Icons.error_outline : Icons.search_off, color: Colors.grey[700], size: 64),
+                        const SizedBox(height: 16),
+                        Text(
+                          _error ?? 'No properties found',
+                          style: TextStyle(color: Colors.grey[600], fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  )
+                : RefreshIndicator(
+                    color: Colors.white,
+                    backgroundColor: Colors.grey[900],
+                    onRefresh: _loadData,
+                    child: ListView.builder(
+                      controller: _scrollController,
                     itemCount: filtered.length,
                     padding: const EdgeInsets.only(bottom: 80),
                     itemBuilder: (context, index) {
@@ -826,6 +818,47 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> with SingleTickerP
                     },
                   ),
                 ),
+              // Scroll-to-top button
+              if (_showScrollToTop)
+                Positioned(
+                  bottom: 16,
+                  right: 16,
+                  child: AnimatedOpacity(
+                    opacity: _showScrollToTop ? 1.0 : 0.0,
+                    duration: const Duration(milliseconds: 200),
+                    child: GestureDetector(
+                      onTap: () {
+                        _scrollController.animateTo(
+                          0,
+                          duration: const Duration(milliseconds: 400),
+                          curve: Curves.easeOutCubic,
+                        );
+                      },
+                      child: Container(
+                        width: 44,
+                        height: 44,
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          boxShadow: [
+                            BoxShadow(
+                              color: const Color(0x40000000),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: const Icon(
+                          Icons.arrow_upward_rounded,
+                          color: Colors.black,
+                          size: 22,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
         ),
       ],
     );
