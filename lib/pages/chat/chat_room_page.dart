@@ -4,6 +4,7 @@ import 'package:roost_app/models/user.dart';
 import 'package:roost_app/models/message.dart';
 import 'package:roost_app/services/chat_service.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/services/encryption_service.dart';
 import 'package:intl/intl.dart';
 
 class ChatRoomPage extends StatefulWidget {
@@ -43,6 +44,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     setState(() {
       _currentUserEmail = email;
     });
+
+    try {
+      await EncryptionService.ensureInitialized();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not set up secure messaging. Please try again.')),
+      );
+      return;
+    }
+
     await _loadMessages();
     if (!mounted) return;
     
@@ -120,8 +135,11 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       }
     } catch (e) {
       if (!mounted) return;
+      final message = e is RecipientKeyUnavailableException
+          ? e.toString()
+          : 'Failed to send message: $e';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to send message: $e')),
+        SnackBar(content: Text(message)),
       );
     }
   }
