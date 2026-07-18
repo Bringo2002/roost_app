@@ -41,4 +41,11 @@ class AppColors {
 
   // Shadow
   static Color shadow = black.withValues(alpha: 0.06);
+
+  /// The one deliberate exception to Roost's monochrome palette. Reserved
+  /// exclusively for online-presence indicators (avatar dot, "Online"
+  /// label) -- a muted, non-neon green rather than a bright accent, since
+  /// presence is a near-universal color convention users read at a glance.
+  /// Do not reuse this color for anything else.
+  static const Color onlineAccent = Color(0xFF3ECF8E);
 }

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:typed_data';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/user.dart';
 import 'package:roost_app/models/message.dart';
@@ -8,6 +10,7 @@ import 'package:roost_app/services/encryption_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 import 'package:roost_app/theme/app_theme.dart';
+import 'package:roost_app/utils/presence_formatter.dart';
 import 'package:roost_app/widgets/chat/message_bubble.dart';
 import 'package:intl/intl.dart';
 
@@ -27,6 +30,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   bool _isLoading = true;
   String? _currentUserEmail;
   Timer? _pollingTimer;
+  late User _livePartner = widget.partner;
+
+  PlatformFile? _pendingFile;
+  bool _sending = false;
 
   @override
   void initState() {
@@ -65,12 +72,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     await _loadMessages();
     if (!mounted) return;
 
-    // Poll for new messages every 5 seconds
+    // Poll for new messages and refresh partner presence every 5 seconds.
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) {
         _loadMessages(silent: true);
+        _refreshPresence();
       }
     });
+  }
+
+  Future<void> _refreshPresence() async {
+    final updated = await ChatService.getUserProfile(widget.partner.id);
+    if (updated != null && mounted) {
+      setState(() => _livePartner = updated);
+    }
   }
 
   Future<void> _loadMessages({bool silent = false}) async {
@@ -123,17 +138,63 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     });
   }
 
+  Future<void> _pickAttachment() async {
+    try {
+      final result = await FilePicker.platform.pickFiles(withData: true);
+      if (result == null || result.files.isEmpty) return;
+      final file = result.files.single;
+
+      if (file.bytes == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't read that file")),
+        );
+        return;
+      }
+      if (file.bytes!.length > kMaxAttachmentBytes) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('That file is too large (max ${kMaxAttachmentBytes ~/ (1024 * 1024)}MB)')),
+        );
+        return;
+      }
+
+      setState(() => _pendingFile = file);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to pick a file: $e')),
+      );
+    }
+  }
+
   Future<void> _sendMessage() async {
     final text = _messageController.text.trim();
-    if (text.isEmpty) return;
+    final file = _pendingFile;
+    if (text.isEmpty && file == null) return;
+    if (_sending) return;
 
+    setState(() => _sending = true);
     _messageController.clear();
+    setState(() => _pendingFile = null);
 
     try {
-      final newMessage = await ChatService.sendMessage(widget.partner.id, text);
+      Message? newMessage;
+      if (file != null) {
+        newMessage = await ChatService.sendAttachment(
+          widget.partner.id,
+          fileName: file.name,
+          mimeType: _guessMimeType(file.extension),
+          fileBytes: Uint8List.fromList(file.bytes!),
+          caption: text.isEmpty ? null : text,
+        );
+      } else {
+        newMessage = await ChatService.sendMessage(widget.partner.id, text);
+      }
+
       if (newMessage != null) {
         setState(() {
-          _messages.add(newMessage);
+          _messages.add(newMessage!);
         });
         _scrollToBottom();
       }
@@ -145,6 +206,26 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(message)),
       );
+    } finally {
+      if (mounted) setState(() => _sending = false);
+    }
+  }
+
+  static String _guessMimeType(String? extension) {
+    switch (extension?.toLowerCase()) {
+      case 'jpg':
+      case 'jpeg':
+        return 'image/jpeg';
+      case 'png':
+        return 'image/png';
+      case 'gif':
+        return 'image/gif';
+      case 'webp':
+        return 'image/webp';
+      case 'pdf':
+        return 'application/pdf';
+      default:
+        return 'application/octet-stream';
     }
   }
 
@@ -169,12 +250,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   @override
   Widget build(BuildContext context) {
+    final online = _livePartner.isOnline;
+
     return Scaffold(
       appBar: AppBar(
         titleSpacing: 0,
         title: Row(
           children: [
-            _HeaderAvatar(name: widget.partner.name),
+            _HeaderAvatar(name: _livePartner.name, online: online),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -182,17 +265,18 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    widget.partner.name,
+                    _livePartner.name,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.title.copyWith(fontSize: 16),
                   ),
-                  Row(
-                    children: [
-                      const Icon(Icons.lock_outline, size: 11, color: AppColors.grey500),
-                      const SizedBox(width: 4),
-                      Text('End-to-end encrypted', style: AppTextStyles.meta.copyWith(fontSize: 11)),
-                    ],
+                  Text(
+                    online ? 'Online' : formatLastSeen(_livePartner.lastActiveAt),
+                    style: AppTextStyles.meta.copyWith(
+                      fontSize: 11,
+                      color: online ? AppColors.onlineAccent : AppColors.textTertiary,
+                      fontWeight: online ? FontWeight.w600 : FontWeight.w400,
+                    ),
                   ),
                 ],
               ),
@@ -201,14 +285,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: () => _loadMessages(),
+            icon: const Icon(Icons.lock_outline, size: 20),
+            tooltip: 'End-to-end encrypted',
+            onPressed: () {
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(content: Text('Messages in this conversation are end-to-end encrypted.')),
+              );
+            },
           ),
         ],
       ),
       body: Column(
         children: [
           Expanded(child: _buildMessageList()),
+          if (_pendingFile != null) _buildPendingAttachment(),
           _buildMessageInput(),
         ],
       ),
@@ -246,8 +336,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         final isMe = message.sender.email == _currentUserEmail;
 
         final bubble = MessageBubble(
-          content: message.content,
-          timestamp: message.timestamp,
+          message: message,
           isMe: isMe,
           isGroupEnd: _isGroupEnd(index),
         );
@@ -265,9 +354,47 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
   }
 
+  Widget _buildPendingAttachment() {
+    final file = _pendingFile!;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+      decoration: const BoxDecoration(
+        color: AppColors.background,
+        border: Border(top: BorderSide(color: AppColors.divider)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 34,
+            height: 34,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceRaised,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: const Icon(Icons.insert_drive_file_outlined, size: 16, color: AppColors.grey300),
+          ),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              file.name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.body.copyWith(fontSize: 13),
+            ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.close, size: 18, color: AppColors.grey500),
+            onPressed: () => setState(() => _pendingFile = null),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMessageInput() {
     return Container(
-      padding: const EdgeInsets.only(left: 16, right: 8, top: 10, bottom: 10),
+      padding: const EdgeInsets.only(left: 4, right: 8, top: 10, bottom: 10),
       decoration: const BoxDecoration(
         color: AppColors.background,
         border: Border(top: BorderSide(color: AppColors.divider)),
@@ -276,6 +403,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         top: false,
         child: Row(
           children: [
+            IconButton(
+              icon: const Icon(Icons.attach_file, color: AppColors.grey400),
+              onPressed: _sending ? null : _pickAttachment,
+            ),
             Expanded(
               child: TextField(
                 controller: _messageController,
@@ -296,7 +427,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               ),
             ),
             const SizedBox(width: 8),
-            _SendButton(onTap: _sendMessage),
+            _SendButton(onTap: _sending ? null : _sendMessage, loading: _sending),
           ],
         ),
       ),
@@ -305,24 +436,48 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 }
 
 class _HeaderAvatar extends StatelessWidget {
-  const _HeaderAvatar({required this.name});
+  const _HeaderAvatar({required this.name, required this.online});
 
   final String name;
+  final bool online;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return SizedBox(
       width: 36,
       height: 36,
-      alignment: Alignment.center,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: AppColors.surfaceRaised,
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Text(
-        name.isNotEmpty ? name[0].toUpperCase() : '?',
-        style: AppTextStyles.title.copyWith(fontSize: 14),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.surfaceRaised,
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : '?',
+              style: AppTextStyles.title.copyWith(fontSize: 14),
+            ),
+          ),
+          if (online)
+            Positioned(
+              right: -1,
+              bottom: -1,
+              child: Container(
+                width: 11,
+                height: 11,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.onlineAccent,
+                  border: Border.all(color: AppColors.background, width: 2),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -357,9 +512,10 @@ class _DayDivider extends StatelessWidget {
 }
 
 class _SendButton extends StatefulWidget {
-  const _SendButton({required this.onTap});
+  const _SendButton({required this.onTap, this.loading = false});
 
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool loading;
 
   @override
   State<_SendButton> createState() => _SendButtonState();
@@ -372,9 +528,9 @@ class _SendButtonState extends State<_SendButton> {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: widget.onTap,
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
+      onTapDown: widget.onTap == null ? null : (_) => setState(() => _pressed = true),
+      onTapUp: widget.onTap == null ? null : (_) => setState(() => _pressed = false),
+      onTapCancel: widget.onTap == null ? null : () => setState(() => _pressed = false),
       child: AnimatedScale(
         scale: _pressed ? 0.92 : 1.0,
         duration: const Duration(milliseconds: 120),
@@ -386,7 +542,13 @@ class _SendButtonState extends State<_SendButton> {
             color: AppColors.white,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.arrow_upward, color: AppColors.black, size: 20),
+          child: widget.loading
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.black),
+                )
+              : const Icon(Icons.arrow_upward, color: AppColors.black, size: 20),
         ),
       ),
     );

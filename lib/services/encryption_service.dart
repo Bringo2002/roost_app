@@ -101,13 +101,19 @@ class EncryptionService {
     int otherUserId,
     String plaintext,
   ) async {
+    return encryptBytesFor(otherUserId, utf8.encode(plaintext));
+  }
+
+  /// Byte-level version of [encryptFor], used for both message text and
+  /// file attachments so both go through the exact same cipher path.
+  static Future<({String content, String nonce})> encryptBytesFor(
+    int otherUserId,
+    List<int> bytes,
+  ) async {
     await ensureInitialized();
     final secretKey = await _sharedSecretWith(otherUserId);
 
-    final secretBox = await _cipher.encrypt(
-      utf8.encode(plaintext),
-      secretKey: secretKey,
-    );
+    final secretBox = await _cipher.encrypt(bytes, secretKey: secretKey);
 
     final combined = Uint8List.fromList([
       ...secretBox.cipherText,
@@ -132,13 +138,29 @@ class EncryptionService {
     if (nonce == null || nonce.isEmpty) {
       return content;
     }
+    final bytes = await decryptBytesFrom(otherUserId, content, nonce);
+    if (bytes == null) return '🔒 Unable to decrypt this message';
+    try {
+      return utf8.decode(bytes);
+    } catch (_) {
+      return '🔒 Unable to decrypt this message';
+    }
+  }
 
+  /// Byte-level version of [decryptFrom]. Returns null on failure instead
+  /// of a placeholder string, since callers may be decrypting binary file
+  /// data where a text placeholder wouldn't make sense.
+  static Future<List<int>?> decryptBytesFrom(
+    int otherUserId,
+    String content,
+    String nonce,
+  ) async {
     try {
       await ensureInitialized();
       final secretKey = await _sharedSecretWith(otherUserId);
 
       final combined = base64Decode(content);
-      if (combined.length <= _macLength) return '🔒 Unable to decrypt this message';
+      if (combined.length <= _macLength) return null;
 
       final cipherText = combined.sublist(0, combined.length - _macLength);
       final mac = combined.sublist(combined.length - _macLength);
@@ -149,10 +171,9 @@ class EncryptionService {
         mac: Mac(mac),
       );
 
-      final clearBytes = await _cipher.decrypt(secretBox, secretKey: secretKey);
-      return utf8.decode(clearBytes);
+      return await _cipher.decrypt(secretBox, secretKey: secretKey);
     } catch (_) {
-      return '🔒 Unable to decrypt this message';
+      return null;
     }
   }
 

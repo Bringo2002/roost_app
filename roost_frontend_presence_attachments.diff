@@ -1,0 +1,1323 @@
+diff --git a/lib/models/message.dart b/lib/models/message.dart
+index ef88922..28bc2fe 100644
+--- a/lib/models/message.dart
++++ b/lib/models/message.dart
+@@ -1,3 +1,4 @@
++import 'dart:typed_data';
+ import 'package:roost_app/models/user.dart';
+ 
+ class Message {
+@@ -7,15 +8,35 @@ class Message {
+ 
+   /// Holds ciphertext as received from the wire until [ChatService]
+   /// decrypts it in place; from then on holds plaintext. Deliberately
+-  /// mutable so the network layer can decrypt without re-parsing.
++  /// mutable so the network layer can decrypt without re-parsing. Empty
++  /// for attachment-only messages with no caption.
+   String content;
+ 
+   /// Base64-encoded nonce used to encrypt [content]. Null for legacy
+-  /// plaintext messages sent before end-to-end encryption shipped.
++  /// plaintext messages sent before end-to-end encryption shipped, or for
++  /// attachment-only messages.
+   final String? nonce;
+ 
+   final DateTime timestamp;
+ 
++  /// True once the recipient has opened this conversation and it's been
++  /// marked read server-side. Drives the sent/read receipt ticks.
++  final bool read;
++
++  // --- Encrypted attachment, as received from the wire ---
++  final String? attachmentData;
++  final String? attachmentNonce;
++  final String? attachmentMeta;
++  final String? attachmentMetaNonce;
++
++  // --- Populated by ChatService after decryption ---
++  Uint8List? attachmentBytes;
++  String? attachmentFileName;
++  String? attachmentMimeType;
++  int? attachmentSizeBytes;
++
++  bool get hasAttachment => attachmentData != null && attachmentData!.isNotEmpty;
++
+   Message({
+     required this.id,
+     required this.sender,
+@@ -23,6 +44,11 @@ class Message {
+     required this.content,
+     this.nonce,
+     required this.timestamp,
++    this.read = false,
++    this.attachmentData,
++    this.attachmentNonce,
++    this.attachmentMeta,
++    this.attachmentMetaNonce,
+   });
+ 
+   factory Message.fromJson(Map<String, dynamic> json) {
+@@ -33,6 +59,11 @@ class Message {
+       content: json['content'] ?? '',
+       nonce: json['nonce'],
+       timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
++      read: json['read'] == true,
++      attachmentData: json['attachmentData'],
++      attachmentNonce: json['attachmentNonce'],
++      attachmentMeta: json['attachmentMeta'],
++      attachmentMetaNonce: json['attachmentMetaNonce'],
+     );
+   }
+ }
+diff --git a/lib/models/user.dart b/lib/models/user.dart
+index 1208b27..8278afa 100644
+--- a/lib/models/user.dart
++++ b/lib/models/user.dart
+@@ -4,19 +4,32 @@ class User {
+   final String email;
+   final String role;
+ 
++  /// Last time this user made an authenticated request, refreshed
++  /// automatically server-side. Used to derive online / last-seen status;
++  /// null if the user has never made an authenticated request yet.
++  final DateTime? lastActiveAt;
++
+   User({
+     required this.id,
+     required this.name,
+     required this.email,
+     required this.role,
++    this.lastActiveAt,
+   });
+ 
++  /// True if the user was active recently enough to be considered online.
++  bool get isOnline {
++    if (lastActiveAt == null) return false;
++    return DateTime.now().difference(lastActiveAt!) < const Duration(seconds: 45);
++  }
++
+   factory User.fromJson(Map<String, dynamic> json) {
+     return User(
+       id: (json['id'] as num?)?.toInt() ?? 0,
+       name: json['name'] ?? '',
+       email: json['email'] ?? '',
+       role: json['role'] ?? '',
++      lastActiveAt: json['lastActiveAt'] != null ? DateTime.parse(json['lastActiveAt']) : null,
+     );
+   }
+ }
+diff --git a/lib/pages/chat/active_chats_page.dart b/lib/pages/chat/active_chats_page.dart
+index c17d73d..b44f82e 100644
+--- a/lib/pages/chat/active_chats_page.dart
++++ b/lib/pages/chat/active_chats_page.dart
+@@ -1,3 +1,4 @@
++import 'dart:async';
+ import 'package:flutter/material.dart';
+ import 'package:roost_app/models/user.dart';
+ import 'package:roost_app/services/chat_service.dart';
+@@ -17,18 +18,32 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
+   List<User> _partners = [];
+   bool _isLoading = true;
+   String? _error;
++  Timer? _presenceTimer;
+ 
+   @override
+   void initState() {
+     super.initState();
+     _loadChats();
++    // Light periodic refresh so online/last-seen status on this list stays
++    // current even without opening a conversation.
++    _presenceTimer = Timer.periodic(const Duration(seconds: 20), (_) {
++      if (mounted) _loadChats(silent: true);
++    });
+   }
+ 
+-  Future<void> _loadChats() async {
+-    setState(() {
+-      _isLoading = true;
+-      _error = null;
+-    });
++  @override
++  void dispose() {
++    _presenceTimer?.cancel();
++    super.dispose();
++  }
++
++  Future<void> _loadChats({bool silent = false}) async {
++    if (!silent) {
++      setState(() {
++        _isLoading = true;
++        _error = null;
++      });
++    }
+     try {
+       final partners = await ChatService.getActiveChats();
+       if (!mounted) return;
+@@ -38,19 +53,18 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
+       });
+     } catch (e) {
+       if (!mounted) return;
+-      setState(() {
+-        _error = e.toString();
+-        _isLoading = false;
+-      });
++      if (!silent) {
++        setState(() {
++          _error = e.toString();
++          _isLoading = false;
++        });
++      }
+     }
+   }
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return Scaffold(
+-      appBar: AppBar(title: const Text('MESSAGES')),
+-      body: _buildBody(),
+-    );
++    return _buildBody();
+   }
+ 
+   Widget _buildBody() {
+diff --git a/lib/pages/chat/chat_room_page.dart b/lib/pages/chat/chat_room_page.dart
+index df72852..da2b3d7 100644
+--- a/lib/pages/chat/chat_room_page.dart
++++ b/lib/pages/chat/chat_room_page.dart
+@@ -1,4 +1,6 @@
+ import 'dart:async';
++import 'dart:typed_data';
++import 'package:file_picker/file_picker.dart';
+ import 'package:flutter/material.dart';
+ import 'package:roost_app/models/user.dart';
+ import 'package:roost_app/models/message.dart';
+@@ -8,6 +10,7 @@ import 'package:roost_app/services/encryption_service.dart';
+ import 'package:roost_app/theme/app_colors.dart';
+ import 'package:roost_app/theme/app_text_styles.dart';
+ import 'package:roost_app/theme/app_theme.dart';
++import 'package:roost_app/utils/presence_formatter.dart';
+ import 'package:roost_app/widgets/chat/message_bubble.dart';
+ import 'package:intl/intl.dart';
+ 
+@@ -27,6 +30,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+   bool _isLoading = true;
+   String? _currentUserEmail;
+   Timer? _pollingTimer;
++  late User _livePartner = widget.partner;
++
++  PlatformFile? _pendingFile;
++  bool _sending = false;
+ 
+   @override
+   void initState() {
+@@ -65,14 +72,22 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+     await _loadMessages();
+     if (!mounted) return;
+ 
+-    // Poll for new messages every 5 seconds
++    // Poll for new messages and refresh partner presence every 5 seconds.
+     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
+       if (mounted) {
+         _loadMessages(silent: true);
++        _refreshPresence();
+       }
+     });
+   }
+ 
++  Future<void> _refreshPresence() async {
++    final updated = await ChatService.getUserProfile(widget.partner.id);
++    if (updated != null && mounted) {
++      setState(() => _livePartner = updated);
++    }
++  }
++
+   Future<void> _loadMessages({bool silent = false}) async {
+     if (!silent) {
+       setState(() {
+@@ -123,17 +138,63 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+     });
+   }
+ 
++  Future<void> _pickAttachment() async {
++    try {
++      final result = await FilePicker.platform.pickFiles(withData: true);
++      if (result == null || result.files.isEmpty) return;
++      final file = result.files.single;
++
++      if (file.bytes == null) {
++        if (!mounted) return;
++        ScaffoldMessenger.of(context).showSnackBar(
++          const SnackBar(content: Text("Couldn't read that file")),
++        );
++        return;
++      }
++      if (file.bytes!.length > kMaxAttachmentBytes) {
++        if (!mounted) return;
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text('That file is too large (max ${kMaxAttachmentBytes ~/ (1024 * 1024)}MB)')),
++        );
++        return;
++      }
++
++      setState(() => _pendingFile = file);
++    } catch (e) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        SnackBar(content: Text('Failed to pick a file: $e')),
++      );
++    }
++  }
++
+   Future<void> _sendMessage() async {
+     final text = _messageController.text.trim();
+-    if (text.isEmpty) return;
++    final file = _pendingFile;
++    if (text.isEmpty && file == null) return;
++    if (_sending) return;
+ 
++    setState(() => _sending = true);
+     _messageController.clear();
++    setState(() => _pendingFile = null);
+ 
+     try {
+-      final newMessage = await ChatService.sendMessage(widget.partner.id, text);
++      Message? newMessage;
++      if (file != null) {
++        newMessage = await ChatService.sendAttachment(
++          widget.partner.id,
++          fileName: file.name,
++          mimeType: _guessMimeType(file.extension),
++          fileBytes: Uint8List.fromList(file.bytes!),
++          caption: text.isEmpty ? null : text,
++        );
++      } else {
++        newMessage = await ChatService.sendMessage(widget.partner.id, text);
++      }
++
+       if (newMessage != null) {
+         setState(() {
+-          _messages.add(newMessage);
++          _messages.add(newMessage!);
+         });
+         _scrollToBottom();
+       }
+@@ -145,6 +206,26 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+       ScaffoldMessenger.of(context).showSnackBar(
+         SnackBar(content: Text(message)),
+       );
++    } finally {
++      if (mounted) setState(() => _sending = false);
++    }
++  }
++
++  static String _guessMimeType(String? extension) {
++    switch (extension?.toLowerCase()) {
++      case 'jpg':
++      case 'jpeg':
++        return 'image/jpeg';
++      case 'png':
++        return 'image/png';
++      case 'gif':
++        return 'image/gif';
++      case 'webp':
++        return 'image/webp';
++      case 'pdf':
++        return 'application/pdf';
++      default:
++        return 'application/octet-stream';
+     }
+   }
+ 
+@@ -169,12 +250,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+ 
+   @override
+   Widget build(BuildContext context) {
++    final online = _livePartner.isOnline;
++
+     return Scaffold(
+       appBar: AppBar(
+         titleSpacing: 0,
+         title: Row(
+           children: [
+-            _HeaderAvatar(name: widget.partner.name),
++            _HeaderAvatar(name: _livePartner.name, online: online),
+             const SizedBox(width: 12),
+             Expanded(
+               child: Column(
+@@ -182,17 +265,18 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                   Text(
+-                    widget.partner.name,
++                    _livePartner.name,
+                     maxLines: 1,
+                     overflow: TextOverflow.ellipsis,
+                     style: AppTextStyles.title.copyWith(fontSize: 16),
+                   ),
+-                  Row(
+-                    children: [
+-                      const Icon(Icons.lock_outline, size: 11, color: AppColors.grey500),
+-                      const SizedBox(width: 4),
+-                      Text('End-to-end encrypted', style: AppTextStyles.meta.copyWith(fontSize: 11)),
+-                    ],
++                  Text(
++                    online ? 'Online' : formatLastSeen(_livePartner.lastActiveAt),
++                    style: AppTextStyles.meta.copyWith(
++                      fontSize: 11,
++                      color: online ? AppColors.onlineAccent : AppColors.textTertiary,
++                      fontWeight: online ? FontWeight.w600 : FontWeight.w400,
++                    ),
+                   ),
+                 ],
+               ),
+@@ -201,14 +285,20 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+         ),
+         actions: [
+           IconButton(
+-            icon: const Icon(Icons.refresh),
+-            onPressed: () => _loadMessages(),
++            icon: const Icon(Icons.lock_outline, size: 20),
++            tooltip: 'End-to-end encrypted',
++            onPressed: () {
++              ScaffoldMessenger.of(context).showSnackBar(
++                const SnackBar(content: Text('Messages in this conversation are end-to-end encrypted.')),
++              );
++            },
+           ),
+         ],
+       ),
+       body: Column(
+         children: [
+           Expanded(child: _buildMessageList()),
++          if (_pendingFile != null) _buildPendingAttachment(),
+           _buildMessageInput(),
+         ],
+       ),
+@@ -246,8 +336,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+         final isMe = message.sender.email == _currentUserEmail;
+ 
+         final bubble = MessageBubble(
+-          content: message.content,
+-          timestamp: message.timestamp,
++          message: message,
+           isMe: isMe,
+           isGroupEnd: _isGroupEnd(index),
+         );
+@@ -265,9 +354,47 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+     );
+   }
+ 
++  Widget _buildPendingAttachment() {
++    final file = _pendingFile!;
++    return Container(
++      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
++      decoration: const BoxDecoration(
++        color: AppColors.background,
++        border: Border(top: BorderSide(color: AppColors.divider)),
++      ),
++      child: Row(
++        children: [
++          Container(
++            width: 34,
++            height: 34,
++            alignment: Alignment.center,
++            decoration: BoxDecoration(
++              color: AppColors.surfaceRaised,
++              borderRadius: BorderRadius.circular(10),
++            ),
++            child: const Icon(Icons.insert_drive_file_outlined, size: 16, color: AppColors.grey300),
++          ),
++          const SizedBox(width: 10),
++          Expanded(
++            child: Text(
++              file.name,
++              maxLines: 1,
++              overflow: TextOverflow.ellipsis,
++              style: AppTextStyles.body.copyWith(fontSize: 13),
++            ),
++          ),
++          IconButton(
++            icon: const Icon(Icons.close, size: 18, color: AppColors.grey500),
++            onPressed: () => setState(() => _pendingFile = null),
++          ),
++        ],
++      ),
++    );
++  }
++
+   Widget _buildMessageInput() {
+     return Container(
+-      padding: const EdgeInsets.only(left: 16, right: 8, top: 10, bottom: 10),
++      padding: const EdgeInsets.only(left: 4, right: 8, top: 10, bottom: 10),
+       decoration: const BoxDecoration(
+         color: AppColors.background,
+         border: Border(top: BorderSide(color: AppColors.divider)),
+@@ -276,6 +403,10 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+         top: false,
+         child: Row(
+           children: [
++            IconButton(
++              icon: const Icon(Icons.attach_file, color: AppColors.grey400),
++              onPressed: _sending ? null : _pickAttachment,
++            ),
+             Expanded(
+               child: TextField(
+                 controller: _messageController,
+@@ -296,7 +427,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+               ),
+             ),
+             const SizedBox(width: 8),
+-            _SendButton(onTap: _sendMessage),
++            _SendButton(onTap: _sending ? null : _sendMessage, loading: _sending),
+           ],
+         ),
+       ),
+@@ -305,24 +436,48 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+ }
+ 
+ class _HeaderAvatar extends StatelessWidget {
+-  const _HeaderAvatar({required this.name});
++  const _HeaderAvatar({required this.name, required this.online});
+ 
+   final String name;
++  final bool online;
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return Container(
++    return SizedBox(
+       width: 36,
+       height: 36,
+-      alignment: Alignment.center,
+-      decoration: BoxDecoration(
+-        shape: BoxShape.circle,
+-        color: AppColors.surfaceRaised,
+-        border: Border.all(color: AppColors.border),
+-      ),
+-      child: Text(
+-        name.isNotEmpty ? name[0].toUpperCase() : '?',
+-        style: AppTextStyles.title.copyWith(fontSize: 14),
++      child: Stack(
++        clipBehavior: Clip.none,
++        children: [
++          Container(
++            width: 36,
++            height: 36,
++            alignment: Alignment.center,
++            decoration: BoxDecoration(
++              shape: BoxShape.circle,
++              color: AppColors.surfaceRaised,
++              border: Border.all(color: AppColors.border),
++            ),
++            child: Text(
++              name.isNotEmpty ? name[0].toUpperCase() : '?',
++              style: AppTextStyles.title.copyWith(fontSize: 14),
++            ),
++          ),
++          if (online)
++            Positioned(
++              right: -1,
++              bottom: -1,
++              child: Container(
++                width: 11,
++                height: 11,
++                decoration: BoxDecoration(
++                  shape: BoxShape.circle,
++                  color: AppColors.onlineAccent,
++                  border: Border.all(color: AppColors.background, width: 2),
++                ),
++              ),
++            ),
++        ],
+       ),
+     );
+   }
+@@ -357,9 +512,10 @@ class _DayDivider extends StatelessWidget {
+ }
+ 
+ class _SendButton extends StatefulWidget {
+-  const _SendButton({required this.onTap});
++  const _SendButton({required this.onTap, this.loading = false});
+ 
+-  final VoidCallback onTap;
++  final VoidCallback? onTap;
++  final bool loading;
+ 
+   @override
+   State<_SendButton> createState() => _SendButtonState();
+@@ -372,9 +528,9 @@ class _SendButtonState extends State<_SendButton> {
+   Widget build(BuildContext context) {
+     return GestureDetector(
+       onTap: widget.onTap,
+-      onTapDown: (_) => setState(() => _pressed = true),
+-      onTapUp: (_) => setState(() => _pressed = false),
+-      onTapCancel: () => setState(() => _pressed = false),
++      onTapDown: widget.onTap == null ? null : (_) => setState(() => _pressed = true),
++      onTapUp: widget.onTap == null ? null : (_) => setState(() => _pressed = false),
++      onTapCancel: widget.onTap == null ? null : () => setState(() => _pressed = false),
+       child: AnimatedScale(
+         scale: _pressed ? 0.92 : 1.0,
+         duration: const Duration(milliseconds: 120),
+@@ -386,7 +542,13 @@ class _SendButtonState extends State<_SendButton> {
+             color: AppColors.white,
+             shape: BoxShape.circle,
+           ),
+-          child: const Icon(Icons.arrow_upward, color: AppColors.black, size: 20),
++          child: widget.loading
++              ? const SizedBox(
++                  width: 16,
++                  height: 16,
++                  child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.black),
++                )
++              : const Icon(Icons.arrow_upward, color: AppColors.black, size: 20),
+         ),
+       ),
+     );
+diff --git a/lib/services/chat_service.dart b/lib/services/chat_service.dart
+index e9fdda2..5420981 100644
+--- a/lib/services/chat_service.dart
++++ b/lib/services/chat_service.dart
+@@ -1,8 +1,15 @@
++import 'dart:convert';
++import 'dart:typed_data';
++
+ import 'package:roost_app/services/api_service.dart';
+ import 'package:roost_app/services/encryption_service.dart';
+ import 'package:roost_app/models/user.dart';
+ import 'package:roost_app/models/message.dart';
+ 
++/// Raw file size cap before encryption/base64 (~5MB). Kept in sync with
++/// the backend's MAX_ATTACHMENT_BASE64_CHARS.
++const int kMaxAttachmentBytes = 5 * 1024 * 1024;
++
+ class ChatService {
+   static Future<List<User>> getActiveChats() async {
+     final response = await ApiService.get('/api/chat/active');
+@@ -12,24 +19,68 @@ class ChatService {
+     return [];
+   }
+ 
++  /// Fetches a single user's current profile -- used to refresh a chat
++  /// partner's online/last-seen status independently of message history.
++  static Future<User?> getUserProfile(int userId) async {
++    try {
++      final response = await ApiService.get('/api/users/$userId');
++      if (response is Map<String, dynamic>) {
++        return User.fromJson(response);
++      }
++    } catch (_) {}
++    return null;
++  }
++
+   /// Fetches the encrypted history with [userId] and decrypts every
+-  /// message in place before returning -- callers always receive
+-  /// plaintext, never ciphertext.
++  /// message (and any attachment) in place before returning -- callers
++  /// always receive plaintext, never ciphertext.
+   static Future<List<Message>> getChatHistory(int userId) async {
+     final response = await ApiService.get('/api/chat/history/$userId');
+     if (response is! List) return [];
+ 
+     final messages = response.map((json) => Message.fromJson(json)).toList();
+     for (final message in messages) {
+-      message.content = await EncryptionService.decryptFrom(
+-        userId,
+-        message.content,
+-        message.nonce,
+-      );
++      if (message.content.isNotEmpty || message.nonce != null) {
++        message.content = await EncryptionService.decryptFrom(
++          userId,
++          message.content,
++          message.nonce,
++        );
++      }
++      if (message.hasAttachment) {
++        await _decryptAttachment(message, userId);
++      }
+     }
+     return messages;
+   }
+ 
++  static Future<void> _decryptAttachment(Message message, int otherUserId) async {
++    try {
++      final metaJson = await EncryptionService.decryptFrom(
++        otherUserId,
++        message.attachmentMeta!,
++        message.attachmentMetaNonce,
++      );
++      final meta = jsonDecode(metaJson) as Map<String, dynamic>;
++      message.attachmentFileName = meta['name'] as String?;
++      message.attachmentMimeType = meta['mimeType'] as String?;
++      message.attachmentSizeBytes = (meta['size'] as num?)?.toInt();
++
++      final bytes = await EncryptionService.decryptBytesFrom(
++        otherUserId,
++        message.attachmentData!,
++        message.attachmentNonce!,
++      );
++      if (bytes != null) {
++        message.attachmentBytes = Uint8List.fromList(bytes);
++      }
++    } catch (_) {
++      // Leave attachment fields null; the UI shows a "couldn't load
++      // attachment" state when attachmentBytes is null but hasAttachment
++      // is true.
++    }
++  }
++
+   /// Encrypts [content] for [recipientId] end-to-end, sends it, and
+   /// returns a [Message] with the original plaintext already attached
+   /// (no need to round-trip a decrypt for a message we just wrote).
+@@ -50,6 +101,57 @@ class ChatService {
+     return message;
+   }
+ 
++  /// Encrypts [fileBytes] (and an optional [caption]) for [recipientId],
++  /// sends it as an attachment, and returns a Message with the plaintext
++  /// caption and decrypted attachment fields already populated.
++  ///
++  /// Throws [RecipientKeyUnavailableException] if the recipient hasn't
++  /// enabled secure messaging yet, or [ArgumentError] if the file exceeds
++  /// [kMaxAttachmentBytes].
++  static Future<Message?> sendAttachment(
++    int recipientId, {
++    required String fileName,
++    required String mimeType,
++    required Uint8List fileBytes,
++    String? caption,
++  }) async {
++    if (fileBytes.length > kMaxAttachmentBytes) {
++      throw ArgumentError('Attachment is too large (max ${kMaxAttachmentBytes ~/ (1024 * 1024)}MB)');
++    }
++
++    final payload = <String, dynamic>{'recipientId': recipientId};
++
++    if (caption != null && caption.trim().isNotEmpty) {
++      final encryptedCaption = await EncryptionService.encryptFor(recipientId, caption.trim());
++      payload['content'] = encryptedCaption.content;
++      payload['nonce'] = encryptedCaption.nonce;
++    }
++
++    final encryptedFile = await EncryptionService.encryptBytesFor(recipientId, fileBytes);
++    payload['attachmentData'] = encryptedFile.content;
++    payload['attachmentNonce'] = encryptedFile.nonce;
++
++    final meta = jsonEncode({
++      'name': fileName,
++      'mimeType': mimeType,
++      'size': fileBytes.length,
++    });
++    final encryptedMeta = await EncryptionService.encryptFor(recipientId, meta);
++    payload['attachmentMeta'] = encryptedMeta.content;
++    payload['attachmentMetaNonce'] = encryptedMeta.nonce;
++
++    final response = await ApiService.post('/api/chat', payload);
++    if (response == null) return null;
++
++    final message = Message.fromJson(response);
++    message.content = caption?.trim() ?? '';
++    message.attachmentBytes = fileBytes;
++    message.attachmentFileName = fileName;
++    message.attachmentMimeType = mimeType;
++    message.attachmentSizeBytes = fileBytes.length;
++    return message;
++  }
++
+   static Future<void> markAsRead(int userId) async {
+     try {
+       await ApiService.post('/api/chat/mark-read/$userId', {});
+diff --git a/lib/services/encryption_service.dart b/lib/services/encryption_service.dart
+index fd1077a..65fa89d 100644
+--- a/lib/services/encryption_service.dart
++++ b/lib/services/encryption_service.dart
+@@ -100,14 +100,20 @@ class EncryptionService {
+   static Future<({String content, String nonce})> encryptFor(
+     int otherUserId,
+     String plaintext,
++  ) async {
++    return encryptBytesFor(otherUserId, utf8.encode(plaintext));
++  }
++
++  /// Byte-level version of [encryptFor], used for both message text and
++  /// file attachments so both go through the exact same cipher path.
++  static Future<({String content, String nonce})> encryptBytesFor(
++    int otherUserId,
++    List<int> bytes,
+   ) async {
+     await ensureInitialized();
+     final secretKey = await _sharedSecretWith(otherUserId);
+ 
+-    final secretBox = await _cipher.encrypt(
+-      utf8.encode(plaintext),
+-      secretKey: secretKey,
+-    );
++    final secretBox = await _cipher.encrypt(bytes, secretKey: secretKey);
+ 
+     final combined = Uint8List.fromList([
+       ...secretBox.cipherText,
+@@ -132,13 +138,29 @@ class EncryptionService {
+     if (nonce == null || nonce.isEmpty) {
+       return content;
+     }
++    final bytes = await decryptBytesFrom(otherUserId, content, nonce);
++    if (bytes == null) return '🔒 Unable to decrypt this message';
++    try {
++      return utf8.decode(bytes);
++    } catch (_) {
++      return '🔒 Unable to decrypt this message';
++    }
++  }
+ 
++  /// Byte-level version of [decryptFrom]. Returns null on failure instead
++  /// of a placeholder string, since callers may be decrypting binary file
++  /// data where a text placeholder wouldn't make sense.
++  static Future<List<int>?> decryptBytesFrom(
++    int otherUserId,
++    String content,
++    String nonce,
++  ) async {
+     try {
+       await ensureInitialized();
+       final secretKey = await _sharedSecretWith(otherUserId);
+ 
+       final combined = base64Decode(content);
+-      if (combined.length <= _macLength) return '🔒 Unable to decrypt this message';
++      if (combined.length <= _macLength) return null;
+ 
+       final cipherText = combined.sublist(0, combined.length - _macLength);
+       final mac = combined.sublist(combined.length - _macLength);
+@@ -149,10 +171,9 @@ class EncryptionService {
+         mac: Mac(mac),
+       );
+ 
+-      final clearBytes = await _cipher.decrypt(secretBox, secretKey: secretKey);
+-      return utf8.decode(clearBytes);
++      return await _cipher.decrypt(secretBox, secretKey: secretKey);
+     } catch (_) {
+-      return '🔒 Unable to decrypt this message';
++      return null;
+     }
+   }
+ 
+diff --git a/lib/theme/app_colors.dart b/lib/theme/app_colors.dart
+index b7657c9..d6b36a3 100644
+--- a/lib/theme/app_colors.dart
++++ b/lib/theme/app_colors.dart
+@@ -41,4 +41,11 @@ class AppColors {
+ 
+   // Shadow
+   static Color shadow = black.withValues(alpha: 0.06);
++
++  /// The one deliberate exception to Roost's monochrome palette. Reserved
++  /// exclusively for online-presence indicators (avatar dot, "Online"
++  /// label) -- a muted, non-neon green rather than a bright accent, since
++  /// presence is a near-universal color convention users read at a glance.
++  /// Do not reuse this color for anything else.
++  static const Color onlineAccent = Color(0xFF3ECF8E);
+ }
+diff --git a/lib/utils/presence_formatter.dart b/lib/utils/presence_formatter.dart
+new file mode 100644
+index 0000000..fc3d790
+--- /dev/null
++++ b/lib/utils/presence_formatter.dart
+@@ -0,0 +1,24 @@
++import 'package:intl/intl.dart';
++
++/// Formats a "last seen" label for a chat partner's [lastActiveAt].
++/// Callers should check `User.isOnline` first and show "Online" instead
++/// of calling this when that's true.
++String formatLastSeen(DateTime? lastActiveAt) {
++  if (lastActiveAt == null) return '';
++
++  final local = lastActiveAt.toLocal();
++  final now = DateTime.now();
++  final diff = now.difference(local);
++
++  if (diff.inMinutes < 1) return 'Last seen just now';
++  if (diff.inMinutes < 60) return 'Last seen ${diff.inMinutes}m ago';
++
++  final isToday = local.year == now.year && local.month == now.month && local.day == now.day;
++  if (isToday) return 'Last seen today at ${DateFormat('h:mm a').format(local)}';
++
++  final yesterday = now.subtract(const Duration(days: 1));
++  final isYesterday = local.year == yesterday.year && local.month == yesterday.month && local.day == yesterday.day;
++  if (isYesterday) return 'Last seen yesterday at ${DateFormat('h:mm a').format(local)}';
++
++  return 'Last seen ${DateFormat('MMM d').format(local)}';
++}
+diff --git a/lib/widgets/chat/chat_tile.dart b/lib/widgets/chat/chat_tile.dart
+index b757358..19e4f52 100644
+--- a/lib/widgets/chat/chat_tile.dart
++++ b/lib/widgets/chat/chat_tile.dart
+@@ -3,10 +3,10 @@ import 'package:roost_app/models/user.dart';
+ import 'package:roost_app/theme/app_colors.dart';
+ import 'package:roost_app/theme/app_text_styles.dart';
+ import 'package:roost_app/theme/app_theme.dart';
++import 'package:roost_app/utils/presence_formatter.dart';
+ 
+-/// A single row in the active-chats list: initials avatar, name, role pill,
+-/// and a chevron -- styled to match the property card's monochrome
+-/// language rather than a default Material ListTile.
++/// A single row in the active-chats list: initials avatar with a live
++/// online indicator, name, role pill + presence, and a chevron.
+ class ChatTile extends StatelessWidget {
+   const ChatTile({super.key, required this.partner, required this.onTap});
+ 
+@@ -15,6 +15,8 @@ class ChatTile extends StatelessWidget {
+ 
+   @override
+   Widget build(BuildContext context) {
++    final online = partner.isOnline;
++
+     return Material(
+       color: Colors.transparent,
+       child: InkWell(
+@@ -23,7 +25,7 @@ class ChatTile extends StatelessWidget {
+           padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+           child: Row(
+             children: [
+-              _Avatar(name: partner.name),
++              _Avatar(name: partner.name, online: online),
+               const SizedBox(width: 14),
+               Expanded(
+                 child: Column(
+@@ -36,7 +38,24 @@ class ChatTile extends StatelessWidget {
+                       style: AppTextStyles.title,
+                     ),
+                     const SizedBox(height: 4),
+-                    _RolePill(role: partner.role),
++                    Row(
++                      children: [
++                        _RolePill(role: partner.role),
++                        const SizedBox(width: 8),
++                        Expanded(
++                          child: Text(
++                            online ? 'Online' : formatLastSeen(partner.lastActiveAt),
++                            maxLines: 1,
++                            overflow: TextOverflow.ellipsis,
++                            style: AppTextStyles.meta.copyWith(
++                              fontSize: 11,
++                              color: online ? AppColors.onlineAccent : AppColors.textTertiary,
++                              fontWeight: online ? FontWeight.w600 : FontWeight.w400,
++                            ),
++                          ),
++                        ),
++                      ],
++                    ),
+                   ],
+                 ),
+               ),
+@@ -55,24 +74,48 @@ class ChatTile extends StatelessWidget {
+ }
+ 
+ class _Avatar extends StatelessWidget {
+-  const _Avatar({required this.name});
++  const _Avatar({required this.name, required this.online});
+ 
+   final String name;
++  final bool online;
+ 
+   @override
+   Widget build(BuildContext context) {
+-    return Container(
++    return SizedBox(
+       width: 48,
+       height: 48,
+-      alignment: Alignment.center,
+-      decoration: BoxDecoration(
+-        shape: BoxShape.circle,
+-        color: AppColors.surfaceRaised,
+-        border: Border.all(color: AppColors.border),
+-      ),
+-      child: Text(
+-        name.isNotEmpty ? name[0].toUpperCase() : '?',
+-        style: AppTextStyles.title.copyWith(fontSize: 18),
++      child: Stack(
++        clipBehavior: Clip.none,
++        children: [
++          Container(
++            width: 48,
++            height: 48,
++            alignment: Alignment.center,
++            decoration: BoxDecoration(
++              shape: BoxShape.circle,
++              color: AppColors.surfaceRaised,
++              border: Border.all(color: AppColors.border),
++            ),
++            child: Text(
++              name.isNotEmpty ? name[0].toUpperCase() : '?',
++              style: AppTextStyles.title.copyWith(fontSize: 18),
++            ),
++          ),
++          if (online)
++            Positioned(
++              right: -1,
++              bottom: -1,
++              child: Container(
++                width: 14,
++                height: 14,
++                decoration: BoxDecoration(
++                  shape: BoxShape.circle,
++                  color: AppColors.onlineAccent,
++                  border: Border.all(color: AppColors.background, width: 2.5),
++                ),
++              ),
++            ),
++        ],
+       ),
+     );
+   }
+diff --git a/lib/widgets/chat/message_bubble.dart b/lib/widgets/chat/message_bubble.dart
+index a11634d..badcf6e 100644
+--- a/lib/widgets/chat/message_bubble.dart
++++ b/lib/widgets/chat/message_bubble.dart
+@@ -1,31 +1,39 @@
++import 'dart:io';
++import 'dart:typed_data';
++
+ import 'package:flutter/material.dart';
+ import 'package:intl/intl.dart';
++import 'package:open_filex/open_filex.dart';
++import 'package:path_provider/path_provider.dart';
++import 'package:roost_app/models/message.dart';
+ import 'package:roost_app/theme/app_colors.dart';
+ import 'package:roost_app/theme/app_text_styles.dart';
++import 'package:roost_app/theme/app_theme.dart';
+ 
+-/// A single chat message bubble. Consecutive messages from the same sender
+-/// are visually grouped -- only the last one in a group shows a timestamp
+-/// and a fully rounded tail corner -- to keep dense conversations readable.
++/// A single chat message bubble -- text, an attachment (image or file), or
++/// both. Consecutive messages from the same sender are visually grouped:
++/// only the last one in a group shows a timestamp/read-receipt and a fully
++/// rounded tail corner, keeping dense conversations readable.
+ class MessageBubble extends StatelessWidget {
+   const MessageBubble({
+     super.key,
+-    required this.content,
+-    required this.timestamp,
++    required this.message,
+     required this.isMe,
+     this.isGroupEnd = true,
+   });
+ 
+-  final String content;
+-  final DateTime timestamp;
++  final Message message;
+   final bool isMe;
+ 
+   /// Whether this is the last message in a run of consecutive messages
+-  /// from the same sender (controls timestamp visibility and tail radius).
++  /// from the same sender (controls timestamp/receipt visibility and tail
++  /// radius).
+   final bool isGroupEnd;
+ 
+   @override
+   Widget build(BuildContext context) {
+     final tailRadius = isGroupEnd ? const Radius.circular(4) : const Radius.circular(20);
++    final hasText = message.content.isNotEmpty;
+ 
+     return Padding(
+       padding: EdgeInsets.only(bottom: isGroupEnd ? 12 : 3),
+@@ -39,7 +47,9 @@ class MessageBubble extends StatelessWidget {
+                 maxWidth: MediaQuery.of(context).size.width * 0.75,
+               ),
+               child: Container(
+-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
++                padding: message.hasAttachment && !hasText
++                    ? const EdgeInsets.all(6)
++                    : const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+                 decoration: BoxDecoration(
+                   color: isMe ? AppColors.white : AppColors.surfaceRaised,
+                   border: isMe ? null : Border.all(color: AppColors.divider),
+@@ -50,11 +60,21 @@ class MessageBubble extends StatelessWidget {
+                     bottomRight: isMe ? tailRadius : const Radius.circular(20),
+                   ),
+                 ),
+-                child: Text(
+-                  content,
+-                  style: AppTextStyles.body.copyWith(
+-                    color: isMe ? AppColors.black : AppColors.textPrimary,
+-                  ),
++                child: Column(
++                  crossAxisAlignment: CrossAxisAlignment.start,
++                  mainAxisSize: MainAxisSize.min,
++                  children: [
++                    if (message.hasAttachment) _Attachment(message: message, isMe: isMe),
++                    if (message.hasAttachment && hasText) const SizedBox(height: 8),
++                    if (hasText)
++                      Text(
++                        message.content,
++                        style: AppTextStyles.body.copyWith(
++                          color: isMe ? AppColors.black : AppColors.textPrimary,
++                        ),
++                      ),
++                    if (message.hasAttachment && hasText) const SizedBox(height: 4),
++                  ],
+                 ),
+               ),
+             ),
+@@ -62,9 +82,22 @@ class MessageBubble extends StatelessWidget {
+               const SizedBox(height: 4),
+               Padding(
+                 padding: const EdgeInsets.symmetric(horizontal: 4),
+-                child: Text(
+-                  DateFormat('h:mm a').format(timestamp.toLocal()),
+-                  style: AppTextStyles.meta.copyWith(fontSize: 11),
++                child: Row(
++                  mainAxisSize: MainAxisSize.min,
++                  children: [
++                    Text(
++                      DateFormat('h:mm a').format(message.timestamp.toLocal()),
++                      style: AppTextStyles.meta.copyWith(fontSize: 11),
++                    ),
++                    if (isMe) ...[
++                      const SizedBox(width: 3),
++                      Icon(
++                        message.read ? Icons.done_all : Icons.done,
++                        size: 14,
++                        color: message.read ? AppColors.white : AppColors.grey500,
++                      ),
++                    ],
++                  ],
+                 ),
+               ),
+             ],
+@@ -74,3 +107,222 @@ class MessageBubble extends StatelessWidget {
+     );
+   }
+ }
++
++class _Attachment extends StatelessWidget {
++  const _Attachment({required this.message, required this.isMe});
++
++  final Message message;
++  final bool isMe;
++
++  bool get _isImage => (message.attachmentMimeType ?? '').startsWith('image/');
++
++  @override
++  Widget build(BuildContext context) {
++    final bytes = message.attachmentBytes;
++
++    if (bytes == null) {
++      return _AttachmentPlaceholder(
++        isMe: isMe,
++        icon: Icons.error_outline,
++        label: "Couldn't load attachment",
++      );
++    }
++
++    if (_isImage) {
++      return GestureDetector(
++        onTap: () => _openImageViewer(context, bytes),
++        child: ClipRRect(
++          borderRadius: BorderRadius.circular(14),
++          child: Image.memory(
++            bytes,
++            width: 220,
++            height: 220,
++            fit: BoxFit.cover,
++            errorBuilder: (_, _, _) => _AttachmentPlaceholder(
++              isMe: isMe,
++              icon: Icons.broken_image_outlined,
++              label: 'Image unavailable',
++            ),
++          ),
++        ),
++      );
++    }
++
++    return _FileChip(
++      fileName: message.attachmentFileName ?? 'File',
++      sizeBytes: message.attachmentSizeBytes,
++      bytes: bytes,
++      isMe: isMe,
++    );
++  }
++
++  void _openImageViewer(BuildContext context, Uint8List bytes) {
++    Navigator.of(context).push(
++      PageRouteBuilder(
++        opaque: false,
++        barrierColor: AppColors.black,
++        pageBuilder: (context, _, _) => _ImageViewer(bytes: bytes),
++      ),
++    );
++  }
++}
++
++class _AttachmentPlaceholder extends StatelessWidget {
++  const _AttachmentPlaceholder({required this.isMe, required this.icon, required this.label});
++
++  final bool isMe;
++  final IconData icon;
++  final String label;
++
++  @override
++  Widget build(BuildContext context) {
++    final color = isMe ? AppColors.black : AppColors.textSecondary;
++    return Container(
++      width: 200,
++      height: 120,
++      alignment: Alignment.center,
++      decoration: BoxDecoration(
++        color: (isMe ? AppColors.black : AppColors.white).withValues(alpha: 0.06),
++        borderRadius: BorderRadius.circular(14),
++      ),
++      child: Column(
++        mainAxisSize: MainAxisSize.min,
++        children: [
++          Icon(icon, color: color, size: 22),
++          const SizedBox(height: 6),
++          Text(label, style: AppTextStyles.meta.copyWith(color: color)),
++        ],
++      ),
++    );
++  }
++}
++
++class _FileChip extends StatefulWidget {
++  const _FileChip({
++    required this.fileName,
++    required this.sizeBytes,
++    required this.bytes,
++    required this.isMe,
++  });
++
++  final String fileName;
++  final int? sizeBytes;
++  final Uint8List bytes;
++  final bool isMe;
++
++  @override
++  State<_FileChip> createState() => _FileChipState();
++}
++
++class _FileChipState extends State<_FileChip> {
++  bool _opening = false;
++
++  String get _sizeLabel {
++    final bytes = widget.sizeBytes;
++    if (bytes == null) return '';
++    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(0)} KB';
++    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
++  }
++
++  Future<void> _open() async {
++    if (_opening) return;
++    setState(() => _opening = true);
++    try {
++      final dir = await getTemporaryDirectory();
++      final file = File('${dir.path}/${widget.fileName}');
++      await file.writeAsBytes(widget.bytes);
++      await OpenFilex.open(file.path);
++    } catch (_) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          const SnackBar(content: Text("Couldn't open this file")),
++        );
++      }
++    } finally {
++      if (mounted) setState(() => _opening = false);
++    }
++  }
++
++  @override
++  Widget build(BuildContext context) {
++    final fg = widget.isMe ? AppColors.black : AppColors.textPrimary;
++    return InkWell(
++      onTap: _open,
++      borderRadius: BorderRadius.circular(14),
++      child: Container(
++        width: 220,
++        padding: const EdgeInsets.all(10),
++        decoration: BoxDecoration(
++          color: (widget.isMe ? AppColors.black : AppColors.white).withValues(alpha: 0.06),
++          borderRadius: BorderRadius.circular(14),
++        ),
++        child: Row(
++          children: [
++            Container(
++              width: 36,
++              height: 36,
++              alignment: Alignment.center,
++              decoration: BoxDecoration(
++                color: (widget.isMe ? AppColors.black : AppColors.white).withValues(alpha: 0.1),
++                shape: BoxShape.circle,
++              ),
++              child: _opening
++                  ? SizedBox(
++                      width: 16,
++                      height: 16,
++                      child: CircularProgressIndicator(strokeWidth: 2, color: fg),
++                    )
++                  : Icon(Icons.insert_drive_file_outlined, color: fg, size: 18),
++            ),
++            const SizedBox(width: 10),
++            Expanded(
++              child: Column(
++                crossAxisAlignment: CrossAxisAlignment.start,
++                mainAxisSize: MainAxisSize.min,
++                children: [
++                  Text(
++                    widget.fileName,
++                    maxLines: 1,
++                    overflow: TextOverflow.ellipsis,
++                    style: AppTextStyles.body.copyWith(color: fg, fontSize: 13),
++                  ),
++                  if (_sizeLabel.isNotEmpty)
++                    Text(
++                      _sizeLabel,
++                      style: AppTextStyles.meta.copyWith(
++                        color: fg.withValues(alpha: 0.6),
++                        fontSize: 11,
++                      ),
++                    ),
++                ],
++              ),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++}
++
++class _ImageViewer extends StatelessWidget {
++  const _ImageViewer({required this.bytes});
++
++  final Uint8List bytes;
++
++  @override
++  Widget build(BuildContext context) {
++    return Scaffold(
++      backgroundColor: AppColors.black,
++      appBar: AppBar(
++        backgroundColor: Colors.transparent,
++        elevation: 0,
++        iconTheme: const IconThemeData(color: AppColors.white),
++      ),
++      body: Center(
++        child: InteractiveViewer(
++          child: Image.memory(bytes),
++        ),
++      ),
++    );
++  }
++}
+diff --git a/pubspec.yaml b/pubspec.yaml
+index 06f14b1..9269a3b 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -22,6 +22,9 @@ dependencies:
+   video_player: ^2.13.0
+   cryptography: ^2.7.0
+   flutter_secure_storage: ^9.2.2
++  file_picker: ^8.1.6
++  path_provider: ^2.1.5
++  open_filex: ^4.5.0
+ 
+ dev_dependencies:
+   flutter_test:

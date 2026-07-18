@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/user.dart';
 import 'package:roost_app/services/chat_service.dart';
@@ -17,18 +18,32 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
   List<User> _partners = [];
   bool _isLoading = true;
   String? _error;
+  Timer? _presenceTimer;
 
   @override
   void initState() {
     super.initState();
     _loadChats();
+    // Light periodic refresh so online/last-seen status on this list stays
+    // current even without opening a conversation.
+    _presenceTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+      if (mounted) _loadChats(silent: true);
+    });
   }
 
-  Future<void> _loadChats() async {
-    setState(() {
-      _isLoading = true;
-      _error = null;
-    });
+  @override
+  void dispose() {
+    _presenceTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadChats({bool silent = false}) async {
+    if (!silent) {
+      setState(() {
+        _isLoading = true;
+        _error = null;
+      });
+    }
     try {
       final partners = await ChatService.getActiveChats();
       if (!mounted) return;
@@ -38,19 +53,18 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() {
-        _error = e.toString();
-        _isLoading = false;
-      });
+      if (!silent) {
+        setState(() {
+          _error = e.toString();
+          _isLoading = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('MESSAGES')),
-      body: _buildBody(),
-    );
+    return _buildBody();
   }
 
   Widget _buildBody() {
