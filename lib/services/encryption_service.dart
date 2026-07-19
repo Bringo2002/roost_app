@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:cryptography/cryptography.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/auth_service.dart';
 
 /// Thrown when a message can't be encrypted because the recipient hasn't
 /// uploaded a public key yet (i.e. hasn't opened the app since end-to-end
@@ -27,6 +28,11 @@ class RecipientKeyUnavailableException implements Exception {
 /// public key is uploaded, so the backend can store and relay ciphertext
 /// without ever being able to read message content.
 ///
+/// Keypairs are stored *per signed-in account*, not just per device --
+/// switching accounts on the same device (e.g. testing with two test
+/// users) must not reuse one account's keypair for another, or the
+/// shared-secret math breaks for everyone involved.
+///
 /// Note: this uses static long-term keys, not a ratcheting protocol, so it
 /// does not provide forward secrecy (a compromised private key could
 /// decrypt past messages). That would require a full Signal-style double
@@ -36,8 +42,6 @@ class EncryptionService {
   EncryptionService._();
 
   static const _storage = FlutterSecureStorage();
-  static const _privateKeyStorageKey = 'e2ee_private_key';
-  static const _publicKeyStorageKey = 'e2ee_public_key';
 
   static final X25519 _keyExchange = X25519();
   static final Chacha20 _cipher = Chacha20.poly1305Aead();
@@ -47,17 +51,40 @@ class EncryptionService {
   static const int _macLength = 16;
 
   static SimpleKeyPair? _keyPair;
+
+  /// Which account's keypair is currently loaded into [_keyPair]. Used to
+  /// detect an account switch on the same device/process.
+  static String? _activeEmail;
+
   static final Map<int, SecretKey> _sharedSecretCache = {};
   static final Map<int, String> _remotePublicKeyCache = {};
 
-  /// Loads the on-device keypair, generating and uploading a new one on
-  /// first run. Safe to call repeatedly -- it's a no-op after the first
-  /// successful call in this app session.
+  /// Loads the on-device keypair *for the currently signed-in account*,
+  /// generating and uploading a new one on first run for that account.
+  /// Safe to call repeatedly -- it's a no-op once already initialized for
+  /// the active account, but correctly re-initializes (and clears cached
+  /// shared secrets) if a different account has since signed in.
   static Future<void> ensureInitialized() async {
-    if (_keyPair != null) return;
+    final email = await AuthService.getUserEmail();
+    if (email == null || email.isEmpty) {
+      throw StateError('Cannot set up secure messaging: no signed-in user.');
+    }
 
-    final storedPrivate = await _storage.read(key: _privateKeyStorageKey);
-    final storedPublic = await _storage.read(key: _publicKeyStorageKey);
+    if (_keyPair != null && _activeEmail == email) return;
+
+    // Either first run, or the signed-in account changed since we last
+    // initialized -- reset everything so we don't carry over another
+    // account's keypair or cached shared secrets.
+    _keyPair = null;
+    _sharedSecretCache.clear();
+    _remotePublicKeyCache.clear();
+    _activeEmail = email;
+
+    final privateKeyStorageKey = 'e2ee_private_key:$email';
+    final publicKeyStorageKey = 'e2ee_public_key:$email';
+
+    final storedPrivate = await _storage.read(key: privateKeyStorageKey);
+    final storedPublic = await _storage.read(key: publicKeyStorageKey);
 
     if (storedPrivate != null && storedPublic != null) {
       _keyPair = SimpleKeyPairData(
@@ -71,20 +98,21 @@ class EncryptionService {
       return;
     }
 
-    // First run on this device (or a reinstall): generate a fresh keypair.
-    // Re-uploading overwrites the server's record of our public key, which
-    // means any messages encrypted under a previous key become permanently
-    // undecryptable -- an inherent tradeoff of E2EE, not a bug.
+    // First run for this account on this device (or a reinstall).
+    // Re-uploading overwrites the server's record of this account's
+    // public key, which means any messages encrypted under a previous
+    // key become permanently undecryptable -- an inherent tradeoff of
+    // E2EE, not a bug.
     final newKeyPair = await _keyExchange.newKeyPair();
     final privateBytes = await newKeyPair.extractPrivateKeyBytes();
     final publicKey = await newKeyPair.extractPublicKey();
 
     await _storage.write(
-      key: _privateKeyStorageKey,
+      key: privateKeyStorageKey,
       value: base64Encode(privateBytes),
     );
     await _storage.write(
-      key: _publicKeyStorageKey,
+      key: publicKeyStorageKey,
       value: base64Encode(publicKey.bytes),
     );
     _keyPair = newKeyPair;
