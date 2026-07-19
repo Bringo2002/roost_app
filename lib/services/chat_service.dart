@@ -5,6 +5,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/encryption_service.dart';
 import 'package:roost_app/models/user.dart';
 import 'package:roost_app/models/message.dart';
+import 'package:roost_app/models/conversation_summary.dart';
 
 /// Raw file size cap before encryption/base64 (~5MB). Kept in sync with
 /// the backend's MAX_ATTACHMENT_BASE64_CHARS.
@@ -39,6 +40,18 @@ class ChatService {
     final response = await ApiService.get('/api/chat/active');
     if (response is List) {
       return response.map((json) => User.fromJson(json)).toList();
+    }
+    return [];
+  }
+
+  /// Fetches conversation summaries with last-message ciphertext and
+  /// unread counts. The caller must decrypt the preview text locally.
+  static Future<List<ConversationSummary>> getConversations() async {
+    final response = await ApiService.get('/api/chat/conversations');
+    if (response is List) {
+      return response
+          .map((json) => ConversationSummary.fromJson(json))
+          .toList();
     }
     return [];
   }
@@ -133,13 +146,25 @@ class ChatService {
   ///
   /// Throws [RecipientKeyUnavailableException] if the recipient hasn't
   /// enabled secure messaging yet.
-  static Future<Message?> sendMessage(int recipientId, String content) async {
+  ///
+  /// [replyToMessageId] optionally references the ID of a message being
+  /// replied to.
+  static Future<Message?> sendMessage(
+    int recipientId,
+    String content, {
+    int? replyToMessageId,
+  }) async {
     final encrypted = await EncryptionService.encryptFor(recipientId, content);
-    final response = await ApiService.post('/api/chat', {
+    final payload = <String, dynamic>{
       'recipientId': recipientId,
       'content': encrypted.content,
       'nonce': encrypted.nonce,
-    });
+    };
+    if (replyToMessageId != null) {
+      payload['replyToMessageId'] = replyToMessageId;
+    }
+
+    final response = await ApiService.post('/api/chat', payload);
     if (response == null) return null;
 
     final message = Message.fromJson(response);
@@ -161,6 +186,7 @@ class ChatService {
     required String mimeType,
     required Uint8List fileBytes,
     String? caption,
+    int? replyToMessageId,
   }) async {
     if (fileBytes.length > kMaxAttachmentBytes) {
       throw ArgumentError('Attachment is too large (max ${kMaxAttachmentBytes ~/ (1024 * 1024)}MB)');
@@ -172,6 +198,9 @@ class ChatService {
       final encryptedCaption = await EncryptionService.encryptFor(recipientId, caption.trim());
       payload['content'] = encryptedCaption.content;
       payload['nonce'] = encryptedCaption.nonce;
+    }
+    if (replyToMessageId != null) {
+      payload['replyToMessageId'] = replyToMessageId;
     }
 
     final encryptedFile = await EncryptionService.encryptBytesFor(recipientId, fileBytes);
@@ -206,6 +235,111 @@ class ChatService {
       sizeBytes: fileBytes.length,
     );
     return message;
+  }
+
+  // ─── Editing ───────────────────────────────────────────────────────
+
+  /// Re-encrypts [newContent] and sends a PUT to update the message.
+  /// Returns the updated [Message] with plaintext already set, or null
+  /// on failure. Invalidates the content cache for this message.
+  static Future<Message?> editMessage(
+    int messageId,
+    int recipientId,
+    String newContent,
+  ) async {
+    final encrypted = await EncryptionService.encryptFor(recipientId, newContent);
+    final response = await ApiService.put('/api/chat/$messageId', {
+      'content': encrypted.content,
+      'nonce': encrypted.nonce,
+    });
+    if (response == null) return null;
+
+    final message = Message.fromJson(response);
+    message.content = newContent;
+    _decryptedContentCache[messageId] = newContent;
+    return message;
+  }
+
+  // ─── Deletion ──────────────────────────────────────────────────────
+
+  /// Deletes a message for everyone. Removes it from caches.
+  static Future<bool> deleteMessage(int messageId) async {
+    try {
+      await ApiService.delete('/api/chat/$messageId');
+      _decryptedContentCache.remove(messageId);
+      _decryptedAttachmentCache.remove(messageId);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // ─── Reactions ─────────────────────────────────────────────────────
+
+  /// Toggles a reaction on a message. The backend adds it if absent, or
+  /// removes it if the user already reacted with the same emoji.
+  static Future<String?> toggleReaction(int messageId, String emoji) async {
+    try {
+      final response = await ApiService.post('/api/chat/react/$messageId', {
+        'emoji': emoji,
+      });
+      if (response is Map<String, dynamic>) {
+        return response['action'] as String?;
+      }
+    } catch (_) {}
+    return null;
+  }
+
+  // ─── Typing indicator ─────────────────────────────────────────────
+
+  /// Notifies the server that the current user is typing to [recipientId].
+  /// Fire-and-forget — errors are silently ignored.
+  static Future<void> sendTyping(int recipientId) async {
+    try {
+      await ApiService.post('/api/chat/typing/$recipientId', {});
+    } catch (_) {}
+  }
+
+  /// Returns whether [partnerId] is currently typing to the current user.
+  static Future<bool> getTypingStatus(int partnerId) async {
+    try {
+      final response = await ApiService.get('/api/chat/typing-status/$partnerId');
+      if (response is Map<String, dynamic>) {
+        return response['typing'] == true;
+      }
+    } catch (_) {}
+    return false;
+  }
+
+  // ─── Forwarding ────────────────────────────────────────────────────
+
+  /// Forwards a text message to another user. The message is decrypted
+  /// from the source conversation's shared secret and re-encrypted with
+  /// the destination user's shared secret — the server never sees
+  /// plaintext at any point.
+  static Future<Message?> forwardTextMessage(
+    int destinationUserId,
+    String plaintext,
+  ) async {
+    return sendMessage(destinationUserId, plaintext);
+  }
+
+  /// Forwards an attachment message to another user. Decrypted bytes are
+  /// re-encrypted for the destination's shared secret.
+  static Future<Message?> forwardAttachmentMessage(
+    int destinationUserId, {
+    required Uint8List fileBytes,
+    required String fileName,
+    required String mimeType,
+    String? caption,
+  }) async {
+    return sendAttachment(
+      destinationUserId,
+      fileName: fileName,
+      mimeType: mimeType,
+      fileBytes: fileBytes,
+      caption: caption,
+    );
   }
 
   static Future<void> markAsRead(int userId) async {

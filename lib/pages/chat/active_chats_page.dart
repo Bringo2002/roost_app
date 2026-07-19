@@ -1,7 +1,8 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:roost_app/models/user.dart';
+import 'package:roost_app/models/conversation_summary.dart';
 import 'package:roost_app/services/chat_service.dart';
+import 'package:roost_app/services/encryption_service.dart';
 import 'package:roost_app/pages/chat/chat_room_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
@@ -15,25 +16,24 @@ class ActiveChatsPage extends StatefulWidget {
 }
 
 class _ActiveChatsPageState extends State<ActiveChatsPage> {
-  List<User> _partners = [];
+  List<ConversationSummary> _conversations = [];
   bool _isLoading = true;
   String? _error;
-  Timer? _presenceTimer;
+  Timer? _pollingTimer;
 
   @override
   void initState() {
     super.initState();
     _loadChats();
-    // Light periodic refresh so online/last-seen status on this list stays
-    // current even without opening a conversation.
-    _presenceTimer = Timer.periodic(const Duration(seconds: 20), (_) {
+    // Poll conversations list every 5 seconds to keep unread badges, last messages, and presence current
+    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) _loadChats(silent: true);
     });
   }
 
   @override
   void dispose() {
-    _presenceTimer?.cancel();
+    _pollingTimer?.cancel();
     super.dispose();
   }
 
@@ -45,10 +45,34 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
       });
     }
     try {
-      final partners = await ChatService.getActiveChats();
+      final conversations = await ChatService.getConversations();
+      
+      // Decrypt previews client-side
+      for (final summary in conversations) {
+        if (summary.lastMessageContent != null) {
+          try {
+            final plaintext = await EncryptionService.decryptFrom(
+              summary.partner.id,
+              summary.lastMessageContent!,
+              summary.lastMessageNonce,
+            );
+            
+            // Format preview: "You: Hello" or just "Hello"
+            final isMe = summary.lastMessageSenderId != summary.partner.id;
+            summary.decryptedPreview = isMe ? 'You: $plaintext' : plaintext;
+          } catch (_) {
+            summary.decryptedPreview = summary.hasAttachment ? '📎 Attachment' : '🔒 Decryption failed';
+          }
+        } else if (summary.hasAttachment) {
+          summary.decryptedPreview = '📎 Attachment';
+        } else {
+          summary.decryptedPreview = 'No messages yet';
+        }
+      }
+
       if (!mounted) return;
       setState(() {
-        _partners = partners;
+        _conversations = conversations;
         _isLoading = false;
       });
     } catch (e) {
@@ -94,7 +118,7 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
       );
     }
 
-    if (_partners.isEmpty) {
+    if (_conversations.isEmpty) {
       return const _StateMessage(
         icon: Icons.chat_bubble_outline,
         title: 'No conversations yet',
@@ -108,7 +132,7 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
       backgroundColor: AppColors.white,
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
-        itemCount: _partners.length,
+        itemCount: _conversations.length,
         separatorBuilder: (_, _) => const Divider(
           height: 1,
           indent: 20,
@@ -116,14 +140,14 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
           color: AppColors.divider,
         ),
         itemBuilder: (context, index) {
-          final partner = _partners[index];
+          final summary = _conversations[index];
           return ChatTile(
-            partner: partner,
+            summary: summary,
             onTap: () {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => ChatRoomPage(partner: partner),
+                  builder: (context) => ChatRoomPage(partner: summary.partner),
                 ),
               ).then((_) => _loadChats());
             },

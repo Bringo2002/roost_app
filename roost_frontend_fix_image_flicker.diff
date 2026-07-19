@@ -1,0 +1,134 @@
+diff --git a/lib/pages/chat/chat_room_page.dart b/lib/pages/chat/chat_room_page.dart
+index da2b3d7..b309e1e 100644
+--- a/lib/pages/chat/chat_room_page.dart
++++ b/lib/pages/chat/chat_room_page.dart
+@@ -336,6 +336,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+         final isMe = message.sender.email == _currentUserEmail;
+ 
+         final bubble = MessageBubble(
++          key: ValueKey(message.id),
+           message: message,
+           isMe: isMe,
+           isGroupEnd: _isGroupEnd(index),
+@@ -344,6 +345,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
+         if (!_isNewDay(index)) return bubble;
+ 
+         return Column(
++          key: ValueKey('day-${message.id}'),
+           crossAxisAlignment: CrossAxisAlignment.stretch,
+           children: [
+             _DayDivider(date: message.timestamp),
+diff --git a/lib/services/chat_service.dart b/lib/services/chat_service.dart
+index 5420981..c0346e9 100644
+--- a/lib/services/chat_service.dart
++++ b/lib/services/chat_service.dart
+@@ -10,7 +10,31 @@ import 'package:roost_app/models/message.dart';
+ /// the backend's MAX_ATTACHMENT_BASE64_CHARS.
+ const int kMaxAttachmentBytes = 5 * 1024 * 1024;
+ 
++class _CachedAttachment {
++  _CachedAttachment({
++    required this.bytes,
++    this.fileName,
++    this.mimeType,
++    this.sizeBytes,
++  });
++
++  final Uint8List bytes;
++  final String? fileName;
++  final String? mimeType;
++  final int? sizeBytes;
++}
++
+ class ChatService {
++  /// Decrypted content/attachments, cached by message id. Chat history is
++  /// re-fetched in full on every 5-second poll, but a given message's
++  /// content never changes once sent -- without this cache, every poll
++  /// would re-decrypt every message and re-download every attachment
++  /// from R2 from scratch, which both wastes bandwidth and, for images,
++  /// visibly "flickers" the UI as a fresh byte array gets re-decoded into
++  /// a new image every few seconds even though nothing changed.
++  static final Map<int, String> _decryptedContentCache = {};
++  static final Map<int, _CachedAttachment> _decryptedAttachmentCache = {};
++
+   static Future<List<User>> getActiveChats() async {
+     final response = await ApiService.get('/api/chat/active');
+     if (response is List) {
+@@ -33,22 +57,44 @@ class ChatService {
+ 
+   /// Fetches the encrypted history with [userId] and decrypts every
+   /// message (and any attachment) in place before returning -- callers
+-  /// always receive plaintext, never ciphertext.
++  /// always receive plaintext, never ciphertext. Reuses cached results
++  /// for messages already decrypted on a previous poll.
+   static Future<List<Message>> getChatHistory(int userId) async {
+     final response = await ApiService.get('/api/chat/history/$userId');
+     if (response is! List) return [];
+ 
+     final messages = response.map((json) => Message.fromJson(json)).toList();
+     for (final message in messages) {
+-      if (message.content.isNotEmpty || message.nonce != null) {
++      final cachedContent = _decryptedContentCache[message.id];
++      if (cachedContent != null) {
++        message.content = cachedContent;
++      } else if (message.content.isNotEmpty || message.nonce != null) {
+         message.content = await EncryptionService.decryptFrom(
+           userId,
+           message.content,
+           message.nonce,
+         );
++        _decryptedContentCache[message.id] = message.content;
+       }
++
+       if (message.hasAttachment) {
+-        await _decryptAttachment(message, userId);
++        final cached = _decryptedAttachmentCache[message.id];
++        if (cached != null) {
++          message.attachmentBytes = cached.bytes;
++          message.attachmentFileName = cached.fileName;
++          message.attachmentMimeType = cached.mimeType;
++          message.attachmentSizeBytes = cached.sizeBytes;
++        } else {
++          await _decryptAttachment(message, userId);
++          if (message.attachmentBytes != null) {
++            _decryptedAttachmentCache[message.id] = _CachedAttachment(
++              bytes: message.attachmentBytes!,
++              fileName: message.attachmentFileName,
++              mimeType: message.attachmentMimeType,
++              sizeBytes: message.attachmentSizeBytes,
++            );
++          }
++        }
+       }
+     }
+     return messages;
+@@ -98,6 +144,7 @@ class ChatService {
+ 
+     final message = Message.fromJson(response);
+     message.content = content;
++    _decryptedContentCache[message.id] = content;
+     return message;
+   }
+ 
+@@ -144,11 +191,20 @@ class ChatService {
+     if (response == null) return null;
+ 
+     final message = Message.fromJson(response);
+-    message.content = caption?.trim() ?? '';
++    final resolvedCaption = caption?.trim() ?? '';
++    message.content = resolvedCaption;
+     message.attachmentBytes = fileBytes;
+     message.attachmentFileName = fileName;
+     message.attachmentMimeType = mimeType;
+     message.attachmentSizeBytes = fileBytes.length;
++
++    _decryptedContentCache[message.id] = resolvedCaption;
++    _decryptedAttachmentCache[message.id] = _CachedAttachment(
++      bytes: fileBytes,
++      fileName: fileName,
++      mimeType: mimeType,
++      sizeBytes: fileBytes.length,
++    );
+     return message;
+   }
+ 

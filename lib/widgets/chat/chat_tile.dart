@@ -1,21 +1,36 @@
 import 'package:flutter/material.dart';
-import 'package:roost_app/models/user.dart';
+import 'package:intl/intl.dart';
+import 'package:roost_app/models/conversation_summary.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 import 'package:roost_app/theme/app_theme.dart';
-import 'package:roost_app/utils/presence_formatter.dart';
 
 /// A single row in the active-chats list: initials avatar with a live
-/// online indicator, name, role pill + presence, and a chevron.
+/// online indicator, name, role pill, last message preview, timestamp,
+/// and unread count badge.
 class ChatTile extends StatelessWidget {
-  const ChatTile({super.key, required this.partner, required this.onTap});
+  const ChatTile({super.key, required this.summary, required this.onTap});
 
-  final User partner;
+  final ConversationSummary summary;
   final VoidCallback onTap;
+
+  String _formatMessageTime(DateTime? time) {
+    if (time == null) return '';
+    final local = time.toLocal();
+    final now = DateTime.now();
+    final isToday = local.year == now.year && local.month == now.month && local.day == now.day;
+    if (isToday) return DateFormat('h:mm a').format(local);
+    final yesterday = now.subtract(const Duration(days: 1));
+    final isYesterday = local.year == yesterday.year && local.month == yesterday.month && local.day == yesterday.day;
+    if (isYesterday) return 'Yesterday';
+    return DateFormat('MMM d').format(local);
+  }
 
   @override
   Widget build(BuildContext context) {
+    final partner = summary.partner;
     final online = partner.isOnline;
+    final hasUnread = summary.unreadCount > 0;
 
     return Material(
       color: Colors.transparent,
@@ -31,39 +46,65 @@ class ChatTile extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      partner.name.isNotEmpty ? partner.name : 'Unknown',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.title,
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            partner.name.isNotEmpty ? partner.name : 'Unknown',
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.title,
+                          ),
+                        ),
+                        if (summary.lastMessageTimestamp != null)
+                          Text(
+                            _formatMessageTime(summary.lastMessageTimestamp),
+                            style: AppTextStyles.meta.copyWith(fontSize: 11),
+                          ),
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         _RolePill(role: partner.role),
-                        const SizedBox(width: 8),
+                        if (partner.role.isNotEmpty) const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            online ? 'Online' : formatLastSeen(partner.lastActiveAt),
+                            summary.decryptedPreview ?? (summary.hasAttachment ? '📎 Attachment' : 'No messages yet'),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: AppTextStyles.meta.copyWith(
-                              fontSize: 11,
-                              color: online ? AppColors.onlineAccent : AppColors.textTertiary,
-                              fontWeight: online ? FontWeight.w600 : FontWeight.w400,
+                              fontSize: 13,
+                              color: hasUnread ? AppColors.textPrimary : AppColors.textTertiary,
+                              fontWeight: hasUnread ? FontWeight.w500 : FontWeight.w400,
                             ),
                           ),
                         ),
+                        if (hasUnread) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            constraints: const BoxConstraints(minWidth: 20),
+                            alignment: Alignment.center,
+                            child: Text(
+                              '${summary.unreadCount}',
+                              style: AppTextStyles.chipLabel.copyWith(
+                                color: AppColors.black,
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 8),
-              const Icon(
-                Icons.chevron_right,
-                color: AppColors.grey600,
-                size: 20,
               ),
             ],
           ),

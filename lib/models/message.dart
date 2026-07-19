@@ -1,6 +1,25 @@
 import 'dart:typed_data';
 import 'package:roost_app/models/user.dart';
 
+/// A single reaction on a message (emoji + who reacted).
+class MessageReaction {
+  final int id;
+  final User user;
+  final String emoji;
+
+  MessageReaction({required this.id, required this.user, required this.emoji});
+
+  factory MessageReaction.fromJson(Map<String, dynamic> json) {
+    return MessageReaction(
+      id: (json['id'] as num?)?.toInt() ?? 0,
+      user: json['user'] != null
+          ? User.fromJson(json['user'])
+          : User(id: 0, name: 'Unknown', email: '', role: ''),
+      emoji: json['emoji'] ?? '',
+    );
+  }
+}
+
 class Message {
   final int id;
   final User sender;
@@ -22,6 +41,19 @@ class Message {
   /// True once the recipient has opened this conversation and it's been
   /// marked read server-side. Drives the sent/read receipt ticks.
   final bool read;
+
+  /// ID of the message this is a reply to. Null if not a reply.
+  final int? replyToMessageId;
+
+  /// True if this message has been edited after sending.
+  final bool edited;
+
+  /// Timestamp of the last edit. Null if never edited.
+  final DateTime? editedAt;
+
+  /// Reactions on this message (emoji + user). Populated from the server
+  /// response; empty list if no reactions.
+  final List<MessageReaction> reactions;
 
   // --- Encrypted attachment, as received from the wire ---
   final String? attachmentData;
@@ -45,6 +77,10 @@ class Message {
     this.nonce,
     required this.timestamp,
     this.read = false,
+    this.replyToMessageId,
+    this.edited = false,
+    this.editedAt,
+    this.reactions = const [],
     this.attachmentData,
     this.attachmentNonce,
     this.attachmentMeta,
@@ -60,6 +96,12 @@ class Message {
       nonce: json['nonce'],
       timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
       read: json['read'] == true,
+      replyToMessageId: (json['replyToMessageId'] as num?)?.toInt(),
+      edited: json['edited'] == true,
+      editedAt: json['editedAt'] != null ? DateTime.parse(json['editedAt']) : null,
+      reactions: json['reactions'] != null
+          ? (json['reactions'] as List).map((r) => MessageReaction.fromJson(r)).toList()
+          : [],
       attachmentData: json['attachmentData'],
       attachmentNonce: json['attachmentNonce'],
       attachmentMeta: json['attachmentMeta'],
