@@ -336,6 +336,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         final isMe = message.sender.email == _currentUserEmail;
 
         final bubble = MessageBubble(
+          key: ValueKey(message.id),
           message: message,
           isMe: isMe,
           isGroupEnd: _isGroupEnd(index),
@@ -344,6 +345,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         if (!_isNewDay(index)) return bubble;
 
         return Column(
+          key: ValueKey('day-${message.id}'),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             _DayDivider(date: message.timestamp),
