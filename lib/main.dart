@@ -545,24 +545,6 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
           ),
         ),
 
-        // Results count
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              '${filtered.length} ${filtered.length == 1 ? 'property' : 'properties'} found',
-              style: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 12,
-                letterSpacing: 0.3,
-              ),
-            ),
-          ),
-        ),
-
-        const SizedBox(height: 8),
-
         // Property list with pull-to-refresh
         Expanded(
           child: Stack(
