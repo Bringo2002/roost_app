@@ -167,11 +167,11 @@ class EncryptionService {
       return content;
     }
     final bytes = await decryptBytesFrom(otherUserId, content, nonce);
-    if (bytes == null) return '🔒 Unable to decrypt this message';
+    if (bytes == null) return '🔒 Sent from another device';
     try {
       return utf8.decode(bytes);
     } catch (_) {
-      return '🔒 Unable to decrypt this message';
+      return '🔒 Sent from another device';
     }
   }
 

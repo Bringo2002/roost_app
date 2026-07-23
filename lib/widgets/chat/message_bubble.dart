@@ -264,9 +264,11 @@ class _MessageBubbleState extends State<MessageBubble> with SingleTickerProvider
                             if (hasText)
                               Text(
                                 widget.message.content,
-                                style: AppTextStyles.body.copyWith(
-                                  color: widget.isMe ? AppColors.black : AppColors.textPrimary,
-                                ),
+                                style: widget.message.content == '🔒 Sent from another device'
+                                    ? TextStyle(color: Colors.grey[500], fontSize: 13)
+                                    : AppTextStyles.body.copyWith(
+                                        color: widget.isMe ? AppColors.black : AppColors.textPrimary,
+                                      ),
                               ),
                             if (firstUrl != null)
                               _LinkPreviewWidget(url: firstUrl, isMe: widget.isMe),

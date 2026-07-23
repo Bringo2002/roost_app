@@ -1,8 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_map/flutter_map.dart';
-import 'package:latlong2/latlong.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/chat/active_chats_page.dart';
@@ -13,9 +12,13 @@ import 'package:roost_app/pages/search/search_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
+import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/widgets/property/property_filter_chip.dart';
+
+import 'package:roost_app/pages/splash/splash_page.dart';
+import 'package:roost_app/services/push_notification_service.dart';
 
 void main() {
   runApp(const MyApp());
@@ -30,7 +33,7 @@ class MyApp extends StatelessWidget {
       title: 'Roost',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
-      home: const AuthCheck(),
+      home: const SplashPage(),
     );
   }
 }
@@ -105,6 +108,7 @@ class _HomePageState extends State<HomePage> {
     ];
     _loadUserRole();
     _startUnreadPolling();
+    PushNotificationService.initialize();
   }
 
   @override
@@ -279,7 +283,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
   late AnimationController _searchAnimCtrl;
   late Animation<double> _searchAnimation;
 
-  static const List<String> _types = ['all', 'rental', 'sale', 'airbnb'];
+  static const List<String> _types = ['all', 'rental'];
 
   @override
   void initState() {
@@ -633,14 +637,41 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
 
 // ─── Map View Page ───────────────────────────────────────────────────────────
 
-class MapViewPage extends StatelessWidget {
+class MapViewPage extends StatefulWidget {
   final List<Property> properties;
 
   const MapViewPage({super.key, required this.properties});
 
   @override
+  State<MapViewPage> createState() => _MapViewPageState();
+}
+
+class _MapViewPageState extends State<MapViewPage> {
+  GoogleMapController? _mapController;
+
+  @override
+  void initState() {
+    super.initState();
+    _centerOnUserLocation();
+  }
+
+  @override
+  void dispose() {
+    _mapController?.dispose();
+    super.dispose();
+  }
+
+  Future<void> _centerOnUserLocation() async {
+    final position = await LocationService.getCurrentPosition();
+    if (position == null || !mounted) return;
+    _mapController?.animateCamera(
+      CameraUpdate.newLatLngZoom(LatLng(position.latitude, position.longitude), 13),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final geoProperties = properties
+    final geoProperties = widget.properties
         .where((p) => p.latitude != null && p.longitude != null)
         .toList();
 
@@ -666,44 +697,32 @@ class MapViewPage extends StatelessWidget {
                 ],
               ),
             )
-          : FlutterMap(
-              options: MapOptions(
-                initialCenter: LatLng(
-                  geoProperties.first.latitude!,
-                  geoProperties.first.longitude!,
-                ),
-                initialZoom: 12.0,
+          : GoogleMap(
+              initialCameraPosition: CameraPosition(
+                target: LatLng(geoProperties.first.latitude!, geoProperties.first.longitude!),
+                zoom: 12,
               ),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.roost.app',
-                ),
-                MarkerLayer(
-                  markers: geoProperties.map((p) {
-                    return Marker(
-                      point: LatLng(p.latitude!, p.longitude!),
-                      width: 40,
-                      height: 40,
-                      child: GestureDetector(
-                        onTap: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => PropertyDetailPage(property: p),
-                            ),
-                          );
-                        },
-                        child: const Icon(
-                          Icons.location_pin,
-                          color: Colors.white,
-                          size: 36,
-                        ),
+              onMapCreated: (controller) {
+                _mapController = controller;
+                _centerOnUserLocation();
+              },
+              myLocationEnabled: true,
+              myLocationButtonEnabled: true,
+              markers: geoProperties.map((p) {
+                return Marker(
+                  markerId: MarkerId('property-${p.id}'),
+                  position: LatLng(p.latitude!, p.longitude!),
+                  infoWindow: InfoWindow(title: p.title, snippet: p.location),
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => PropertyDetailPage(property: p),
                       ),
                     );
-                  }).toList(),
-                ),
-              ],
+                  },
+                );
+              }).toSet(),
             ),
     );
   }

@@ -1,0 +1,594 @@
+diff --git a/android/app/build.gradle.kts b/android/app/build.gradle.kts
+index 4844d95..5355575 100644
+--- a/android/app/build.gradle.kts
++++ b/android/app/build.gradle.kts
+@@ -1,9 +1,22 @@
++import java.util.Properties
++import java.io.FileInputStream
++
+ plugins {
+     id("com.android.application")
+     // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+     id("dev.flutter.flutter-gradle-plugin")
+ }
+ 
++// Local, gitignored secrets (Maps API key etc). Add a line like
++// MAPS_API_KEY=your_key_here to android/local.properties -- never commit
++// the actual key.
++val localProperties = Properties()
++val localPropertiesFile = rootProject.file("local.properties")
++if (localPropertiesFile.exists()) {
++    localProperties.load(FileInputStream(localPropertiesFile))
++}
++val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
++
+ android {
+     namespace = "com.example.roost_app"
+     compileSdk = 36
+@@ -23,6 +36,7 @@ android {
+         targetSdk = 36
+         versionCode = flutter.versionCode
+         versionName = flutter.versionName
++        manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+     }
+ 
+     buildTypes {
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index f603419..409c086 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -1,9 +1,16 @@
+ <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+     <uses-permission android:name="android.permission.INTERNET"/>
++    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
++    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+     <application
+         android:label="roost_app"
+         android:name="${applicationName}"
+         android:icon="@mipmap/ic_launcher">
++        <!-- Populated from android/local.properties (MAPS_API_KEY), never
++             committed -- see android/app/build.gradle.kts. -->
++        <meta-data
++            android:name="com.google.android.geo.API_KEY"
++            android:value="${MAPS_API_KEY}" />
+         <activity
+             android:name=".MainActivity"
+             android:exported="true"
+diff --git a/ios/Runner/AppDelegate.swift b/ios/Runner/AppDelegate.swift
+index c30b367..ededef3 100644
+--- a/ios/Runner/AppDelegate.swift
++++ b/ios/Runner/AppDelegate.swift
+@@ -1,4 +1,5 @@
+ import Flutter
++import GoogleMaps
+ import UIKit
+ 
+ @main
+@@ -7,6 +8,12 @@ import UIKit
+     _ application: UIApplication,
+     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
+   ) -> Bool {
++    // TODO: Replace with your iOS Maps API key from Google Cloud Console.
++    // Not wired to a gitignored config file (unlike Android) since this
++    // project isn't currently building for iOS -- if that changes, move
++    // this into an untracked .xcconfig and read it via Info.plist instead
++    // of hardcoding it here.
++    GMSServices.provideAPIKey("YOUR_IOS_MAPS_API_KEY")
+     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+   }
+ 
+diff --git a/ios/Runner/Info.plist b/ios/Runner/Info.plist
+index 65778af..dcc785d 100644
+--- a/ios/Runner/Info.plist
++++ b/ios/Runner/Info.plist
+@@ -4,6 +4,8 @@
+ <dict>
+ 	<key>CADisableMinimumFrameDurationOnPhone</key>
+ 	<true/>
++	<key>NSLocationWhenInUseUsageDescription</key>
++	<string>Roost uses your location to show nearby properties and to help you pin a listing's exact location on the map.</string>
+ 	<key>CFBundleDevelopmentRegion</key>
+ 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+ 	<key>CFBundleDisplayName</key>
+diff --git a/lib/main.dart b/lib/main.dart
+index 51c5b82..b2033b5 100644
+--- a/lib/main.dart
++++ b/lib/main.dart
+@@ -1,8 +1,7 @@
+ import 'dart:async';
+ 
+ import 'package:flutter/material.dart';
+-import 'package:flutter_map/flutter_map.dart';
+-import 'package:latlong2/latlong.dart';
++import 'package:google_maps_flutter/google_maps_flutter.dart';
+ import 'package:roost_app/models/property.dart';
+ import 'package:roost_app/pages/auth/welcome_page.dart';
+ import 'package:roost_app/pages/chat/active_chats_page.dart';
+@@ -13,6 +12,7 @@ import 'package:roost_app/pages/search/search_page.dart';
+ import 'package:roost_app/services/api_service.dart';
+ import 'package:roost_app/services/auth_service.dart';
+ import 'package:roost_app/services/favorites_service.dart';
++import 'package:roost_app/services/location_service.dart';
+ import 'package:roost_app/theme/app_theme.dart';
+ import 'package:roost_app/widgets/property/property_card.dart';
+ import 'package:roost_app/widgets/property/property_filter_chip.dart';
+@@ -633,14 +633,41 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
+ 
+ // ─── Map View Page ───────────────────────────────────────────────────────────
+ 
+-class MapViewPage extends StatelessWidget {
++class MapViewPage extends StatefulWidget {
+   final List<Property> properties;
+ 
+   const MapViewPage({super.key, required this.properties});
+ 
++  @override
++  State<MapViewPage> createState() => _MapViewPageState();
++}
++
++class _MapViewPageState extends State<MapViewPage> {
++  GoogleMapController? _mapController;
++
++  @override
++  void initState() {
++    super.initState();
++    _centerOnUserLocation();
++  }
++
++  @override
++  void dispose() {
++    _mapController?.dispose();
++    super.dispose();
++  }
++
++  Future<void> _centerOnUserLocation() async {
++    final position = await LocationService.getCurrentPosition();
++    if (position == null || !mounted) return;
++    _mapController?.animateCamera(
++      CameraUpdate.newLatLngZoom(LatLng(position.latitude, position.longitude), 13),
++    );
++  }
++
+   @override
+   Widget build(BuildContext context) {
+-    final geoProperties = properties
++    final geoProperties = widget.properties
+         .where((p) => p.latitude != null && p.longitude != null)
+         .toList();
+ 
+@@ -666,44 +693,32 @@ class MapViewPage extends StatelessWidget {
+                 ],
+               ),
+             )
+-          : FlutterMap(
+-              options: MapOptions(
+-                initialCenter: LatLng(
+-                  geoProperties.first.latitude!,
+-                  geoProperties.first.longitude!,
+-                ),
+-                initialZoom: 12.0,
++          : GoogleMap(
++              initialCameraPosition: CameraPosition(
++                target: LatLng(geoProperties.first.latitude!, geoProperties.first.longitude!),
++                zoom: 12,
+               ),
+-              children: [
+-                TileLayer(
+-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+-                  userAgentPackageName: 'com.roost.app',
+-                ),
+-                MarkerLayer(
+-                  markers: geoProperties.map((p) {
+-                    return Marker(
+-                      point: LatLng(p.latitude!, p.longitude!),
+-                      width: 40,
+-                      height: 40,
+-                      child: GestureDetector(
+-                        onTap: () {
+-                          Navigator.push(
+-                            context,
+-                            MaterialPageRoute(
+-                              builder: (_) => PropertyDetailPage(property: p),
+-                            ),
+-                          );
+-                        },
+-                        child: const Icon(
+-                          Icons.location_pin,
+-                          color: Colors.white,
+-                          size: 36,
+-                        ),
++              onMapCreated: (controller) {
++                _mapController = controller;
++                _centerOnUserLocation();
++              },
++              myLocationEnabled: true,
++              myLocationButtonEnabled: true,
++              markers: geoProperties.map((p) {
++                return Marker(
++                  markerId: MarkerId('property-${p.id}'),
++                  position: LatLng(p.latitude!, p.longitude!),
++                  infoWindow: InfoWindow(title: p.title, snippet: p.location),
++                  onTap: () {
++                    Navigator.push(
++                      context,
++                      MaterialPageRoute(
++                        builder: (_) => PropertyDetailPage(property: p),
+                       ),
+                     );
+-                  }).toList(),
+-                ),
+-              ],
++                  },
++                );
++              }).toSet(),
+             ),
+     );
+   }
+diff --git a/lib/pages/landlord/add_property_page.dart b/lib/pages/landlord/add_property_page.dart
+index 450b659..5ad26ad 100644
+--- a/lib/pages/landlord/add_property_page.dart
++++ b/lib/pages/landlord/add_property_page.dart
+@@ -1,7 +1,7 @@
+ import 'package:flutter/material.dart';
+ import 'package:roost_app/services/api_service.dart';
+ 
+-import 'package:latlong2/latlong.dart';
++import 'package:google_maps_flutter/google_maps_flutter.dart';
+ import 'package:roost_app/pages/search/location_picker_page.dart';
+ 
+ class AddPropertyPage extends StatefulWidget {
+diff --git a/lib/pages/search/location_picker_page.dart b/lib/pages/search/location_picker_page.dart
+index 2e2d51d..ffce83e 100644
+--- a/lib/pages/search/location_picker_page.dart
++++ b/lib/pages/search/location_picker_page.dart
+@@ -1,6 +1,6 @@
+ import 'package:flutter/material.dart';
+-import 'package:flutter_map/flutter_map.dart';
+-import 'package:latlong2/latlong.dart';
++import 'package:google_maps_flutter/google_maps_flutter.dart';
++import 'package:roost_app/services/location_service.dart';
+ 
+ class LocationPickerPage extends StatefulWidget {
+   final LatLng initialCenter;
+@@ -16,7 +16,27 @@ class LocationPickerPage extends StatefulWidget {
+ 
+ class _LocationPickerPageState extends State<LocationPickerPage> {
+   LatLng? _selectedLocation;
+-  final MapController _mapController = MapController();
++  GoogleMapController? _mapController;
++
++  @override
++  void dispose() {
++    _mapController?.dispose();
++    super.dispose();
++  }
++
++  Future<void> _useCurrentLocation() async {
++    final position = await LocationService.getCurrentPosition();
++    if (position == null) {
++      if (!mounted) return;
++      ScaffoldMessenger.of(context).showSnackBar(
++        const SnackBar(content: Text("Couldn't get your current location")),
++      );
++      return;
++    }
++    final point = LatLng(position.latitude, position.longitude);
++    setState(() => _selectedLocation = point);
++    _mapController?.animateCamera(CameraUpdate.newLatLngZoom(point, 15));
++  }
+ 
+   @override
+   Widget build(BuildContext context) {
+@@ -33,37 +53,34 @@ class _LocationPickerPageState extends State<LocationPickerPage> {
+             ),
+         ],
+       ),
+-      body: FlutterMap(
+-        mapController: _mapController,
+-        options: MapOptions(
+-          initialCenter: widget.initialCenter,
+-          initialZoom: 13.0,
+-          onTap: (tapPosition, point) {
+-            setState(() {
+-              _selectedLocation = point;
+-            });
+-          },
+-        ),
++      body: Stack(
+         children: [
+-          TileLayer(
+-            urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+-            userAgentPackageName: 'com.roost.app',
++          GoogleMap(
++            initialCameraPosition: CameraPosition(target: widget.initialCenter, zoom: 13),
++            onMapCreated: (controller) => _mapController = controller,
++            onTap: (point) => setState(() => _selectedLocation = point),
++            myLocationEnabled: true,
++            myLocationButtonEnabled: false,
++            markers: _selectedLocation != null
++                ? {
++                    Marker(
++                      markerId: const MarkerId('selected'),
++                      position: _selectedLocation!,
++                    ),
++                  }
++                : {},
+           ),
+-          if (_selectedLocation != null)
+-            MarkerLayer(
+-              markers: [
+-                Marker(
+-                  point: _selectedLocation!,
+-                  width: 40,
+-                  height: 40,
+-                  child: const Icon(
+-                    Icons.location_pin,
+-                    color: Colors.white,
+-                    size: 40,
+-                  ),
+-                ),
+-              ],
++          Positioned(
++            right: 16,
++            bottom: 16,
++            child: FloatingActionButton(
++              heroTag: 'use-current-location',
++              backgroundColor: Colors.white,
++              foregroundColor: Colors.black,
++              onPressed: _useCurrentLocation,
++              child: const Icon(Icons.my_location),
+             ),
++          ),
+         ],
+       ),
+     );
+diff --git a/lib/pages/search/search_page.dart b/lib/pages/search/search_page.dart
+index da44b3a..0389ace 100644
+--- a/lib/pages/search/search_page.dart
++++ b/lib/pages/search/search_page.dart
+@@ -1,6 +1,8 @@
+ import 'package:flutter/material.dart';
++import 'package:geolocator/geolocator.dart';
+ import 'package:roost_app/models/property.dart';
+ import 'package:roost_app/services/api_service.dart';
++import 'package:roost_app/services/location_service.dart';
+ import 'package:roost_app/pages/search/property_detail_page.dart';
+ import 'package:intl/intl.dart';
+ 
+@@ -24,10 +26,17 @@ class _SearchPageState extends State<SearchPage> {
+   RangeValues _priceRange = const RangeValues(0, 500000);
+   double _maxPriceLimit = 500000;
+ 
++  // Location state -- null until resolved (or if permission is denied /
++  // location services are off, in which case we just fall back to price
++  // sort and never show distance labels).
++  Position? _userPosition;
++  bool _sortByDistance = false;
++
+   @override
+   void initState() {
+     super.initState();
+     _loadProperties();
++    _loadUserLocation();
+     _searchCtrl.addListener(_filterResults);
+   }
+ 
+@@ -38,6 +47,28 @@ class _SearchPageState extends State<SearchPage> {
+     super.dispose();
+   }
+ 
++  Future<void> _loadUserLocation() async {
++    final position = await LocationService.getCurrentPosition();
++    if (!mounted || position == null) return;
++    setState(() {
++      _userPosition = position;
++      // Automatically sort nearest-first once we know where the user is,
++      // matching what they'd expect without needing to tap anything.
++      _sortByDistance = true;
++    });
++    _filterResults();
++  }
++
++  double? _distanceKmTo(Property p) {
++    if (_userPosition == null || p.latitude == null || p.longitude == null) return null;
++    return LocationService.distanceKm(
++      _userPosition!.latitude,
++      _userPosition!.longitude,
++      p.latitude!,
++      p.longitude!,
++    );
++  }
++
+   Future<void> _loadProperties() async {
+     try {
+       final jsonList = await ApiService.get('/api/properties');
+@@ -75,7 +106,20 @@ class _SearchPageState extends State<SearchPage> {
+         return matchesQuery && matchesType && matchesBedrooms && matchesPrice;
+       }).toList();
+ 
+-      _results.sort((a, b) => a.price.compareTo(b.price));
++      if (_sortByDistance && _userPosition != null) {
++        _results.sort((a, b) {
++          final distA = _distanceKmTo(a);
++          final distB = _distanceKmTo(b);
++          // Properties without coordinates sort to the end, by price
++          // among themselves, rather than being treated as "closest".
++          if (distA == null && distB == null) return a.price.compareTo(b.price);
++          if (distA == null) return 1;
++          if (distB == null) return -1;
++          return distA.compareTo(distB);
++        });
++      } else {
++        _results.sort((a, b) => a.price.compareTo(b.price));
++      }
+     });
+   }
+ 
+@@ -347,6 +391,32 @@ class _SearchPageState extends State<SearchPage> {
+                 ),
+             ],
+           ),
++          if (_userPosition != null) ...[
++            const SizedBox(height: 10),
++            Row(
++              children: [
++                _SortToggle(
++                  label: 'Nearest',
++                  icon: Icons.near_me,
++                  selected: _sortByDistance,
++                  onTap: () {
++                    setState(() => _sortByDistance = true);
++                    _filterResults();
++                  },
++                ),
++                const SizedBox(width: 8),
++                _SortToggle(
++                  label: 'Price',
++                  icon: Icons.sort,
++                  selected: !_sortByDistance,
++                  onTap: () {
++                    setState(() => _sortByDistance = false);
++                    _filterResults();
++                  },
++                ),
++              ],
++            ),
++          ],
+           const SizedBox(height: 16),
+ 
+           // Results List
+@@ -415,6 +485,19 @@ class _SearchPageState extends State<SearchPage> {
+                             Text(p.title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                             const SizedBox(height: 3),
+                             Text(p.location, style: TextStyle(color: Colors.grey[500], fontSize: 13)),
++                            if (_distanceKmTo(p) != null) ...[
++                              const SizedBox(height: 2),
++                              Row(
++                                children: [
++                                  Icon(Icons.near_me, size: 11, color: Colors.grey[600]),
++                                  const SizedBox(width: 3),
++                                  Text(
++                                    LocationService.formatDistance(_distanceKmTo(p)!),
++                                    style: TextStyle(color: Colors.grey[600], fontSize: 11),
++                                  ),
++                                ],
++                              ),
++                            ],
+                             const SizedBox(height: 6),
+                             Text('KES ${NumberFormat('#,##0').format(p.price)}', style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w800)),
+                           ],
+@@ -453,3 +536,47 @@ class _SearchPageState extends State<SearchPage> {
+     );
+   }
+ }
++
++class _SortToggle extends StatelessWidget {
++  const _SortToggle({
++    required this.label,
++    required this.icon,
++    required this.selected,
++    required this.onTap,
++  });
++
++  final String label;
++  final IconData icon;
++  final bool selected;
++  final VoidCallback onTap;
++
++  @override
++  Widget build(BuildContext context) {
++    return GestureDetector(
++      onTap: onTap,
++      child: Container(
++        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
++        decoration: BoxDecoration(
++          color: selected ? Colors.white : Colors.transparent,
++          borderRadius: BorderRadius.circular(999),
++          border: Border.all(color: selected ? Colors.white : Colors.grey[800]!),
++        ),
++        child: Row(
++          mainAxisSize: MainAxisSize.min,
++          children: [
++            Icon(icon, size: 13, color: selected ? Colors.black : Colors.grey[400]),
++            const SizedBox(width: 5),
++            Text(
++              label,
++              style: TextStyle(
++                color: selected ? Colors.black : Colors.grey[400],
++                fontSize: 12,
++                fontWeight: FontWeight.w600,
++              ),
++            ),
++          ],
++        ),
++      ),
++    );
++  }
++}
+diff --git a/lib/services/location_service.dart b/lib/services/location_service.dart
+new file mode 100644
+index 0000000..db9c9b6
+--- /dev/null
++++ b/lib/services/location_service.dart
+@@ -0,0 +1,46 @@
++import 'package:geolocator/geolocator.dart';
++
++/// Wraps device geolocation for "properties near me" features. Never
++/// throws -- every method degrades gracefully (returns null / doesn't
++/// sort) if location services are off or permission is denied, since
++/// location is an enhancement here, not something that should block
++/// browsing properties.
++class LocationService {
++  LocationService._();
++
++  /// Returns the device's current position, or null if location services
++  /// are disabled, permission is denied, or anything else goes wrong.
++  static Future<Position?> getCurrentPosition() async {
++    try {
++      final serviceEnabled = await Geolocator.isLocationServiceEnabled();
++      if (!serviceEnabled) return null;
++
++      var permission = await Geolocator.checkPermission();
++      if (permission == LocationPermission.denied) {
++        permission = await Geolocator.requestPermission();
++      }
++      if (permission == LocationPermission.denied ||
++          permission == LocationPermission.deniedForever) {
++        return null;
++      }
++
++      return await Geolocator.getCurrentPosition(
++        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
++      );
++    } catch (_) {
++      return null;
++    }
++  }
++
++  /// Straight-line distance in kilometers between two coordinates.
++  static double distanceKm(double lat1, double lon1, double lat2, double lon2) {
++    return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
++  }
++
++  /// Human-readable distance label, e.g. "450 m away" or "3.2 km away".
++  static String formatDistance(double km) {
++    if (km < 1) return '${(km * 1000).round()} m away';
++    if (km < 10) return '${km.toStringAsFixed(1)} km away';
++    return '${km.round()} km away';
++  }
++}
+diff --git a/pubspec.yaml b/pubspec.yaml
+index ae01a77..5ddadf5 100644
+--- a/pubspec.yaml
++++ b/pubspec.yaml
+@@ -15,8 +15,8 @@ dependencies:
+   cached_network_image: ^3.4.1
+   cupertino_icons: ^1.0.8
+   intl: ^0.20.3
+-  flutter_map: ^8.3.1
+-  latlong2: ^0.10.1
++  google_maps_flutter: ^2.10.0
++  geolocator: ^13.0.2
+   shared_preferences: ^2.5.5
+   jwt_decoder: ^2.0.1
+   video_player: ^2.13.0

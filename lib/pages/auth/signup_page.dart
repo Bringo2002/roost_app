@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/main.dart';
 
@@ -37,7 +38,7 @@ class _SignupPageState extends State<SignupPage> {
     if (result.success) {
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => const OnboardingPage()),
         (route) => false,
       );
     } else {
