@@ -265,8 +265,7 @@ class _PropertyFeedPage extends StatefulWidget {
   State<_PropertyFeedPage> createState() => _PropertyFeedPageState();
 }
 
-class _PropertyFeedPageState extends State<_PropertyFeedPage>
-    with SingleTickerProviderStateMixin {
+class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   List<Property> properties = [];
   List<Property> filtered = [];
   Set<int> favoriteIds = {};
@@ -278,11 +277,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
 
   String selectedType = 'all';
   String? _error;
-  bool _showSearchBar = false;
   bool _showScrollToTop = false;
-
-  late AnimationController _searchAnimCtrl;
-  late Animation<double> _searchAnimation;
+  Timer? _debounceTimer;
 
   String? _prefHouseType;
   String? _prefBudget;
@@ -292,25 +288,17 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
   void initState() {
     super.initState();
     _loadData();
-    searchController.addListener(_filterProperties);
+    searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
-    _searchAnimCtrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 250),
-    );
-    _searchAnimation = CurvedAnimation(
-      parent: _searchAnimCtrl,
-      curve: Curves.easeOutCubic,
-    );
   }
 
   @override
   void dispose() {
-    searchController.removeListener(_filterProperties);
+    searchController.removeListener(_onSearchChanged);
     searchController.dispose();
     _searchFocus.dispose();
     _scrollController.dispose();
-    _searchAnimCtrl.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
   }
 
@@ -321,20 +309,9 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
     }
   }
 
-  void _toggleSearch() {
-    setState(() {
-      _showSearchBar = !_showSearchBar;
-      if (_showSearchBar) {
-        _searchAnimCtrl.forward();
-        Future.delayed(const Duration(milliseconds: 200), () {
-          if (mounted) _searchFocus.requestFocus();
-        });
-      } else {
-        _searchAnimCtrl.reverse();
-        searchController.clear();
-        _searchFocus.unfocus();
-      }
-    });
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), _filterProperties);
   }
 
   Future<void> _loadData() async {
@@ -459,89 +436,54 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
 
     return Column(
       children: [
-        // ── Search bar (animated slide-down) ──
-        SizeTransition(
-          sizeFactor: _searchAnimation,
-          alignment: Alignment.topCenter,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
-            child: Container(
-              height: 48,
-              decoration: BoxDecoration(
-                color: Colors.grey[900],
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: Colors.grey[800]!, width: 0.5),
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(width: 16),
-                  Icon(Icons.search, color: Colors.grey[500], size: 20),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: searchController,
-                      focusNode: _searchFocus,
-                      style: const TextStyle(color: Colors.white, fontSize: 15),
-                      decoration: InputDecoration(
-                        hintText: 'Search location or title...',
-                        hintStyle: TextStyle(
-                          color: Colors.grey[600],
-                          fontSize: 15,
-                        ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.zero,
-                        isDense: true,
-                      ),
-                    ),
-                  ),
-                  if (searchController.text.isNotEmpty)
-                    GestureDetector(
-                      onTap: searchController.clear,
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: Icon(
-                          Icons.close,
-                          color: Colors.grey[500],
-                          size: 18,
-                        ),
-                      ),
-                    )
-                  else
-                    const SizedBox(width: 16),
-                ],
-              ),
-            ),
-          ),
-        ),
-
-        // ── Search toggle ──
+        // ── Search bar (always visible) ──
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              GestureDetector(
-                onTap: _toggleSearch,
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 200),
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: _showSearchBar ? Colors.white : Colors.transparent,
-                    shape: BoxShape.circle,
-                    border: Border.all(
-                      color: _showSearchBar ? Colors.white : Colors.grey[800]!,
-                      width: 1,
+          padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
+          child: Container(
+            height: 48,
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: Colors.grey[800]!, width: 0.5),
+            ),
+            child: Row(
+              children: [
+                const SizedBox(width: 16),
+                Icon(Icons.search, color: Colors.grey[500], size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    focusNode: _searchFocus,
+                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: 'Search location or title...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 15,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
                     ),
-                  ),
-                  child: Icon(
-                    Icons.search,
-                    color: _showSearchBar ? Colors.black : Colors.grey[500],
-                    size: 18,
                   ),
                 ),
-              ),
-            ],
+                if (searchController.text.isNotEmpty)
+                  GestureDetector(
+                    onTap: searchController.clear,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.grey[500],
+                        size: 18,
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 16),
+              ],
+            ),
           ),
         ),
 
