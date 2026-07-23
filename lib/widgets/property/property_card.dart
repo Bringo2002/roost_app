@@ -139,7 +139,7 @@ class _PropertyCardState extends State<PropertyCard> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF00C853),
+                          color: Colors.white,
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: const Row(
@@ -186,7 +186,7 @@ class _PropertyCardState extends State<PropertyCard> {
                         width: 8,
                         height: 8,
                         decoration: BoxDecoration(
-                          color: property.available ? const Color(0xFF00C853) : Colors.grey[700],
+                          color: property.available ? Colors.white : Colors.grey[700],
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -194,7 +194,7 @@ class _PropertyCardState extends State<PropertyCard> {
                       Text(
                         property.available ? 'Avail' : 'Taken',
                         style: TextStyle(
-                          color: property.available ? const Color(0xFF00C853) : Colors.grey[500],
+                          color: property.available ? Colors.white : Colors.grey[500],
                           fontSize: 11,
                           fontWeight: FontWeight.bold,
                         ),
@@ -229,7 +229,7 @@ class _PropertyCardState extends State<PropertyCard> {
                       Text(
                         formattedPrice,
                         style: const TextStyle(
-                          color: Color(0xFF00C853),
+                          color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
                         ),
@@ -325,7 +325,7 @@ class _PropertyCardState extends State<PropertyCard> {
                           icon: const Icon(Icons.navigation_outlined, size: 16),
                           label: const Text('Navigate'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00C853),
+                            backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
                             elevation: 0,
                             padding: const EdgeInsets.symmetric(vertical: 8),

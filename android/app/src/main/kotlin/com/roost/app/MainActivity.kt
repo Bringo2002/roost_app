@@ -1,4 +1,4 @@
-package com.example.roost_app
+package com.roost.app
 
 import io.flutter.embedding.android.FlutterActivity
 

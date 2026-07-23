@@ -36,11 +36,11 @@ class PushNotificationService {
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(12),
-          side: const BorderSide(color: Color(0xFF00C853), width: 1),
+          side: const BorderSide(color: Colors.white24, width: 1),
         ),
         content: Row(
           children: [
-            const Icon(Icons.notifications_active, color: Color(0xFF00C853)),
+            const Icon(Icons.notifications_active, color: Colors.white),
             const SizedBox(width: 12),
             Expanded(
               child: Column(
@@ -58,7 +58,7 @@ class PushNotificationService {
         action: onTap != null
             ? SnackBarAction(
                 label: 'VIEW',
-                textColor: const Color(0xFF00C853),
+                textColor: Colors.white,
                 onPressed: onTap,
               )
             : null,

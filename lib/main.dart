@@ -12,6 +12,7 @@ import 'package:roost_app/pages/search/search_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
@@ -285,6 +286,10 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
 
   static const List<String> _types = ['all', 'rental'];
 
+  String? _prefHouseType;
+  String? _prefBudget;
+  String? _prefTimeframe;
+
   @override
   void initState() {
     super.initState();
@@ -335,7 +340,23 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
   }
 
   Future<void> _loadData() async {
-    await Future.wait([_fetchProperties(), _loadFavorites()]);
+    await Future.wait([
+      _fetchProperties(),
+      _loadFavorites(),
+      _loadOnboardingPrefs(),
+    ]);
+  }
+
+  Future<void> _loadOnboardingPrefs() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      setState(() {
+        _prefHouseType = prefs.getString('pref_house_type');
+        _prefBudget = prefs.getString('pref_budget');
+        _prefTimeframe = prefs.getString('pref_timeframe');
+      });
+      _filterProperties();
+    } catch (_) {}
   }
 
   Future<void> _fetchProperties() async {
@@ -374,6 +395,38 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
     await _loadFavorites();
   }
 
+  int _calculateRelevance(Property p) {
+    int score = 0;
+
+    // 1. House Type match (+10 pts)
+    if (_prefHouseType != null && _prefHouseType != 'Any') {
+      final prefType = _prefHouseType!.toLowerCase().replaceAll(' ', '');
+      final pType = p.houseType.toLowerCase().replaceAll(' ', '');
+      if (pType.contains(prefType) || prefType.contains(pType)) {
+        score += 10;
+      }
+    }
+
+    // 2. Budget Range match (+10 pts)
+    if (_prefBudget != null) {
+      final b = _prefBudget!;
+      if (b.contains('Under 15') && p.price < 15000) score += 10;
+      if (b.contains('15k – 30k') && p.price >= 15000 && p.price <= 30000) score += 10;
+      if (b.contains('30k – 60k') && p.price >= 30000 && p.price <= 60000) score += 10;
+      if (b.contains('60,000+') && p.price >= 60000) score += 10;
+    }
+
+    // 3. Move-in Immediate (+5 pts)
+    if (_prefTimeframe == 'Immediately' && p.available) {
+      score += 5;
+    }
+
+    // 4. Verified bonus (+2 pts)
+    if (p.verified) score += 2;
+
+    return score;
+  }
+
   void _filterProperties() {
     final query = searchController.text.toLowerCase();
 
@@ -386,7 +439,15 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
             selectedType == 'all' ||
             p.type.toLowerCase() == selectedType.toLowerCase();
         return matchesQuery && matchesType;
-      }).toList()..sort((a, b) => a.price.compareTo(b.price));
+      }).toList()
+        ..sort((a, b) {
+          final relA = _calculateRelevance(a);
+          final relB = _calculateRelevance(b);
+          if (relA != relB) {
+            return relB.compareTo(relA); // higher relevance first
+          }
+          return a.price.compareTo(b.price);
+        });
     });
   }
 
@@ -507,7 +568,35 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
           ),
         ),
 
-        const SizedBox(height: 12),
+        if (_prefHouseType != null || _prefBudget != null) ...[
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Curated: ${_prefHouseType ?? 'Any'} · ${_prefBudget ?? 'Any Budget'}',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 6),
+        ],
 
         // Results count
         Padding(

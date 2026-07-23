@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/main.dart';
-import 'package:roost_app/pages/auth/login_page.dart';
+import 'package:roost_app/pages/auth/welcome_page.dart';
+import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/widgets/common/roost_logo_icon.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -14,25 +17,32 @@ class _SplashPageState extends State<SplashPage> {
   @override
   void initState() {
     super.initState();
-    _navigateNext();
+    _navigateToNext();
   }
 
-  Future<void> _navigateNext() async {
+  Future<void> _navigateToNext() async {
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
     final isLoggedIn = await AuthService.isLoggedIn();
     if (!mounted) return;
 
-    if (isLoggedIn) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
-      );
+    final prefs = await SharedPreferences.getInstance();
+    final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
+    if (!isLoggedIn) {
+      if (!onboardingCompleted) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const OnboardingPage()),
+        );
+      } else {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(builder: (_) => const WelcomePage()),
+        );
+      }
     } else {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const LoginPage()),
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomePage()),
       );
     }
   }
@@ -45,19 +55,7 @@ class _SplashPageState extends State<SplashPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
-                shape: BoxShape.circle,
-                border: Border.all(color: const Color(0xFF00C853), width: 2),
-              ),
-              child: const Icon(
-                Icons.location_on,
-                color: Color(0xFF00C853),
-                size: 48,
-              ),
-            ),
+            const RoostLogoIcon(size: 96),
             const SizedBox(height: 24),
             const Text(
               'ROOST',

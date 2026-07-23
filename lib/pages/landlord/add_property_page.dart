@@ -135,7 +135,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         title: const Text('List a Property', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF00C853)))
+          ? const Center(child: CircularProgressIndicator(color: Colors.white))
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(20),
@@ -150,7 +150,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                             height: 4,
                             margin: const EdgeInsets.symmetric(horizontal: 2),
                             decoration: BoxDecoration(
-                              color: idx <= _step ? const Color(0xFF00C853) : const Color(0xFF1C1C1E),
+                              color: idx <= _step ? Colors.white : const Color(0xFF1C1C1E),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           ),
@@ -188,7 +188,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                           child: ElevatedButton(
                             onPressed: _nextStep,
                             style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF00C853),
+                              backgroundColor: Colors.white,
                               foregroundColor: Colors.black,
                               padding: const EdgeInsets.symmetric(vertical: 14),
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -244,7 +244,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       });
                     }
                   },
-                  icon: const Icon(Icons.add_circle, color: Color(0xFF00C853), size: 36),
+                  icon: const Icon(Icons.add_circle, color: Colors.white, size: 36),
                 ),
               ],
             ),
@@ -359,7 +359,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.my_location, color: Color(0xFF00C853)),
+                    const Icon(Icons.my_location, color: Colors.white),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -386,43 +386,43 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             CheckboxListTile(
               title: const Text('Furnished', style: TextStyle(color: Colors.white)),
               value: _furnished,
-              activeColor: const Color(0xFF00C853),
+              activeColor: Colors.white,
               onChanged: (val) => setState(() => _furnished = val!),
             ),
             CheckboxListTile(
               title: const Text('Parking Available', style: TextStyle(color: Colors.white)),
               value: _parking,
-              activeColor: const Color(0xFF00C853),
+              activeColor: Colors.white,
               onChanged: (val) => setState(() => _parking = val!),
             ),
             CheckboxListTile(
               title: const Text('WiFi Internet', style: TextStyle(color: Colors.white)),
               value: _wifi,
-              activeColor: const Color(0xFF00C853),
+              activeColor: Colors.white,
               onChanged: (val) => setState(() => _wifi = val!),
             ),
             CheckboxListTile(
               title: const Text('24hr Water Supply', style: TextStyle(color: Colors.white)),
               value: _water,
-              activeColor: const Color(0xFF00C853),
+              activeColor: Colors.white,
               onChanged: (val) => setState(() => _water = val!),
             ),
             CheckboxListTile(
               title: const Text('Security Guard / CCTV', style: TextStyle(color: Colors.white)),
               value: _security,
-              activeColor: const Color(0xFF00C853),
+              activeColor: Colors.white,
               onChanged: (val) => setState(() => _security = val!),
             ),
             CheckboxListTile(
               title: const Text('Balcony View', style: TextStyle(color: Colors.white)),
               value: _balcony,
-              activeColor: const Color(0xFF00C853),
+              activeColor: Colors.white,
               onChanged: (val) => setState(() => _balcony = val!),
             ),
             CheckboxListTile(
               title: const Text('Pet Friendly', style: TextStyle(color: Colors.white)),
               value: _petFriendly,
-              activeColor: const Color(0xFF00C853),
+              activeColor: Colors.white,
               onChanged: (val) => setState(() => _petFriendly = val!),
             ),
           ],

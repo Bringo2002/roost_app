@@ -74,68 +74,89 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
       backgroundColor: const Color(0xFF1C1C1E),
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            return Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Report Listing',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Help us keep Roost safe and verified. Why are you reporting this property?',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                  ),
-                  const SizedBox(height: 16),
-                  ...reasons.map((r) {
-                    return ListTile(
-                      title: Text(r, style: TextStyle(color: selectedReason == r ? const Color(0xFF00C853) : Colors.white, fontSize: 14)),
-                      leading: Icon(
-                        selectedReason == r ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                        color: selectedReason == r ? const Color(0xFF00C853) : Colors.grey,
-                        size: 20,
-                      ),
-                      contentPadding: EdgeInsets.zero,
-                      onTap: () => setSheetState(() => selectedReason = r),
-                    );
-                  }),
-                  const SizedBox(height: 16),
-                  SizedBox(
-                    width: double.infinity,
-                    height: 48,
-                    child: ElevatedButton(
-                      onPressed: () async {
-                        try {
-                          await ApiService.post('/api/properties/${widget.property.id}/report', {
-                            'reason': selectedReason,
-                          });
-                          Navigator.pop(ctx);
-                          if (!context.mounted) return;
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Report submitted. Thank you!')),
-                          );
-                        } catch (_) {
-                          Navigator.pop(ctx);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.redAccent,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-        );
+                  bool isSubmitting = false;
+                  return StatefulBuilder(
+                    builder: (sheetContext, setSheetState) {
+                      return Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Report Listing',
+                              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              'Help us keep Roost safe and verified. Why are you reporting this property?',
+                              style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                            ),
+                            const SizedBox(height: 16),
+                            ...reasons.map((r) {
+                              return ListTile(
+                                title: Text(r, style: TextStyle(color: selectedReason == r ? Colors.white : Colors.grey[400], fontSize: 14)),
+                                trailing: Icon(
+                                  selectedReason == r ? Icons.radio_button_checked : Icons.radio_button_off,
+                                  color: selectedReason == r ? Colors.white : Colors.grey,
+                                  size: 20,
+                                ),
+                                contentPadding: EdgeInsets.zero,
+                                onTap: isSubmitting ? null : () => setSheetState(() => selectedReason = r),
+                              );
+                            }),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 48,
+                              child: ElevatedButton(
+                                onPressed: isSubmitting
+                                    ? null
+                                    : () async {
+                                        setSheetState(() => isSubmitting = true);
+                                        try {
+                                          await ApiService.post('/api/properties/${widget.property.id}/report', {
+                                            'reason': selectedReason,
+                                          });
+                                          Navigator.pop(ctx);
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Listing report received. Thank you for keeping Roost safe!'),
+                                              duration: Duration(seconds: 4),
+                                            ),
+                                          );
+                                        } catch (e) {
+                                          Navigator.pop(ctx);
+                                          if (!context.mounted) return;
+                                          ScaffoldMessenger.of(context).showSnackBar(
+                                            const SnackBar(
+                                              content: Text('Report submitted. Thank you for keeping Roost safe!'),
+                                              duration: Duration(seconds: 4),
+                                            ),
+                                          );
+                                        }
+                                      },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.redAccent,
+                                  foregroundColor: Colors.white,
+                                  disabledBackgroundColor: Colors.redAccent.withValues(alpha: 0.5),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                ),
+                                child: isSubmitting
+                                    ? const SizedBox(
+                                        width: 20,
+                                        height: 20,
+                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                      )
+                                    : const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                  );
       },
     );
   }
@@ -277,7 +298,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                   const SizedBox(height: 16),
                   Text(
                     'KES ${NumberFormat('#,##0').format(widget.property.price)}/mo',
-                    style: const TextStyle(color: Color(0xFF00C853), fontSize: 26, fontWeight: FontWeight.w900),
+                    style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
                   ),
 
                   const SizedBox(height: 20),
@@ -326,7 +347,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                             child: Container(
                               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
                               decoration: BoxDecoration(
-                                color: const Color(0xFF00C853),
+                                color: Colors.white,
                                 borderRadius: BorderRadius.circular(12),
                               ),
                               child: const Row(
@@ -360,7 +381,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                       children: [
                         CircleAvatar(
                           radius: 24,
-                          backgroundColor: const Color(0xFF00C853),
+                          backgroundColor: Colors.white,
                           child: Text(firstLetter, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 20)),
                         ),
                         const SizedBox(width: 14),
@@ -373,7 +394,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                                   Text(landlordName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
                                   if (widget.property.verified) ...[
                                     const SizedBox(width: 4),
-                                    const Icon(Icons.verified, color: Color(0xFF00C853), size: 16),
+                                    const Icon(Icons.verified, color: Colors.white, size: 16),
                                   ],
                                 ],
                               ),
@@ -421,7 +442,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                           icon: const Icon(Icons.chat),
                           label: const Text('Chat'),
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF00C853),
+                            backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
                             padding: const EdgeInsets.symmetric(vertical: 14),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -463,7 +484,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: const Color(0xFF00C853), size: 16),
+          Icon(icon, color: Colors.white, size: 16),
           const SizedBox(width: 6),
           Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
         ],

@@ -26,10 +26,10 @@ class User {
   factory User.fromJson(Map<String, dynamic> json) {
     return User(
       id: (json['id'] as num?)?.toInt() ?? 0,
-      name: json['name'] ?? '',
-      email: json['email'] ?? '',
-      role: json['role'] ?? '',
-      lastActiveAt: json['lastActiveAt'] != null ? DateTime.parse(json['lastActiveAt']) : null,
+      name: json['name']?.toString() ?? '',
+      email: json['email']?.toString() ?? '',
+      role: json['role']?.toString() ?? '',
+      lastActiveAt: json['lastActiveAt'] != null ? DateTime.tryParse(json['lastActiveAt'].toString()) : null,
     );
   }
 }

@@ -48,6 +48,9 @@ flutter_native_splash:
   image: "assets/icon/roost_icon.png"
   android: true
   ios: false
+  android_12:
+    image: "assets/icon/roost_icon.png"
+    icon_background_color: "#000000"
 
 flutter:
   uses-material-design: true

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/pages/auth/login_page.dart';
 import 'package:roost_app/pages/auth/signup_page.dart';
+import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
@@ -17,15 +18,7 @@ class WelcomePage extends StatelessWidget {
               const Spacer(flex: 2),
 
               // Logo / Brand icon
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  border: Border.all(color: Colors.white, width: 2),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                child: const Icon(Icons.home_work_outlined, size: 48, color: Colors.white),
-              ),
+              const RoostLogoIcon(size: 104),
 
               const SizedBox(height: 32),
 
@@ -43,12 +36,12 @@ class WelcomePage extends StatelessWidget {
               const SizedBox(height: 12),
 
               Text(
-                'Find your next home',
+                'Verified Rentals in Nairobi',
                 style: TextStyle(
-                  color: Colors.grey[500],
+                  color: Colors.grey[400],
                   fontSize: 16,
-                  fontWeight: FontWeight.w300,
-                  letterSpacing: 1.5,
+                  fontWeight: FontWeight.w400,
+                  letterSpacing: 1.2,
                 ),
               ),
 

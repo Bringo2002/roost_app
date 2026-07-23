@@ -96,7 +96,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SnackBar(content: Text('Password updated successfully')),
               );
             },
-            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFF00C853), foregroundColor: Colors.black),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
             child: const Text('Save'),
           ),
         ],
@@ -158,7 +158,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: const Color(0xFF1C1C1E),
-                  border: Border.all(color: const Color(0xFF00C853), width: 2),
+                  border: Border.all(color: Colors.white, width: 2),
                 ),
                 child: Center(
                   child: Text(
@@ -184,7 +184,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
               Text(
                 phone,
-                style: const TextStyle(color: Color(0xFF00C853), fontSize: 14, fontWeight: FontWeight.w600),
+                style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
               ),
 
               const SizedBox(height: 2),
@@ -226,14 +226,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       secondary: const Icon(Icons.notifications_outlined, color: Colors.white),
                       title: const Text('Push Notifications', style: TextStyle(color: Colors.white, fontSize: 15)),
                       value: _notificationsEnabled,
-                      activeColor: const Color(0xFF00C853),
+                      activeColor: Colors.white,
                       onChanged: (val) => setState(() => _notificationsEnabled = val),
                     ),
                     const Divider(height: 1, color: Color(0xFF2C2C2E)),
                     ListTile(
                       leading: const Icon(Icons.location_on_outlined, color: Colors.white),
                       title: const Text('Location Access', style: TextStyle(color: Colors.white, fontSize: 15)),
-                      trailing: const Text('Enabled', style: TextStyle(color: Color(0xFF00C853), fontSize: 13, fontWeight: FontWeight.bold)),
+                      trailing: Text('Enabled', style: TextStyle(color: Colors.grey[400], fontSize: 13, fontWeight: FontWeight.bold)),
                     ),
                     const Divider(height: 1, color: Color(0xFF2C2C2E)),
                     ListTile(

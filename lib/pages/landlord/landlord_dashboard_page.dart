@@ -496,7 +496,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
                                               color: status == 'APPROVED'
-                                                  ? Colors.green.withOpacity(0.2)
+                                                  ? Colors.white.withOpacity(0.15)
                                                   : status == 'REJECTED'
                                                       ? Colors.red.withOpacity(0.2)
                                                       : Colors.amber.withOpacity(0.2),
@@ -506,7 +506,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
                                               status,
                                               style: TextStyle(
                                                 color: status == 'APPROVED'
-                                                    ? Colors.green
+                                                    ? Colors.white
                                                     : status == 'REJECTED'
                                                         ? Colors.red
                                                         : Colors.amber,
