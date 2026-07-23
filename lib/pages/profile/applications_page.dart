@@ -4,6 +4,8 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/models/property.dart';
 
+import 'package:roost_app/services/country_service.dart';
+
 class ApplicationsPage extends StatefulWidget {
   const ApplicationsPage({super.key});
 
@@ -122,10 +124,10 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
                                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                           decoration: BoxDecoration(
                                             color: status == 'APPROVED'
-                                                ? Colors.white.withOpacity(0.15)
+                                                ? Colors.white.withValues(alpha: 0.15)
                                                 : status == 'REJECTED'
-                                                    ? Colors.red.withOpacity(0.2)
-                                                    : Colors.amber.withOpacity(0.2),
+                                                    ? Colors.red.withValues(alpha: 0.2)
+                                                    : Colors.amber.withValues(alpha: 0.2),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
@@ -166,7 +168,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
                                             Text('Rent', style: TextStyle(color: Colors.grey[600], fontSize: 11)),
                                             const SizedBox(height: 2),
                                             Text(
-                                              'KES ${NumberFormat('#,##0').format(property.price)}/mo',
+                                              CountryService.pricePerMonth(property.price),
                                               style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
                                             ),
                                           ],

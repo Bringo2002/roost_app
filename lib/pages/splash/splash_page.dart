@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/main.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:roost_app/services/country_service.dart';
 
 class SplashPage extends StatefulWidget {
   const SplashPage({super.key});
@@ -21,6 +22,7 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _navigateToNext() async {
+    await CountryService.instance.init();
     await Future.delayed(const Duration(seconds: 2));
     if (!mounted) return;
 
@@ -29,6 +31,8 @@ class _SplashPageState extends State<SplashPage> {
 
     final prefs = await SharedPreferences.getInstance();
     final bool onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
+
+    if (!mounted) return;
 
     if (!isLoggedIn) {
       if (!onboardingCompleted) {

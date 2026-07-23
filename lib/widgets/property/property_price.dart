@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
+import 'package:roost_app/services/country_service.dart';
 
 class PropertyPrice extends StatelessWidget {
   const PropertyPrice({
     super.key,
     required this.amount,
-    this.currency = 'KES',
+    this.currency,
     this.periodSuffix,
     this.style,
     this.compact = false,
   });
 
   final num amount;
-  final String currency;
+  final String? currency;
   final String? periodSuffix;
 
   /// Overrides the default price style entirely, if provided.
@@ -22,12 +22,14 @@ class PropertyPrice extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final formatted = NumberFormat('#,##0').format(amount);
+    final formatted = currency != null
+        ? '$currency ${CountryService.instance.formatNumber(amount)}'
+        : CountryService.price(amount);
     final effectiveStyle =
         style ?? (compact ? AppTextStyles.priceCompact : AppTextStyles.price);
 
     return Text(
-      '$currency $formatted${periodSuffix != null ? ' /$periodSuffix' : ''}',
+      '$formatted${periodSuffix != null ? ' /$periodSuffix' : ''}',
       maxLines: 1,
       overflow: TextOverflow.ellipsis,
       style: effectiveStyle,

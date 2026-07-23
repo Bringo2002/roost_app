@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roost_app/services/api_service.dart';
 
+import 'package:roost_app/services/country_service.dart';
+
 class BookingHistoryPage extends StatefulWidget {
   const BookingHistoryPage({super.key});
 
@@ -97,7 +99,7 @@ class _BookingHistoryPageState extends State<BookingHistoryPage> {
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.1),
+                                      color: Colors.white.withValues(alpha: 0.1),
                                       borderRadius: BorderRadius.circular(8),
                                       border: Border.all(color: Colors.white54),
                                     ),
@@ -114,7 +116,7 @@ class _BookingHistoryPageState extends State<BookingHistoryPage> {
                                 children: [
                                   const Text('Amount Paid', style: TextStyle(color: Colors.grey, fontSize: 13)),
                                   Text(
-                                    'KES ${NumberFormat('#,##0').format(amount)}',
+                                    CountryService.price(amount),
                                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                                   ),
                                 ],

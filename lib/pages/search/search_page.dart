@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:intl/intl.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 
@@ -23,7 +23,7 @@ class _SearchPageState extends State<SearchPage> {
   // Active Filter state
   String _houseType = 'All';
   int _bedrooms = 0;
-  RangeValues _priceRange = const RangeValues(5000, 150000);
+  late RangeValues _priceRange;
 
   bool _furnished = false;
   bool _parking = false;
@@ -39,6 +39,8 @@ class _SearchPageState extends State<SearchPage> {
   @override
   void initState() {
     super.initState();
+    final config = CountryService.config;
+    _priceRange = RangeValues(config.priceMin, config.priceMax);
     _loadProperties();
     _loadUserLocation();
     _searchCtrl.addListener(_filterResults);
@@ -115,6 +117,24 @@ class _SearchPageState extends State<SearchPage> {
             matchesBalcony &&
             matchesPetFriendly;
       }).toList();
+
+      if (_userPosition != null) {
+        _results.sort((a, b) {
+          final distA = Geolocator.distanceBetween(
+            _userPosition!.latitude,
+            _userPosition!.longitude,
+            a.latitude ?? 0.0,
+            a.longitude ?? 0.0,
+          );
+          final distB = Geolocator.distanceBetween(
+            _userPosition!.latitude,
+            _userPosition!.longitude,
+            b.latitude ?? 0.0,
+            b.longitude ?? 0.0,
+          );
+          return distA.compareTo(distB);
+        });
+      }
     });
   }
 
@@ -203,16 +223,16 @@ class _SearchPageState extends State<SearchPage> {
                       children: [
                         const Text('Price Range', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
                         Text(
-                          'KES ${NumberFormat('#,##0').format(_priceRange.start)} - KES ${NumberFormat('#,##0').format(_priceRange.end)}',
+                          '${CountryService.price(_priceRange.start)} - ${CountryService.price(_priceRange.end)}',
                           style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
                         ),
                       ],
                     ),
                     RangeSlider(
                       values: _priceRange,
-                      min: 5000,
-                      max: 150000,
-                      divisions: 29,
+                      min: CountryService.config.priceMin,
+                      max: CountryService.config.priceMax,
+                      divisions: CountryService.config.priceDivisions,
                       activeColor: Colors.white,
                       inactiveColor: Colors.grey[800],
                       onChanged: (vals) => setSheetState(() => _priceRange = vals),
@@ -278,7 +298,7 @@ class _SearchPageState extends State<SearchPage> {
                     SwitchListTile(
                       title: const Text('Verified Landlords Only', style: TextStyle(color: Colors.white, fontSize: 14)),
                       value: _verifiedOnly,
-                      activeColor: Colors.white,
+                      activeThumbColor: Colors.white,
                       onChanged: (val) => setSheetState(() => _verifiedOnly = val),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -331,7 +351,7 @@ class _SearchPageState extends State<SearchPage> {
                       controller: _searchCtrl,
                       style: const TextStyle(color: Colors.white),
                       decoration: InputDecoration(
-                        hintText: 'Search Nairobi rentals, Kilimani, Westlands...',
+                        hintText: CountryService.config.searchHint,
                         hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
                         prefixIcon: const Icon(Icons.search, color: Colors.white),
                         filled: true,

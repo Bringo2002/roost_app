@@ -24,7 +24,7 @@ class PropertyFilterChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
-          color: selected ? Colors.white : Colors.white.withOpacity(0.06),
+          color: selected ? Colors.white : Colors.white.withValues(alpha: 0.06),
           borderRadius: BorderRadius.circular(24),
           border: Border.all(color: selected ? Colors.white : Colors.white24),
         ),

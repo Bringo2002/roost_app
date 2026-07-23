@@ -108,7 +108,7 @@ class _PropertyImageState extends State<PropertyImage> {
           ),
         ),
       ),
-      errorWidget: (_, __, ___) => _fallback(),
+      errorWidget: (context, url, error) => _fallback(),
     );
   }
 

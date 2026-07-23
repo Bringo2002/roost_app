@@ -15,6 +15,7 @@ import 'package:roost_app/services/favorites_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_theme.dart';
+import 'package:roost_app/theme/app_map_style.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/widgets/property/property_filter_chip.dart';
 
@@ -464,7 +465,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
         // ── Search bar (animated slide-down) ──
         SizeTransition(
           sizeFactor: _searchAnimation,
-          axisAlignment: -1.0,
+          alignment: Alignment.topCenter,
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
             child: Container(
@@ -791,6 +792,7 @@ class _MapViewPageState extends State<MapViewPage> {
                 target: LatLng(geoProperties.first.latitude!, geoProperties.first.longitude!),
                 zoom: 12,
               ),
+              style: AppMapStyle.darkMapStyle,
               onMapCreated: (controller) {
                 _mapController = controller;
                 _centerOnUserLocation();

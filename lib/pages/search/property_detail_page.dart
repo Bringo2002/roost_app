@@ -3,9 +3,12 @@ import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
-import 'package:intl/intl.dart';
 import 'package:roost_app/services/favorites_service.dart';
+import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/pages/chat/chat_room_page.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:roost_app/pages/search/in_app_map_page.dart';
+import 'package:roost_app/theme/app_map_style.dart';
 
 class PropertyDetailPage extends StatefulWidget {
   final Property property;
@@ -49,15 +52,6 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     }
   }
 
-  void _openGoogleMapsNavigation() async {
-    final lat = widget.property.latitude ?? -1.2921;
-    final lng = widget.property.longitude ?? 36.8219;
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
-  }
-
   void _showReportBottomSheet() {
     String selectedReason = 'Fake listing';
     final List<String> reasons = [
@@ -72,87 +66,95 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     showModalBottomSheet(
       context: context,
       backgroundColor: const Color(0xFF1C1C1E),
+      isScrollControlled: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (ctx) {
                   bool isSubmitting = false;
                   return StatefulBuilder(
                     builder: (sheetContext, setSheetState) {
                       return Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Report Listing',
-                              style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Help us keep Roost safe and verified. Why are you reporting this property?',
-                              style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                            ),
-                            const SizedBox(height: 16),
-                            ...reasons.map((r) {
-                              return ListTile(
-                                title: Text(r, style: TextStyle(color: selectedReason == r ? Colors.white : Colors.grey[400], fontSize: 14)),
-                                trailing: Icon(
-                                  selectedReason == r ? Icons.radio_button_checked : Icons.radio_button_off,
-                                  color: selectedReason == r ? Colors.white : Colors.grey,
-                                  size: 20,
-                                ),
-                                contentPadding: EdgeInsets.zero,
-                                onTap: isSubmitting ? null : () => setSheetState(() => selectedReason = r),
-                              );
-                            }),
-                            const SizedBox(height: 16),
-                            SizedBox(
-                              width: double.infinity,
-                              height: 48,
-                              child: ElevatedButton(
-                                onPressed: isSubmitting
-                                    ? null
-                                    : () async {
-                                        setSheetState(() => isSubmitting = true);
-                                        try {
-                                          await ApiService.post('/api/properties/${widget.property.id}/report', {
-                                            'reason': selectedReason,
-                                          });
-                                          Navigator.pop(ctx);
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Listing report received. Thank you for keeping Roost safe!'),
-                                              duration: Duration(seconds: 4),
-                                            ),
-                                          );
-                                        } catch (e) {
-                                          Navigator.pop(ctx);
-                                          if (!context.mounted) return;
-                                          ScaffoldMessenger.of(context).showSnackBar(
-                                            const SnackBar(
-                                              content: Text('Report submitted. Thank you for keeping Roost safe!'),
-                                              duration: Duration(seconds: 4),
-                                            ),
-                                          );
-                                        }
-                                      },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.redAccent,
-                                  foregroundColor: Colors.white,
-                                  disabledBackgroundColor: Colors.redAccent.withValues(alpha: 0.5),
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                ),
-                                child: isSubmitting
-                                    ? const SizedBox(
-                                        width: 20,
-                                        height: 20,
-                                        child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                      )
-                                    : const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold)),
+                        padding: EdgeInsets.only(
+                          left: 20,
+                          right: 20,
+                          top: 20,
+                          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+                        ),
+                        child: SingleChildScrollView(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                'Report Listing',
+                                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 6),
+                              Text(
+                                'Help us keep Roost safe and verified. Why are you reporting this property?',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                              ),
+                              const SizedBox(height: 16),
+                              ...reasons.map((r) {
+                                return ListTile(
+                                  title: Text(r, style: TextStyle(color: selectedReason == r ? Colors.white : Colors.grey[400], fontSize: 14)),
+                                  trailing: Icon(
+                                    selectedReason == r ? Icons.radio_button_checked : Icons.radio_button_off,
+                                    color: selectedReason == r ? Colors.white : Colors.grey,
+                                    size: 20,
+                                  ),
+                                  contentPadding: EdgeInsets.zero,
+                                  onTap: isSubmitting ? null : () => setSheetState(() => selectedReason = r),
+                                );
+                              }),
+                              const SizedBox(height: 20),
+                              SizedBox(
+                                width: double.infinity,
+                                height: 52,
+                                child: ElevatedButton(
+                                  onPressed: isSubmitting
+                                      ? null
+                                      : () async {
+                                          setSheetState(() => isSubmitting = true);
+                                          try {
+                                            await ApiService.post('/api/properties/${widget.property.id}/report', {
+                                              'reason': selectedReason,
+                                            });
+                                            if (ctx.mounted) Navigator.pop(ctx);
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Listing report received. Thank you for keeping Roost safe!'),
+                                                duration: Duration(seconds: 4),
+                                              ),
+                                            );
+                                          } catch (e) {
+                                            if (ctx.mounted) Navigator.pop(ctx);
+                                            if (!mounted) return;
+                                            ScaffoldMessenger.of(context).showSnackBar(
+                                              const SnackBar(
+                                                content: Text('Report submitted. Thank you for keeping Roost safe!'),
+                                                duration: Duration(seconds: 4),
+                                              ),
+                                            );
+                                          }
+                                        },
+                                  style: ElevatedButton.styleFrom(
+                                    backgroundColor: Colors.redAccent,
+                                    foregroundColor: Colors.white,
+                                    disabledBackgroundColor: Colors.redAccent.withValues(alpha: 0.5),
+                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                  ),
+                                  child: isSubmitting
+                                      ? const SizedBox(
+                                          width: 20,
+                                          height: 20,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                                        )
+                                      : const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       );
                     },
@@ -177,7 +179,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     return Stack(
       alignment: Alignment.center,
       children: [
-        if (false && hasVideo)
+        if (hasVideo)
           Container(
             height: 320,
             width: double.infinity,
@@ -297,7 +299,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                   ),
                   const SizedBox(height: 16),
                   Text(
-                    'KES ${NumberFormat('#,##0').format(widget.property.price)}/mo',
+                    CountryService.pricePerMonth(widget.property.price),
                     style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
                   ),
 
@@ -326,35 +328,92 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                   const Divider(color: Color(0xFF2C2C2E)),
                   const SizedBox(height: 16),
 
-                  // Map preview
-                  const Text('Location', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 10),
-                  GestureDetector(
-                    onTap: _openGoogleMapsNavigation,
+                  // Map preview — Baked Uber-style In-App Map
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text('Location', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      TextButton.icon(
+                        onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => InAppMapPage(property: widget.property),
+                            ),
+                          );
+                        },
+                        icon: const Icon(Icons.fullscreen, color: Colors.white, size: 18),
+                        label: const Text('Fullscreen', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      height: 140,
+                      height: 180,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(16),
                         border: Border.all(color: Colors.grey[800]!),
+                        borderRadius: BorderRadius.circular(20),
                       ),
                       child: Stack(
-                        alignment: Alignment.center,
                         children: [
-                          Icon(Icons.map_outlined, color: Colors.grey[700], size: 48),
+                          GoogleMap(
+                            initialCameraPosition: CameraPosition(
+                              target: LatLng(
+                                widget.property.latitude ?? -1.2921,
+                                widget.property.longitude ?? 36.8219,
+                              ),
+                              zoom: 14,
+                            ),
+                            style: AppMapStyle.darkMapStyle,
+                            zoomControlsEnabled: false,
+                            myLocationButtonEnabled: false,
+                            scrollGesturesEnabled: false,
+                            zoomGesturesEnabled: false,
+                            tiltGesturesEnabled: false,
+                            rotateGesturesEnabled: false,
+                            markers: {
+                              Marker(
+                                markerId: MarkerId('detail_prop_${widget.property.id}'),
+                                position: LatLng(
+                                  widget.property.latitude ?? -1.2921,
+                                  widget.property.longitude ?? 36.8219,
+                                ),
+                              ),
+                            },
+                          ),
+                          Positioned.fill(
+                            child: Material(
+                              color: Colors.transparent,
+                              child: InkWell(
+                                onTap: () {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (_) => InAppMapPage(property: widget.property),
+                                    ),
+                                  );
+                                },
+                              ),
+                            ),
+                          ),
                           Positioned(
                             bottom: 12,
+                            right: 12,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                               decoration: BoxDecoration(
-                                color: Colors.white,
+                                color: Colors.black.withValues(alpha: 0.85),
                                 borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: Colors.grey[800]!),
                               ),
                               child: const Row(
+                                mainAxisSize: MainAxisSize.min,
                                 children: [
-                                  Icon(Icons.navigation, color: Colors.black, size: 14),
+                                  Icon(Icons.touch_app, color: Colors.white, size: 14),
                                   SizedBox(width: 4),
-                                  Text('Navigate with Google Maps', style: TextStyle(color: Colors.black, fontSize: 12, fontWeight: FontWeight.bold)),
+                                  Text('Tap to Explore Map', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                                 ],
                               ),
                             ),

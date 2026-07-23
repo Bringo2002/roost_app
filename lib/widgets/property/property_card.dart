@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/chat/chat_room_page.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
+import 'package:roost_app/pages/search/in_app_map_page.dart';
 import 'package:roost_app/widgets/property/property_image.dart';
+import 'package:roost_app/services/country_service.dart';
 
 class PropertyCard extends StatefulWidget {
   const PropertyCard({
@@ -72,18 +74,18 @@ class _PropertyCardState extends State<PropertyCard> {
     }
   }
 
-  void _navigateToMap() async {
-    final lat = property.latitude ?? -1.2921;
-    final lng = property.longitude ?? 36.8219;
-    final uri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$lat,$lng');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
+  void _navigateToMap() {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => InAppMapPage(property: widget.property),
+      ),
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    final formattedPrice = 'KES ${property.price.toStringAsFixed(0)}/mo';
+    final formattedPrice = CountryService.pricePerMonth(property.price);
 
     return GestureDetector(
       onTap: widget.onTap ?? () {

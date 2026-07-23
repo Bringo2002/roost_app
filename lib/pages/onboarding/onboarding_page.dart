@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/main.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
+import 'package:roost_app/models/country_config.dart';
+import 'package:roost_app/services/country_service.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -13,9 +15,49 @@ class OnboardingPage extends StatefulWidget {
 class _OnboardingPageState extends State<OnboardingPage> {
   int _step = 0;
 
+  CountryConfig _selectedCountry = CountryService.config;
   String _houseType = 'Any';
-  String _budget = 'KES 20k – 35k';
+  String _budget = '';
   String _moveInTimeframe = 'This Month';
+
+  // Auto-detection state
+  bool _isDetecting = true;
+  bool _detectionFailed = false;
+  bool _showCountryList = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _selectedCountry = CountryService.config;
+    _budget = _selectedCountry.budgets.isNotEmpty ? _selectedCountry.budgets[0].title : '';
+    _autoDetectCountry();
+  }
+
+  Future<void> _autoDetectCountry() async {
+    setState(() {
+      _isDetecting = true;
+      _detectionFailed = false;
+    });
+
+    final detected = await CountryService.instance.autoDetectCountry();
+
+    if (!mounted) return;
+
+    if (detected != null) {
+      setState(() {
+        _selectedCountry = detected;
+        _budget = detected.budgets.isNotEmpty ? detected.budgets[0].title : '';
+        _isDetecting = false;
+        _detectionFailed = false;
+      });
+    } else {
+      setState(() {
+        _isDetecting = false;
+        _detectionFailed = true;
+        _showCountryList = true; // Show manual picker on failure
+      });
+    }
+  }
 
   final List<Map<String, dynamic>> _houseTypes = [
     {'title': 'Bedsitter', 'icon': Icons.bed_outlined, 'desc': 'Compact & affordable'},
@@ -26,21 +68,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
     {'title': 'Any', 'icon': Icons.grid_view_rounded, 'desc': 'Show all property types'},
   ];
 
-  final List<Map<String, dynamic>> _budgets = [
-    {'title': 'Under KES 15,000', 'badge': 'Budget Friendly', 'desc': 'Affordable studio & bedsitter listings'},
-    {'title': 'KES 15k – 30k', 'badge': 'Popular', 'desc': 'Standard 1BR & 2BR apartments'},
-    {'title': 'KES 30k – 60k', 'badge': 'Premium', 'desc': 'Modern 2BR & 3BR in prime areas'},
-    {'title': 'KES 60,000+', 'badge': 'Luxury', 'desc': 'High-end penthouses & serviced units'},
-  ];
+  List<Map<String, dynamic>> get _budgets {
+    return _selectedCountry.budgets.map((b) => {
+      'title': b.title,
+      'badge': b.badge,
+      'desc': b.desc,
+    }).toList();
+  }
 
-  final List<Map<String, dynamic>> _timeframes = [
-    {'title': 'Immediately', 'icon': Icons.flash_on_outlined, 'desc': 'Ready to view and sign today'},
-    {'title': 'Within 2 Weeks', 'icon': Icons.calendar_today_outlined, 'desc': 'Planning ahead for next move'},
-    {'title': 'This Month', 'icon': Icons.date_range_outlined, 'desc': 'Exploring current month availability'},
-    {'title': 'Just Browsing', 'icon': Icons.search_outlined, 'desc': 'Checking Nairobi market prices'},
-  ];
+  List<Map<String, dynamic>> get _timeframes {
+    return [
+      {'title': 'Immediately', 'icon': Icons.flash_on_outlined, 'desc': 'Ready to view and sign today'},
+      {'title': 'Within 2 Weeks', 'icon': Icons.calendar_today_outlined, 'desc': 'Planning ahead for next move'},
+      {'title': 'This Month', 'icon': Icons.date_range_outlined, 'desc': 'Exploring current month availability'},
+      {'title': 'Just Browsing', 'icon': Icons.search_outlined, 'desc': _selectedCountry.browsingDesc},
+    ];
+  }
 
   Future<void> _completeOnboarding() async {
+    await CountryService.instance.setCountry(_selectedCountry);
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('pref_house_type', _houseType);
     await prefs.setString('pref_budget', _budget);
@@ -56,7 +102,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _nextStep() {
-    if (_step < 3) {
+    if (_step < 4) {
       setState(() => _step++);
     } else {
       _completeOnboarding();
@@ -107,10 +153,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Progress Bar (4 steps total)
+              // Progress Bar (5 steps total)
               Row(
                 children: List.generate(
-                  4,
+                  5,
                   (index) => Expanded(
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
@@ -142,19 +188,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: _nextStep,
+                  onPressed: (_step == 0 && _isDetecting) ? null : _nextStep,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: goldAccent,
                     foregroundColor: Colors.black,
+                    disabledBackgroundColor: Colors.grey[800],
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
                   child: Text(
                     _step == 0
-                        ? 'Get Started'
-                        : _step == 3
-                            ? 'Curate My Feed'
-                            : 'Continue',
+                        ? (_isDetecting ? 'Detecting Location...' : 'Continue')
+                        : _step == 1
+                            ? 'Get Started'
+                            : _step == 4
+                                ? 'Curate My Feed'
+                                : 'Continue',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                 ),
@@ -169,22 +218,256 @@ class _OnboardingPageState extends State<OnboardingPage> {
   Widget _buildCurrentStep(Color goldAccent) {
     switch (_step) {
       case 0:
-        return _buildWelcomeStep(goldAccent);
+        return _buildCountryDetectionStep(goldAccent);
       case 1:
-        return _buildHouseTypeStep(goldAccent);
+        return _buildWelcomeStep(goldAccent);
       case 2:
-        return _buildBudgetStep(goldAccent);
+        return _buildHouseTypeStep(goldAccent);
       case 3:
+        return _buildBudgetStep(goldAccent);
+      case 4:
         return _buildTimelineStep(goldAccent);
       default:
         return const SizedBox.shrink();
     }
   }
 
-  // Step 0: Welcome & Value Proposition
-  Widget _buildWelcomeStep(Color goldAccent) {
+  // ── Step 0: Auto-Detect Country ────────────────────────────────────
+
+  Widget _buildCountryDetectionStep(Color goldAccent) {
     return Column(
       key: const ValueKey(0),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        const RoostLogoIcon(size: 72),
+        const SizedBox(height: 24),
+        const Text(
+          'Where are you\nlooking to rent?',
+          style: TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          'We auto-detect your location to personalize pricing, currency, and listings.',
+          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+        ),
+        const SizedBox(height: 28),
+
+        // Detection result / loading
+        if (_isDetecting) ...[
+          _buildDetectingCard(),
+        ] else if (!_showCountryList) ...[
+          _buildDetectedCountryCard(goldAccent),
+          const SizedBox(height: 16),
+          Center(
+            child: TextButton.icon(
+              onPressed: () => setState(() => _showCountryList = true),
+              icon: const Icon(Icons.edit_location_alt_outlined, color: Colors.grey, size: 18),
+              label: Text(
+                'Not your location? Change country',
+                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+              ),
+            ),
+          ),
+        ],
+
+        // Country list (shown on failure or if user taps "Change")
+        if (_showCountryList) ...[
+          if (_detectionFailed)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 16),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Could not detect location. Please select manually.',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  ),
+                ],
+              ),
+            ),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 12,
+              mainAxisSpacing: 12,
+              childAspectRatio: 2.2,
+              children: CountryConfig.all.map((c) {
+                final isSelected = _selectedCountry.code == c.code;
+                return GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _selectedCountry = c;
+                      if (c.budgets.isNotEmpty) {
+                        _budget = c.budgets[0].title;
+                      }
+                      _showCountryList = false;
+                    });
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1C1C1E),
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: isSelected ? Colors.white : Colors.transparent,
+                        width: 2,
+                      ),
+                    ),
+                    child: Row(
+                      children: [
+                        Text(c.flag, style: const TextStyle(fontSize: 26)),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                c.name,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 14,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                c.currencyCode,
+                                style: TextStyle(
+                                  color: Colors.grey[500],
+                                  fontSize: 12,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (isSelected)
+                          const Icon(Icons.check_circle, color: Colors.white, size: 18),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildDetectingCard() {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.grey[850]!),
+      ),
+      child: Row(
+        children: [
+          const SizedBox(
+            width: 28,
+            height: 28,
+            child: CircularProgressIndicator(
+              strokeWidth: 2.5,
+              color: Colors.white,
+            ),
+          ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Detecting your location...',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Using GPS to find your country automatically',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetectedCountryCard(Color goldAccent) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white, width: 2),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            decoration: BoxDecoration(
+              color: Colors.grey[900],
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Center(
+              child: Text(_selectedCountry.flag, style: const TextStyle(fontSize: 32)),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.location_on, color: Colors.white, size: 16),
+                    const SizedBox(width: 4),
+                    const Text(
+                      'Detected Location',
+                      style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  _selectedCountry.name,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${_selectedCountry.currencyCode} • ${_selectedCountry.currencySymbol}',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+          const Icon(Icons.check_circle, color: Colors.white, size: 24),
+        ],
+      ),
+    );
+  }
+
+  // ── Step 1: Welcome & Value Proposition ─────────────────────────
+
+  Widget _buildWelcomeStep(Color goldAccent) {
+    return Column(
+      key: const ValueKey(1),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
@@ -201,7 +484,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Roost connects you directly with verified landlords across Nairobi with transparent pricing and real-time availability.',
+          'Roost connects you directly with verified landlords with transparent pricing and real-time availability.',
           style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
         ),
         const SizedBox(height: 32),
@@ -224,7 +507,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         _buildFeatureItem(
           Icons.map_outlined,
           'Precise Location Mapping',
-          'Navigate to exact property coordinates in Nairobi.',
+          'Navigate to exact property coordinates on the map.',
           goldAccent,
         ),
       ],
@@ -265,10 +548,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // Step 1: House Type Selection
+  // ── Step 2: House Type Selection ─────────────────────────────────
+
   Widget _buildHouseTypeStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(1),
+      key: const ValueKey(2),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
@@ -276,7 +560,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.2),
         ),
         const SizedBox(height: 8),
-        Text('We will customize your Nairobi feed accordingly', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        Text('We will customize your feed accordingly', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
         const SizedBox(height: 24),
         Expanded(
           child: GridView.builder(
@@ -350,10 +634,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // Step 2: Budget Curation
+  // ── Step 3: Budget Curation ──────────────────────────────────────
+
   Widget _buildBudgetStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(2),
+      key: const ValueKey(3),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
@@ -436,10 +721,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // Step 3: Move-in Timeline
+  // ── Step 4: Move-in Timeline ────────────────────────────────────
+
   Widget _buildTimelineStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(3),
+      key: const ValueKey(4),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(

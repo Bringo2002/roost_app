@@ -3,6 +3,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/pages/search/location_picker_page.dart';
 import 'package:roost_app/services/api_service.dart';
 
+import 'package:roost_app/services/country_service.dart';
+
 class AddPropertyPage extends StatefulWidget {
   const AddPropertyPage({super.key});
 
@@ -26,7 +28,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final _galleryUrlCtrl = TextEditingController();
 
   String _houseType = '1BR';
-  String _moveInDate = 'Immediate';
+  final String _moveInDate = 'Immediate';
   double? _latitude = -1.2921;
   double? _longitude = 36.8219;
 
@@ -93,6 +95,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         'balcony': _balcony,
         'petFriendly': _petFriendly,
         'moveInDate': _moveInDate,
+        'country': CountryService.config.code,
       });
 
       if (!mounted) return;
@@ -279,7 +282,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
-              value: _houseType,
+              initialValue: _houseType,
               dropdownColor: const Color(0xFF1C1C1E),
               style: const TextStyle(color: Colors.white),
               decoration: _inputDecoration('House Type'),
@@ -296,7 +299,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     controller: _priceCtrl,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Monthly Rent (KES)'),
+                    decoration: _inputDecoration('Monthly Rent (${CountryService.config.currencyCode})'),
                   ),
                 ),
                 const SizedBox(width: 12),

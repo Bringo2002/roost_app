@@ -4,7 +4,8 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:intl/intl.dart';
+
+import 'package:roost_app/services/country_service.dart';
 
 class SavedPage extends StatefulWidget {
   const SavedPage({super.key});
@@ -135,7 +136,7 @@ class _SavedPageState extends State<SavedPage> {
                   ? CachedNetworkImage(
                       imageUrl: property.imageUrl!,
                       fit: BoxFit.cover,
-                      errorWidget: (_, __, ___) => Container(
+                      errorWidget: (context, url, error) => Container(
                         color: Colors.grey[850],
                         child: Icon(Icons.home_outlined, color: Colors.grey[700], size: 32),
                       ),
@@ -175,7 +176,7 @@ class _SavedPageState extends State<SavedPage> {
                     ),
                     const SizedBox(height: 8),
                     Text(
-                      'KES ${NumberFormat('#,##0').format(property.price)}',
+                      CountryService.price(property.price),
                       style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w800),
                     ),
                   ],

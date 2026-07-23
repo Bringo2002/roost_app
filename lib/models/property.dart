@@ -38,6 +38,7 @@ class Property {
   final int saveCount;
   final String? listedAt;
   final String? lastConfirmedAt;
+  final String country;
 
   Property({
     this.id,
@@ -76,6 +77,7 @@ class Property {
     this.saveCount = 0,
     this.listedAt,
     this.lastConfirmedAt,
+    this.country = 'KE',
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -116,6 +118,7 @@ class Property {
       saveCount: (json['saveCount'] as num?)?.toInt() ?? 0,
       listedAt: json['listedAt']?.toString(),
       lastConfirmedAt: json['lastConfirmedAt']?.toString(),
+      country: json['country']?.toString() ?? 'KE',
     );
   }
 
@@ -150,6 +153,7 @@ class Property {
       'balcony': balcony,
       if (deposit != null) 'deposit': deposit,
       if (moveInDate != null) 'moveInDate': moveInDate,
+      'country': country,
     };
   }
 }

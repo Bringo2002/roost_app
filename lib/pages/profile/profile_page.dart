@@ -6,6 +6,9 @@ import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
 import 'package:roost_app/pages/profile/saved_page.dart';
 
+import 'package:roost_app/models/country_config.dart';
+import 'package:roost_app/services/country_service.dart';
+
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
 
@@ -226,8 +229,25 @@ class _ProfilePageState extends State<ProfilePage> {
                       secondary: const Icon(Icons.notifications_outlined, color: Colors.white),
                       title: const Text('Push Notifications', style: TextStyle(color: Colors.white, fontSize: 15)),
                       value: _notificationsEnabled,
-                      activeColor: Colors.white,
+                      activeThumbColor: Colors.white,
                       onChanged: (val) => setState(() => _notificationsEnabled = val),
+                    ),
+                    const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                    ListTile(
+                      leading: const Icon(Icons.language_outlined, color: Colors.white),
+                      title: const Text('Country / Region', style: TextStyle(color: Colors.white, fontSize: 15)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            '${CountryService.config.flag} ${CountryService.config.code}',
+                            style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(width: 4),
+                          const Icon(Icons.chevron_right, color: Colors.grey),
+                        ],
+                      ),
+                      onTap: () => _showCountryPickerBottomSheet(context),
                     ),
                     const Divider(height: 1, color: Color(0xFF2C2C2E)),
                     ListTile(
@@ -256,7 +276,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     ListTile(
                       leading: const Icon(Icons.info_outline, color: Colors.white),
                       title: const Text('About Roost', style: TextStyle(color: Colors.white, fontSize: 15)),
-                      subtitle: const Text('v1.0.0 · Nairobi', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                      subtitle: Text('v1.0.0 · ${CountryService.config.name}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
                     ),
                   ],
                 ),
@@ -299,6 +319,59 @@ class _ProfilePageState extends State<ProfilePage> {
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
         onTap: onTap,
       ),
+    );
+  }
+
+  void _showCountryPickerBottomSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Country / Region',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close, color: Colors.grey),
+                      onPressed: () => Navigator.pop(ctx),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 12),
+                ...CountryConfig.all.map((c) {
+                  final isSelected = CountryService.config.code == c.code;
+                  return ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                    leading: Text(c.flag, style: const TextStyle(fontSize: 28)),
+                    title: Text(c.name, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    subtitle: Text('${c.currencyCode} (${c.currencySymbol})', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                    trailing: isSelected ? const Icon(Icons.check_circle, color: Colors.white) : null,
+                    onTap: () async {
+                      await CountryService.instance.setCountry(c);
+                      if (ctx.mounted) Navigator.pop(ctx);
+                      if (!mounted) return;
+                      setState(() {});
+                    },
+                  );
+                }),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

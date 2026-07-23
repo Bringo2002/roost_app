@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/services/country_service.dart';
 
 class LandlordDashboardPage extends StatefulWidget {
   const LandlordDashboardPage({super.key});
@@ -127,7 +128,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              _buildStatItem('Total Earnings', 'KES ${NumberFormat('#,##0').format(_totalRevenue)}'),
+              _buildStatItem('Total Earnings', CountryService.price(_totalRevenue)),
               _buildStatItem('Secured', '$_totalSecured'),
               _buildStatItem('Listings', '$_totalListings'),
             ],
@@ -229,7 +230,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                       ),
                                       Switch(
                                         value: property.available,
-                                        activeColor: Colors.white,
+                                        activeThumbColor: Colors.white,
                                         activeTrackColor: Colors.grey[800],
                                         inactiveThumbColor: Colors.grey[600],
                                         inactiveTrackColor: Colors.grey[950],
@@ -248,7 +249,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    'KES ${NumberFormat('#,##0').format(property.price)}',
+                                    CountryService.price(property.price),
                                     style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
                                   ),
                                   Text(
@@ -291,7 +292,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
                 ],
               ),
             ),
@@ -340,13 +341,13 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _buildRow('M-Pesa Receipt', receipt),
+                        _buildRow(CountryService.config.paymentLabel, receipt),
                         _buildRow('Tenant Phone', phone),
                         _buildRow('Timestamp', dateStr),
-                        _buildRow('Amount', 'KES 2,000'),
+                        _buildRow('Amount', CountryService.price(CountryService.config.holdingFee)),
                       ],
                     );
-                  }).toList(),
+                  }),
                 ],
               ),
             );
@@ -496,10 +497,10 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
                                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                             decoration: BoxDecoration(
                                               color: status == 'APPROVED'
-                                                  ? Colors.white.withOpacity(0.15)
+                                                  ? Colors.white.withValues(alpha: 0.15)
                                                   : status == 'REJECTED'
-                                                      ? Colors.red.withOpacity(0.2)
-                                                      : Colors.amber.withOpacity(0.2),
+                                                      ? Colors.red.withValues(alpha: 0.2)
+                                                      : Colors.amber.withValues(alpha: 0.2),
                                               borderRadius: BorderRadius.circular(8),
                                             ),
                                             child: Text(
@@ -520,7 +521,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
                                       const SizedBox(height: 8),
                                       Text('National ID: $nationalId', style: const TextStyle(color: Colors.white70, fontSize: 13)),
                                       Text('Employment: $employment', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                                      Text('Income: KES ${NumberFormat('#,##0').format(monthlyIncome)}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
+                                      Text('Income: ${CountryService.price(monthlyIncome)}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
                                       if (status == 'PENDING') ...[
                                         const SizedBox(height: 12),
                                         Row(
