@@ -17,7 +17,6 @@ import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/theme/app_map_style.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
-import 'package:roost_app/widgets/property/property_filter_chip.dart';
 
 import 'package:roost_app/pages/splash/splash_page.dart';
 import 'package:roost_app/services/push_notification_service.dart';
@@ -285,8 +284,6 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
   late AnimationController _searchAnimCtrl;
   late Animation<double> _searchAnimation;
 
-  static const List<String> _types = ['all', 'rental'];
-
   String? _prefHouseType;
   String? _prefBudget;
   String? _prefTimeframe;
@@ -517,33 +514,12 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
           ),
         ),
 
-        // ── Filter row: chips + search toggle ──
+        // ── Search toggle ──
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16),
           child: Row(
+            mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: _types.map((type) {
-                      final isSelected = selectedType == type;
-                      return Padding(
-                        padding: const EdgeInsets.only(right: 8.0),
-                        child: PropertyFilterChip(
-                          label: type.toUpperCase(),
-                          selected: isSelected,
-                          onTap: () {
-                            setState(() => selectedType = type);
-                            _filterProperties();
-                          },
-                        ),
-                      );
-                    }).toList(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 4),
               GestureDetector(
                 onTap: _toggleSearch,
                 child: AnimatedContainer(
