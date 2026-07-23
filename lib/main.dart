@@ -545,36 +545,6 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
           ),
         ),
 
-        if (_prefHouseType != null || _prefBudget != null) ...[
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Curated: ${_prefHouseType ?? 'Any'} · ${_prefBudget ?? 'Any Budget'}',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 12,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 6),
-        ],
-
         // Results count
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 20),
