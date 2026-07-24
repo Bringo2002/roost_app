@@ -152,8 +152,19 @@ class Property {
       'petFriendly': petFriendly,
       'balcony': balcony,
       if (deposit != null) 'deposit': deposit,
-      if (moveInDate != null) 'moveInDate': moveInDate,
       'country': country,
     };
+  }
+
+  /// Formatted bedroom display text.
+  /// Converts 0 bedrooms to 'Studio' or 'Bedsitter' matching Zillow/Airbnb standard.
+  String get bedroomDisplay {
+    if (bedrooms <= 0) {
+      final typeUpper = houseType.toUpperCase();
+      if (typeUpper == 'STUDIO') return 'Studio';
+      if (typeUpper == 'BEDSITTER') return 'Bedsitter';
+      return 'Studio';
+    }
+    return '$bedrooms ${bedrooms == 1 ? 'bed' : 'beds'}';
   }
 }

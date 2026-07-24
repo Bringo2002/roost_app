@@ -1,8 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:roost_app/config.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
@@ -86,16 +86,11 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     );
   }
 
-  Future<void> _shareListing() async {
+  void _shareListing() {
     final p = widget.property;
     final link = p.id != null ? '${AppConfig.baseUrl}/api/properties/${p.id}' : AppConfig.baseUrl;
-    final text = '${p.title} — ${CountryService.pricePerMonth(p.price)} in ${p.location}.\n'
-        'Check it out on Roost: $link';
-    await Clipboard.setData(ClipboardData(text: text));
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Listing link copied — share it with anyone!')),
-    );
+    final shareText = 'Check out this listing on Roost:\n${p.title} — ${CountryService.pricePerMonth(p.price)} in ${p.location}\n$link';
+    Share.share(shareText, subject: p.title);
   }
 
   void _showReportBottomSheet() {
@@ -430,22 +425,20 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                   // House type, bedrooms & bathrooms
                   Row(
                     children: [
-                      if (widget.property.bedrooms > 0) ...[
-                        const Icon(Icons.bed_outlined, color: Colors.grey, size: 18),
-                        const SizedBox(width: 6),
-                        Text(
-                          '${widget.property.bedrooms} bed',
-                          style: const TextStyle(color: Colors.white70, fontSize: 14),
-                        ),
-                        const SizedBox(width: 16),
-                      ],
+                      const Icon(Icons.bed_outlined, color: Colors.grey, size: 18),
+                      const SizedBox(width: 6),
+                      Text(
+                        widget.property.bedroomDisplay,
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                      const SizedBox(width: 16),
                       const Icon(Icons.bathtub_outlined, color: Colors.grey, size: 18),
                       const SizedBox(width: 6),
                       Text(
                         '${widget.property.bathrooms} bath',
                         style: const TextStyle(color: Colors.white70, fontSize: 14),
                       ),
-                      if (widget.property.houseType.isNotEmpty) ...[
+                      if (widget.property.houseType.isNotEmpty && widget.property.bedrooms > 0) ...[
                         const SizedBox(width: 16),
                         Text(
                           '·  ${widget.property.houseType}',

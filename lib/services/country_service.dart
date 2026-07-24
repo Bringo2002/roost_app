@@ -105,11 +105,9 @@ class CountryService {
   ///   India  → "₹25,000"   (uses Indian lakh grouping via en_IN)
   ///   US     → "$2,500"
   String formatPrice(num amount) {
-    final numberPart = NumberFormat('#,##0', _current.locale).format(amount);
     final symbol = _current.currencySymbol;
-    // Multi-letter currency codes (KES, AED) need a space before the amount;
-    // true glyph symbols (₹, ₦, £, $) conventionally sit flush against it.
-    final separator = symbol.length > 1 ? ' ' : '';
+    final separator = (symbol.length > 1 && !symbol.endsWith(' ')) ? ' ' : '';
+    final numberPart = NumberFormat('#,##0', _current.locale).format(amount);
     return '$symbol$separator$numberPart';
   }
 
