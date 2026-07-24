@@ -32,4 +32,19 @@ class FavoritesService {
     list.remove(id.toString());
     await prefs.setStringList(_key, list);
   }
+
+  static Future<void> add(int id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final list = prefs.getStringList(_key) ?? [];
+    final idStr = id.toString();
+    if (!list.contains(idStr)) {
+      list.add(idStr);
+      await prefs.setStringList(_key, list);
+    }
+  }
+
+  static Future<void> clearAll() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_key);
+  }
 }
