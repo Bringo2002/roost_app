@@ -29,7 +29,6 @@ dependencies:
   open_filex: ^4.5.0
   record: ^7.1.1
   just_audio: ^0.9.36
-  font_awesome_flutter: ^11.0.0
 
 
 dev_dependencies:

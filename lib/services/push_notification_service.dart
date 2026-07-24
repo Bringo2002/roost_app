@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/auth_service.dart';
 
 class NotificationItem {
   final String id;
@@ -45,27 +46,45 @@ class NotificationItem {
       );
 }
 
-/// Manages push notifications, local history, and device token registration for Roost.
+/// Manages push notifications, user-scoped history, and device token registration for Roost.
 class PushNotificationService {
   PushNotificationService._();
 
-  static bool _initialized = false;
   static String? _fcmToken;
-  static const String _prefEnabledKey = 'push_notifications_enabled';
-  static const String _prefHistoryKey = 'notification_history_v1';
+  static const String _baseEnabledKey = 'push_notifications_enabled';
+  static const String _baseHistoryKey = 'notification_history_v2';
 
   /// ValueNotifier exposing unread notification count across the app
   static final ValueNotifier<int> unreadCountNotifier = ValueNotifier<int>(0);
 
-  /// In-memory notification list
+  /// In-memory notification list for active user
   static List<NotificationItem> _notifications = [];
 
-  /// Initializes notification channels, loads settings, and registers device token.
-  static Future<void> initialize() async {
-    if (_initialized) return;
-    _initialized = true;
+  static Future<String> _getHistoryKey() async {
+    try {
+      final email = await AuthService.getUserEmail();
+      if (email != null && email.isNotEmpty) {
+        final sanitized = email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+        return '${_baseHistoryKey}_$sanitized';
+      }
+    } catch (_) {}
+    return '${_baseHistoryKey}_guest';
+  }
 
-    await _loadFromStorage();
+  static Future<String> _getEnabledKey() async {
+    try {
+      final email = await AuthService.getUserEmail();
+      if (email != null && email.isNotEmpty) {
+        final sanitized = email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+        return '${_baseEnabledKey}_$sanitized';
+      }
+    } catch (_) {}
+    return '${_baseEnabledKey}_guest';
+  }
+
+  /// Initializes notification channels, loads user settings, and registers device token.
+  static Future<void> initialize() async {
+    await reloadForUser();
 
     try {
       if (await isEnabled()) {
@@ -75,16 +94,23 @@ class PushNotificationService {
     } catch (_) {}
   }
 
-  /// Checks if push notifications are enabled (defaults to true)
-  static Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(_prefEnabledKey) ?? true;
+  /// Reloads notifications and preferences for the currently logged-in user profile
+  static Future<void> reloadForUser() async {
+    await _loadFromStorage();
   }
 
-  /// Enables or disables push notifications
-  static Future<void> setEnabled(bool enabled) async {
+  /// Checks if push notifications are enabled for current user (defaults to true)
+  static Future<bool> isEnabled() async {
+    final key = await _getEnabledKey();
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setBool(_prefEnabledKey, enabled);
+    return prefs.getBool(key) ?? true;
+  }
+
+  /// Enables or disables push notifications for current user
+  static Future<void> setEnabled(bool enabled) async {
+    final key = await _getEnabledKey();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(key, enabled);
     if (enabled && _fcmToken != null) {
       await registerTokenWithBackend(_fcmToken);
     }
@@ -98,12 +124,12 @@ class PushNotificationService {
     } catch (_) {}
   }
 
-  /// Returns all stored notifications
+  /// Returns all stored notifications for active user
   static List<NotificationItem> getNotifications() {
     return List.unmodifiable(_notifications);
   }
 
-  /// Adds a new incoming notification, saves to storage, and notifies listeners
+  /// Adds a new incoming notification, saves to active user storage, and notifies listeners
   static Future<void> addNotification({
     required String title,
     required String body,
@@ -143,7 +169,7 @@ class PushNotificationService {
     }
   }
 
-  /// Marks all notifications as read
+  /// Marks all notifications as read for active user
   static Future<void> markAllAsRead() async {
     bool changed = false;
     for (var n in _notifications) {
@@ -158,7 +184,7 @@ class PushNotificationService {
     }
   }
 
-  /// Clears all notification history
+  /// Clears notification history for active user
   static Future<void> clearAll() async {
     _notifications.clear();
     await _saveToStorage();
@@ -226,19 +252,20 @@ class PushNotificationService {
 
   static Future<void> _loadFromStorage() async {
     try {
+      final key = await _getHistoryKey();
       final prefs = await SharedPreferences.getInstance();
-      final rawJson = prefs.getString(_prefHistoryKey);
+      final rawJson = prefs.getString(key);
       if (rawJson != null && rawJson.isNotEmpty) {
         final List decoded = jsonDecode(rawJson);
         _notifications = decoded.map((j) => NotificationItem.fromJson(j)).toList();
       } else {
-        // Initial sample welcome notification for production polish
+        // Initial welcome notification unique to this new user profile
         _notifications = [
           NotificationItem(
-            id: 'welcome_1',
+            id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
             title: 'Welcome to Roost!',
             body: 'Find verified rental listings near you in Nairobi. Save properties and chat directly with landlords.',
-            timestamp: DateTime.now().subtract(const Duration(minutes: 10)),
+            timestamp: DateTime.now(),
             isRead: false,
             type: 'system',
           ),
@@ -253,9 +280,10 @@ class PushNotificationService {
 
   static Future<void> _saveToStorage() async {
     try {
+      final key = await _getHistoryKey();
       final prefs = await SharedPreferences.getInstance();
       final rawJson = jsonEncode(_notifications.map((n) => n.toJson()).toList());
-      await prefs.setString(_prefHistoryKey, rawJson);
+      await prefs.setString(key, rawJson);
     } catch (_) {}
   }
 

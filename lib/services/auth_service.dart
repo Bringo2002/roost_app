@@ -4,6 +4,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:roost_app/config.dart';
+import 'package:roost_app/services/push_notification_service.dart';
 
 class AuthResult {
   final bool success;
@@ -96,9 +97,49 @@ class AuthService {
     }
   }
 
+  static Future<AuthResult> changePassword(String currentPassword, String newPassword) async {
+    try {
+      final token = await getToken();
+      if (token == null) {
+        return AuthResult(success: false, error: 'Not authenticated');
+      }
+      final response = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/api/users/me/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 15));
+
+      if (response.statusCode == 200) {
+        return AuthResult(success: true);
+      }
+
+      String errorMsg = 'Failed to change password';
+      try {
+        final body = jsonDecode(response.body);
+        if (body['error'] != null) {
+          errorMsg = body['error'];
+        } else if (body['message'] != null) {
+          errorMsg = body['message'];
+        }
+      } catch (_) {}
+      return AuthResult(success: false, error: errorMsg);
+    } on SocketException {
+      return AuthResult(success: false, error: 'No internet connection');
+    } catch (e) {
+      return AuthResult(success: false, error: 'An unexpected error occurred');
+    }
+  }
+
   static Future<void> _saveToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_tokenKey, token);
+    await PushNotificationService.reloadForUser();
   }
 
   static Future<String?> getToken() async {
@@ -122,6 +163,7 @@ class AuthService {
   static Future<void> logout() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
+    await PushNotificationService.reloadForUser();
   }
 
   static Future<bool> isLoggedIn() async {

@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
@@ -10,6 +9,9 @@ import 'package:roost_app/models/country_config.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/push_notification_service.dart';
 import 'package:roost_app/pages/profile/notifications_page.dart';
+import 'package:roost_app/pages/profile/privacy_policy_page.dart';
+import 'package:roost_app/pages/profile/about_page.dart';
+import 'package:roost_app/pages/profile/change_password_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -65,52 +67,7 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  void _showChangePasswordDialog() {
-    final oldCtrl = TextEditingController();
-    final newCtrl = TextEditingController();
 
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
-        title: const Text('Change Password', style: TextStyle(color: Colors.white)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: oldCtrl,
-              obscureText: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'Current Password', labelStyle: TextStyle(color: Colors.grey)),
-            ),
-            const SizedBox(height: 12),
-            TextField(
-              controller: newCtrl,
-              obscureText: true,
-              style: const TextStyle(color: Colors.white),
-              decoration: const InputDecoration(labelText: 'New Password', labelStyle: TextStyle(color: Colors.grey)),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(ctx);
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Password updated successfully')),
-              );
-            },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -290,16 +247,23 @@ class _ProfilePageState extends State<ProfilePage> {
                       leading: const Icon(Icons.lock_outline, color: Colors.white),
                       title: const Text('Change Password', style: TextStyle(color: Colors.white, fontSize: 15)),
                       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                      onTap: _showChangePasswordDialog,
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const ChangePasswordPage()),
+                        );
+                      },
                     ),
                     const Divider(height: 1, color: Color(0xFF2C2C2E)),
                     ListTile(
                       leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white),
                       title: const Text('Privacy Policy', style: TextStyle(color: Colors.white, fontSize: 15)),
                       trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                      onTap: () async {
-                        final uri = Uri.parse('https://roost.co.ke/privacy');
-                        if (await canLaunchUrl(uri)) launchUrl(uri);
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()),
+                        );
                       },
                     ),
                     const Divider(height: 1, color: Color(0xFF2C2C2E)),
@@ -307,6 +271,13 @@ class _ProfilePageState extends State<ProfilePage> {
                       leading: const Icon(Icons.info_outline, color: Colors.white),
                       title: const Text('About Roost', style: TextStyle(color: Colors.white, fontSize: 15)),
                       subtitle: Text('v1.0.0 · ${CountryService.config.name}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(builder: (_) => const AboutRoostPage()),
+                        );
+                      },
                     ),
                   ],
                 ),
