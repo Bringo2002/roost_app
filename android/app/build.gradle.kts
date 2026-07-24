@@ -34,6 +34,13 @@ android {
         versionCode = flutter.versionCode
         versionName = flutter.versionName
         manifestPlaceholders["MAPS_API_KEY"] = mapsApiKey
+        ndk {
+            // Works around a known Flutter/Gradle tooling bug where release
+            // builds fail with "failed to strip debug symbols from native
+            // libraries" (open upstream as of Flutter 3.44). Skipping symbol
+            // table generation avoids the broken stripping step entirely.
+            debugSymbolLevel = "NONE"
+        }
     }
 
     buildTypes {
