@@ -261,13 +261,15 @@ class _PropertyCardState extends State<PropertyCard> {
                   // Bedroom & bathroom details
                   Row(
                     children: [
-                      const Icon(Icons.bed_outlined, color: Colors.grey, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${property.bedrooms} bed',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      const SizedBox(width: 12),
+                      if (property.bedrooms > 0) ...[
+                        const Icon(Icons.bed_outlined, color: Colors.grey, size: 16),
+                        const SizedBox(width: 4),
+                        Text(
+                          '${property.bedrooms} bed',
+                          style: const TextStyle(color: Colors.white70, fontSize: 12),
+                        ),
+                        const SizedBox(width: 12),
+                      ],
                       const Icon(Icons.bathtub_outlined, color: Colors.grey, size: 16),
                       const SizedBox(width: 4),
                       Text(

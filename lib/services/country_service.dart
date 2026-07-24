@@ -105,12 +105,12 @@ class CountryService {
   ///   India  → "₹25,000"   (uses Indian lakh grouping via en_IN)
   ///   US     → "$2,500"
   String formatPrice(num amount) {
-    final formatter = NumberFormat.currency(
-      locale: _current.locale,
-      symbol: _current.currencySymbol,
-      decimalDigits: 0,
-    );
-    return formatter.format(amount);
+    final numberPart = NumberFormat('#,##0', _current.locale).format(amount);
+    final symbol = _current.currencySymbol;
+    // Multi-letter currency codes (KES, AED) need a space before the amount;
+    // true glyph symbols (₹, ₦, £, $) conventionally sit flush against it.
+    final separator = symbol.length > 1 ? ' ' : '';
+    return '$symbol$separator$numberPart';
   }
 
   /// Format price with a period suffix, e.g. "KES 25,000/mo"
