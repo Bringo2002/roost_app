@@ -8,6 +8,8 @@ import 'package:roost_app/pages/profile/saved_page.dart';
 
 import 'package:roost_app/models/country_config.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/services/push_notification_service.dart';
+import 'package:roost_app/pages/profile/notifications_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -29,9 +31,12 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _loadProfile() async {
+    final notifEnabled = await PushNotificationService.isEnabled();
+    if (!mounted) return;
     setState(() {
       _loading = true;
       _error = null;
+      _notificationsEnabled = notifEnabled;
     });
     try {
       final data = await ApiService.get('/api/users/me');
@@ -199,7 +204,21 @@ class _ProfilePageState extends State<ProfilePage> {
 
               const SizedBox(height: 24),
 
-              // Saved & Listings Buttons
+              // Notifications & Saved & Listings Buttons
+              ValueListenableBuilder<int>(
+                valueListenable: PushNotificationService.unreadCountNotifier,
+                builder: (context, unreadCount, child) {
+                  return _buildMenuItemWithBadge(
+                    Icons.notifications_outlined,
+                    'Notification Center',
+                    unreadCount,
+                    () {
+                      Navigator.push(context, MaterialPageRoute(builder: (_) => const NotificationsPage()));
+                    },
+                  );
+                },
+              ),
+
               _buildMenuItem(Icons.favorite_border, 'My Saved Properties', () {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedPage()));
               }),
@@ -230,7 +249,18 @@ class _ProfilePageState extends State<ProfilePage> {
                       title: const Text('Push Notifications', style: TextStyle(color: Colors.white, fontSize: 15)),
                       value: _notificationsEnabled,
                       activeThumbColor: Colors.white,
-                      onChanged: (val) => setState(() => _notificationsEnabled = val),
+                      onChanged: (val) async {
+                        final messenger = ScaffoldMessenger.of(context);
+                        setState(() => _notificationsEnabled = val);
+                        await PushNotificationService.setEnabled(val);
+                        messenger.hideCurrentSnackBar();
+                        messenger.showSnackBar(
+                          SnackBar(
+                            content: Text(val ? 'Push notifications enabled' : 'Push notifications disabled'),
+                            duration: const Duration(seconds: 2),
+                          ),
+                        );
+                      },
                     ),
                     const Divider(height: 1, color: Color(0xFF2C2C2E)),
                     ListTile(
@@ -317,6 +347,40 @@ class _ProfilePageState extends State<ProfilePage> {
         leading: Icon(icon, color: Colors.white),
         title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+        onTap: onTap,
+      ),
+    );
+  }
+
+  Widget _buildMenuItemWithBadge(IconData icon, String title, int badgeCount, VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: ListTile(
+        leading: Icon(icon, color: Colors.white),
+        title: Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (badgeCount > 0)
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(
+                  color: Colors.redAccent,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Text(
+                  '$badgeCount',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+            if (badgeCount > 0) const SizedBox(width: 6),
+            const Icon(Icons.chevron_right, color: Colors.grey),
+          ],
+        ),
         onTap: onTap,
       ),
     );
