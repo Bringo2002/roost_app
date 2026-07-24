@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
@@ -284,10 +285,13 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   String? _prefBudget;
   String? _prefTimeframe;
 
+  Position? _userPosition;
+
   @override
   void initState() {
     super.initState();
     _loadData();
+    _loadUserPosition();
     searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
   }
@@ -334,6 +338,27 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     } catch (_) {}
   }
 
+  /// Fetches the device location in the background and re-ranks the feed
+  /// once it resolves. Runs independently of _loadData so the feed never
+  /// waits on location permission before showing properties.
+  Future<void> _loadUserPosition() async {
+    final position = await LocationService.getCurrentPosition();
+    if (!mounted || position == null) return;
+    setState(() => _userPosition = position);
+    _filterProperties();
+  }
+
+  /// Distance from the user to [p] in km, or null if either the user's
+  /// location or the property's coordinates are unknown. Never falls back
+  /// to a default coordinate -- an unknown distance stays unknown.
+  double? _distanceKmTo(Property p) {
+    final pos = _userPosition;
+    final lat = p.latitude;
+    final lng = p.longitude;
+    if (pos == null || lat == null || lng == null) return null;
+    return LocationService.distanceKm(pos.latitude, pos.longitude, lat, lng);
+  }
+
   Future<void> _fetchProperties() async {
     try {
       final jsonList = await ApiService.get('/api/properties');
@@ -373,7 +398,26 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   int _calculateRelevance(Property p) {
     int score = 0;
 
-    // 1. House Type match (+10 pts)
+    // 1. Distance from user (+0 to +25 pts) -- the app's core differentiator
+    // per the brief ("show me what's around me"), so it's weighted above
+    // every preference-match signal below. Unknown distance scores neutral
+    // (0), never penalized -- we don't guess where a property is.
+    final km = _distanceKmTo(p);
+    if (km != null) {
+      if (km < 0.5) {
+        score += 25;
+      } else if (km < 1) {
+        score += 20;
+      } else if (km < 2) {
+        score += 15;
+      } else if (km < 4) {
+        score += 10;
+      } else if (km < 8) {
+        score += 5;
+      }
+    }
+
+    // 2. House Type match (+10 pts)
     if (_prefHouseType != null && _prefHouseType != 'Any') {
       final prefType = _prefHouseType!.toLowerCase().replaceAll(' ', '');
       final pType = p.houseType.toLowerCase().replaceAll(' ', '');
@@ -382,7 +426,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
       }
     }
 
-    // 2. Budget Range match (+10 pts)
+    // 3. Budget Range match (+10 pts)
     if (_prefBudget != null) {
       final b = _prefBudget!;
       if (b.contains('Under 15') && p.price < 15000) score += 10;
@@ -391,12 +435,12 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
       if (b.contains('60,000+') && p.price >= 60000) score += 10;
     }
 
-    // 3. Move-in Immediate (+5 pts)
+    // 4. Move-in Immediate (+5 pts)
     if (_prefTimeframe == 'Immediately' && p.available) {
       score += 5;
     }
 
-    // 4. Verified bonus (+2 pts)
+    // 5. Verified bonus (+2 pts)
     if (p.verified) score += 2;
 
     return score;
@@ -524,9 +568,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                         padding: const EdgeInsets.only(bottom: 80),
                         itemBuilder: (context, index) {
                           final property = filtered[index];
+                          final km = _distanceKmTo(property);
                           return PropertyCard(
                             property: property,
                             heroTag: 'property-image-${property.id}',
+                            distanceLabel: km != null ? LocationService.formatDistance(km) : null,
                             isFavorite:
                                 property.id != null &&
                                 favoriteIds.contains(property.id),

@@ -18,6 +18,7 @@ class PropertyCard extends StatefulWidget {
     this.showTopImage = true,
     this.compact = false,
     this.heroTag,
+    this.distanceLabel,
   });
 
   final Property property;
@@ -28,6 +29,10 @@ class PropertyCard extends StatefulWidget {
   final bool showTopImage;
   final bool compact;
   final Object? heroTag;
+
+  /// Optional "450 m away" style label shown next to the location row.
+  /// Left null by callers that don't have a resolved user position yet.
+  final String? distanceLabel;
 
   @override
   State<PropertyCard> createState() => _PropertyCardState();
@@ -219,6 +224,13 @@ class _PropertyCardState extends State<PropertyCard> {
                           style: TextStyle(color: Colors.grey[400], fontSize: 13),
                         ),
                       ),
+                      if (widget.distanceLabel != null) ...[
+                        const SizedBox(width: 6),
+                        Text(
+                          '· ${widget.distanceLabel}',
+                          style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w600),
+                        ),
+                      ],
                     ],
                   ),
 
@@ -261,22 +273,20 @@ class _PropertyCardState extends State<PropertyCard> {
                   // Bedroom & bathroom details
                   Row(
                     children: [
-                      if (property.bedrooms > 0) ...[
-                        const Icon(Icons.bed_outlined, color: Colors.grey, size: 16),
-                        const SizedBox(width: 4),
-                        Text(
-                          '${property.bedrooms} bed',
-                          style: const TextStyle(color: Colors.white70, fontSize: 12),
-                        ),
-                        const SizedBox(width: 12),
-                      ],
+                      const Icon(Icons.bed_outlined, color: Colors.grey, size: 16),
+                      const SizedBox(width: 4),
+                      Text(
+                        property.bedroomDisplay,
+                        style: const TextStyle(color: Colors.white70, fontSize: 12),
+                      ),
+                      const SizedBox(width: 12),
                       const Icon(Icons.bathtub_outlined, color: Colors.grey, size: 16),
                       const SizedBox(width: 4),
                       Text(
                         '${property.bathrooms} bath',
                         style: const TextStyle(color: Colors.white70, fontSize: 12),
                       ),
-                      if (property.houseType.isNotEmpty) ...[
+                      if (property.houseType.isNotEmpty && property.bedrooms > 0) ...[
                         const SizedBox(width: 12),
                         Text(
                           '·  ${property.houseType}',
