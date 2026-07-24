@@ -123,6 +123,8 @@ class AuthService {
         '${AppConfig.baseUrl}/api/users/me/change-password',
       ];
 
+      bool sawConnectivityError = false;
+
       for (final url in endpoints) {
         try {
           final res = await http.post(
@@ -148,6 +150,8 @@ class AuthService {
             } catch (_) {}
             return AuthResult(success: false, error: errorMsg);
           }
+        } on SocketException {
+          sawConnectivityError = true;
         } catch (_) {}
       }
 
@@ -162,11 +166,20 @@ class AuthService {
         if (res.statusCode == 200 || res.statusCode == 204) {
           return AuthResult(success: true);
         }
+      } on SocketException {
+        sawConnectivityError = true;
       } catch (_) {}
 
-      // If backend endpoint is not implemented on server yet,
-      // succeed gracefully to preserve user experience
-      return AuthResult(success: true);
+      // Every endpoint attempt failed (404 or unreachable). A security-
+      // sensitive action like this must fail honestly rather than report
+      // success when the password was never actually changed server-side.
+      if (sawConnectivityError) {
+        return AuthResult(success: false, error: 'No internet connection');
+      }
+      return AuthResult(
+        success: false,
+        error: 'Unable to change password right now. Please try again later.',
+      );
     } on SocketException {
       return AuthResult(success: false, error: 'No internet connection');
     } catch (e) {
