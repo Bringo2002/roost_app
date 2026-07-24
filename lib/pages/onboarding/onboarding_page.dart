@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/main.dart';
+import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 import 'package:roost_app/models/country_config.dart';
 import 'package:roost_app/services/country_service.dart';
@@ -24,6 +25,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   bool _isDetecting = true;
   bool _detectionFailed = false;
   bool _showCountryList = false;
+  bool _requestingLocation = false;
 
   @override
   void initState() {
@@ -102,11 +104,22 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   void _nextStep() {
-    if (_step < 4) {
+    if (_step < 5) {
       setState(() => _step++);
     } else {
       _completeOnboarding();
     }
+  }
+
+  /// Requests device location, then advances -- granted or denied, the
+  /// onboarding flow never blocks on this, since location is an
+  /// enhancement to the feed, not a requirement to use the app.
+  Future<void> _handleLocationStep() async {
+    setState(() => _requestingLocation = true);
+    await LocationService.getCurrentPosition();
+    if (!mounted) return;
+    setState(() => _requestingLocation = false);
+    _nextStep();
   }
 
   void _prevStep() {
@@ -153,10 +166,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Progress Bar (5 steps total)
+              // Progress Bar (6 steps total)
               Row(
                 children: List.generate(
-                  5,
+                  6,
                   (index) => Expanded(
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
@@ -188,7 +201,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: (_step == 0 && _isDetecting) ? null : _nextStep,
+                  onPressed: (_step == 0 && _isDetecting) || _requestingLocation
+                      ? null
+                      : (_step == 2 ? _handleLocationStep : _nextStep),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: goldAccent,
                     foregroundColor: Colors.black,
@@ -201,9 +216,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
                         ? (_isDetecting ? 'Detecting Location...' : 'Continue')
                         : _step == 1
                             ? 'Get Started'
-                            : _step == 4
-                                ? 'Curate My Feed'
-                                : 'Continue',
+                            : _step == 2
+                                ? (_requestingLocation ? 'Requesting Access...' : 'Allow Location Access')
+                                : _step == 5
+                                    ? 'Curate My Feed'
+                                    : 'Continue',
                     style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                 ),
@@ -222,10 +239,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
       case 1:
         return _buildWelcomeStep(goldAccent);
       case 2:
-        return _buildHouseTypeStep(goldAccent);
+        return _buildLocationPermissionStep(goldAccent);
       case 3:
-        return _buildBudgetStep(goldAccent);
+        return _buildHouseTypeStep(goldAccent);
       case 4:
+        return _buildBudgetStep(goldAccent);
+      case 5:
         return _buildTimelineStep(goldAccent);
       default:
         return const SizedBox.shrink();
@@ -548,11 +567,57 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // ── Step 2: House Type Selection ─────────────────────────────────
+  // ── Step 2: Location Permission ──────────────────────────────────
+
+  Widget _buildLocationPermissionStep(Color goldAccent) {
+    return Column(
+      key: const ValueKey(2),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 10),
+        Container(
+          width: 88,
+          height: 88,
+          decoration: BoxDecoration(
+            color: const Color(0xFF1C1C1E),
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: Colors.grey[850]!),
+          ),
+          child: Icon(Icons.my_location_rounded, color: goldAccent, size: 40),
+        ),
+        const SizedBox(height: 24),
+        const Text(
+          "See what's\naround you",
+          style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
+        ),
+        const SizedBox(height: 12),
+        Text(
+          'Roost shows you verified rentals closest to you first, with real distance to every listing.',
+          style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
+        ),
+        const SizedBox(height: 32),
+        _buildFeatureItem(
+          Icons.sort,
+          'Sorted by distance',
+          'Nearby homes always appear first in your feed.',
+          goldAccent,
+        ),
+        const SizedBox(height: 16),
+        _buildFeatureItem(
+          Icons.lock_outline,
+          'Only used for search',
+          'Your location is never shared with landlords or other users.',
+          goldAccent,
+        ),
+      ],
+    );
+  }
+
+  // ── Step 3: House Type Selection ─────────────────────────────────
 
   Widget _buildHouseTypeStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(2),
+      key: const ValueKey(3),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
@@ -634,11 +699,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // ── Step 3: Budget Curation ──────────────────────────────────────
+  // ── Step 4: Budget Curation ──────────────────────────────────────
 
   Widget _buildBudgetStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(3),
+      key: const ValueKey(4),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
@@ -721,11 +786,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // ── Step 4: Move-in Timeline ────────────────────────────────────
+  // ── Step 5: Move-in Timeline ────────────────────────────────────
 
   Widget _buildTimelineStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(4),
+      key: const ValueKey(5),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
