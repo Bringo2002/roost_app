@@ -8,6 +8,18 @@ import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 
+/// Friendly display labels for the canonical backend house-type values,
+/// so filter chips read naturally instead of showing raw codes like
+/// 'BEDSITTER' or '1BR' -- matching still happens on the canonical value.
+const Map<String, String> _houseTypeLabels = {
+  'All': 'All',
+  'BEDSITTER': 'Bedsitter',
+  'STUDIO': 'Studio',
+  '1BR': '1 Bedroom',
+  '2BR': '2 Bedroom',
+  '3BR+': '3 Bedroom+',
+};
+
 class SearchPage extends StatefulWidget {
   const SearchPage({super.key});
 
@@ -19,6 +31,7 @@ class _SearchPageState extends State<SearchPage> {
   List<Property> _allProperties = [];
   List<Property> _results = [];
   bool _loading = true;
+  bool _loadError = false;
 
   final _searchCtrl = TextEditingController();
 
@@ -85,6 +98,7 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _loadProperties() async {
+    setState(() => _loadError = false);
     try {
       final jsonList = await ApiService.get('/api/properties');
       final props = (jsonList as List).map((j) => Property.fromJson(j)).toList();
@@ -97,12 +111,76 @@ class _SearchPageState extends State<SearchPage> {
       });
       _filterResults();
     } catch (_) {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() {
+        _loading = false;
+        _loadError = true;
+      });
     }
   }
 
+  /// Parses common natural-language patterns out of the search box so
+  /// queries like "Studio under 20k" or "2 bedroom Kilimani" work, per
+  /// the product brief's stated examples -- not just literal keyword
+  /// matching. Recognized tokens are stripped from the query before the
+  /// remainder is used for a plain substring match on title/location.
+  /// Whatever this parses out applies as an ADDITIONAL constraint
+  /// alongside the filter sheet, not a replacement for it.
+  ({String remainingText, double? maxPrice, String? houseType, bool furnished}) _parseSearchIntent(String query) {
+    String text = ' ${query.toLowerCase()} ';
+    double? maxPrice;
+    String? houseType;
+    bool furnished = false;
+
+    // "under/below/less than 20k" -- 'k' suffix means thousands.
+    final priceMatch = RegExp(r'\b(?:under|below|less than)\s+(\d+)(k)?\b').firstMatch(text);
+    if (priceMatch != null) {
+      final n = double.tryParse(priceMatch.group(1)!);
+      if (n != null) {
+        maxPrice = priceMatch.group(2) != null ? n * 1000 : n;
+        text = text.replaceRange(priceMatch.start, priceMatch.end, ' ');
+      }
+    }
+
+    // House type keywords -- first match wins, matching the canonical
+    // backend format (BEDSITTER/STUDIO/1BR/2BR/3BR+).
+    const typeKeywords = {
+      'bedsitter': 'BEDSITTER',
+      'studio': 'STUDIO',
+      'one bedroom': '1BR', '1 bedroom': '1BR', '1br': '1BR',
+      'two bedroom': '2BR', '2 bedroom': '2BR', '2br': '2BR',
+      'three bedroom': '3BR+', '3 bedroom': '3BR+', '3br': '3BR+',
+    };
+    for (final entry in typeKeywords.entries) {
+      if (text.contains(entry.key)) {
+        houseType = entry.value;
+        text = text.replaceFirst(entry.key, ' ');
+        break;
+      }
+    }
+
+    if (text.contains('furnished')) {
+      furnished = true;
+      text = text.replaceFirst('furnished', ' ');
+    }
+
+    // Filler words that add no match value once the constraint above
+    // them has already been extracted (e.g. "near Strathmore" should
+    // just match "Strathmore" against location).
+    for (final filler in ['near', 'in', 'at', 'around']) {
+      text = text.replaceAll(RegExp('\\b$filler\\b'), ' ');
+    }
+
+    return (
+      remainingText: text.trim().replaceAll(RegExp(r'\s+'), ' '),
+      maxPrice: maxPrice,
+      houseType: houseType,
+      furnished: furnished,
+    );
+  }
+
   void _filterResults() {
-    final query = _searchCtrl.text.toLowerCase().trim();
+    final intent = _parseSearchIntent(_searchCtrl.text.trim());
+    final query = intent.remainingText;
     setState(() {
       _results = _allProperties.where((p) {
         final matchesQuery = query.isEmpty ||
@@ -114,11 +192,19 @@ class _SearchPageState extends State<SearchPage> {
             p.houseType.toLowerCase() == _houseType.toLowerCase() ||
             (_houseType == '3BR+' && p.bedrooms >= 3);
 
+        // House type parsed from the search text itself (e.g. "Studio
+        // under 20k") -- an additional constraint alongside the filter
+        // sheet's own selection, not a replacement for it.
+        final matchesIntentHouseType = intent.houseType == null ||
+            p.houseType.toUpperCase() == intent.houseType ||
+            (intent.houseType == '3BR+' && p.bedrooms >= 3);
+
         final matchesBedrooms = _bedrooms == 0 || p.bedrooms >= _bedrooms;
         final matchesPrice = p.price >= _priceRange.start && p.price <= _priceRange.end;
+        final matchesIntentPrice = intent.maxPrice == null || p.price <= intent.maxPrice!;
         final matchesVerified = !_verifiedOnly || p.verified;
 
-        final matchesFurnished = !_furnished || p.furnished;
+        final matchesFurnished = !(_furnished || intent.furnished) || p.furnished;
         final matchesParking = !_parking || p.parking;
         final matchesWifi = !_wifi || p.wifi;
         final matchesWater = !_water || p.water;
@@ -128,8 +214,10 @@ class _SearchPageState extends State<SearchPage> {
 
         return matchesQuery &&
             matchesHouseType &&
+            matchesIntentHouseType &&
             matchesBedrooms &&
             matchesPrice &&
+            matchesIntentPrice &&
             matchesVerified &&
             matchesFurnished &&
             matchesParking &&
@@ -178,6 +266,27 @@ class _SearchPageState extends State<SearchPage> {
       _sortNewestFirst = false;
     });
     _filterResults();
+  }
+
+  /// Number of filters currently set away from their defaults. Drives the
+  /// badge on the filter button so it's clear at a glance whether a
+  /// search is being narrowed, even after the sheet is closed.
+  int get _activeFilterCount {
+    final config = CountryService.config;
+    int count = 0;
+    if (_houseType != 'All') count++;
+    if (_bedrooms != 0) count++;
+    if (_priceRange.start != config.priceMin || _priceRange.end != config.priceMax) count++;
+    if (_furnished) count++;
+    if (_parking) count++;
+    if (_wifi) count++;
+    if (_water) count++;
+    if (_security) count++;
+    if (_balcony) count++;
+    if (_petFriendly) count++;
+    if (_verifiedOnly) count++;
+    if (_sortNewestFirst) count++;
+    return count;
   }
 
   void _showFilterBottomSheet(BuildContext context) {
@@ -229,7 +338,7 @@ class _SearchPageState extends State<SearchPage> {
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
                               label: Text(
-                                type,
+                                _houseTypeLabels[type] ?? type,
                                 style: TextStyle(
                                   color: selected ? Colors.black : Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -244,6 +353,35 @@ class _SearchPageState extends State<SearchPage> {
                           );
                         }).toList(),
                       ),
+                    ),
+
+                    const SizedBox(height: 20),
+
+                    // Bedrooms
+                    const Text('Bedrooms', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    Row(
+                      children: [0, 1, 2, 3, 4].map((count) {
+                        final selected = _bedrooms == count;
+                        final label = count == 0 ? 'Any' : '$count+';
+                        return Padding(
+                          padding: const EdgeInsets.only(right: 8),
+                          child: ChoiceChip(
+                            label: Text(
+                              label,
+                              style: TextStyle(
+                                color: selected ? Colors.black : Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 12,
+                              ),
+                            ),
+                            selected: selected,
+                            selectedColor: Colors.white,
+                            backgroundColor: Colors.black,
+                            onSelected: (_) => setSheetState(() => _bedrooms = count),
+                          ),
+                        );
+                      }).toList(),
                     ),
 
                     const SizedBox(height: 20),
@@ -390,10 +528,29 @@ class _SearchPageState extends State<SearchPage> {
                     child: TextField(
                       controller: _searchCtrl,
                       style: const TextStyle(color: Colors.white),
+                      textInputAction: TextInputAction.search,
+                      onSubmitted: (_) {
+                        _debounceTimer?.cancel();
+                        _filterResults();
+                      },
                       decoration: InputDecoration(
                         hintText: CountryService.config.searchHint,
                         hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
                         prefixIcon: const Icon(Icons.search, color: Colors.white),
+                        suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                          valueListenable: _searchCtrl,
+                          builder: (context, value, _) {
+                            if (value.text.isEmpty) return const SizedBox.shrink();
+                            return IconButton(
+                              icon: Icon(Icons.close, color: Colors.grey[500], size: 18),
+                              onPressed: () {
+                                _searchCtrl.clear();
+                                _debounceTimer?.cancel();
+                                _filterResults();
+                              },
+                            );
+                          },
+                        ),
                         filled: true,
                         fillColor: const Color(0xFF1C1C1E),
                         border: OutlineInputBorder(
@@ -413,7 +570,27 @@ class _SearchPageState extends State<SearchPage> {
                         borderRadius: BorderRadius.circular(14),
                         border: Border.all(color: Colors.grey[900]!),
                       ),
-                      child: const Icon(Icons.tune, color: Colors.white),
+                      child: Stack(
+                        clipBehavior: Clip.none,
+                        children: [
+                          const Icon(Icons.tune, color: Colors.white),
+                          if (_activeFilterCount > 0)
+                            Positioned(
+                              right: -4,
+                              top: -4,
+                              child: Container(
+                                width: 16,
+                                height: 16,
+                                alignment: Alignment.center,
+                                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                child: Text(
+                                  '$_activeFilterCount',
+                                  style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                                ),
+                              ),
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ],
@@ -435,30 +612,75 @@ class _SearchPageState extends State<SearchPage> {
               ),
             ),
             Expanded(
-              child: _results.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
+              child: RefreshIndicator(
+                onRefresh: _loadProperties,
+                color: Colors.black,
+                backgroundColor: Colors.white,
+                child: _loadError
+                    ? ListView(
+                        physics: const AlwaysScrollableScrollPhysics(),
                         children: [
-                          Icon(Icons.search_off, color: Colors.grey[700], size: 64),
-                          const SizedBox(height: 16),
-                          const Text('No properties found', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                          const SizedBox(height: 8),
-                          Text('Try expanding your price range or clearing filters', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height * 0.6,
+                            child: Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.cloud_off, color: Colors.grey[700], size: 64),
+                                  const SizedBox(height: 16),
+                                  const Text("Couldn't load listings", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  Text('Check your connection and try again', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                                  const SizedBox(height: 20),
+                                  OutlinedButton(
+                                    onPressed: _loadProperties,
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: Colors.white,
+                                      side: const BorderSide(color: Color(0xFF3A3A3C)),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                    ),
+                                    child: const Text('Retry'),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                         ],
-                      ),
-                    )
-                  : ListView.builder(
-                      itemCount: _results.length,
-                      itemBuilder: (context, index) {
-                        final property = _results[index];
-                        final km = _distanceKmTo(property);
-                        return PropertyCard(
-                          property: property,
-                          distanceLabel: km != null ? LocationService.formatDistance(km) : null,
-                        );
-                      },
-                    ),
+                      )
+                    : _results.isEmpty
+                        ? ListView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            children: [
+                              SizedBox(
+                                height: MediaQuery.of(context).size.height * 0.6,
+                                child: Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(Icons.search_off, color: Colors.grey[700], size: 64),
+                                      const SizedBox(height: 16),
+                                      const Text('No properties found', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                      const SizedBox(height: 8),
+                                      Text('Try expanding your price range or clearing filters', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ],
+                          )
+                        : ListView.builder(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            itemCount: _results.length,
+                            itemBuilder: (context, index) {
+                              final property = _results[index];
+                              final km = _distanceKmTo(property);
+                              return PropertyCard(
+                                property: property,
+                                distanceLabel: km != null ? LocationService.formatDistance(km) : null,
+                              );
+                            },
+                          ),
+              ),
             ),
           ],
         ),
