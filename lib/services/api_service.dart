@@ -66,6 +66,17 @@ class ApiService {
     });
   }
 
+  static Future<dynamic> patch(String endpoint, Map<String, dynamic> body) async {
+    return _safeRequest(() async {
+      final headers = await _getHeaders();
+      return http.patch(
+        Uri.parse('${AppConfig.baseUrl}$endpoint'),
+        headers: headers,
+        body: jsonEncode(body),
+      );
+    });
+  }
+
   static Future<dynamic> delete(String endpoint) async {
     return _safeRequest(() async {
       final headers = await _getHeaders();

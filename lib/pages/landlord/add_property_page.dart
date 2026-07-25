@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:roost_app/pages/search/location_picker_page.dart';
 import 'package:roost_app/services/api_service.dart';
 
@@ -24,13 +27,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final _bathroomsCtrl = TextEditingController(text: '1');
   final _descriptionCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
-  final _imageUrlCtrl = TextEditingController();
-  final _galleryUrlCtrl = TextEditingController();
 
   String _houseType = '1BR';
   final String _moveInDate = 'Immediate';
-  double? _latitude = -1.2921;
-  double? _longitude = 36.8219;
+  double? _latitude;
+  double? _longitude;
+  bool _locationConfirmed = false;
 
   bool _furnished = false;
   bool _parking = false;
@@ -40,7 +42,26 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _balcony = false;
   bool _petFriendly = false;
 
+  static const int _minPhotos = 3;
+  static const int _maxPhotos = 10;
   final List<String> _imageUrls = [];
+  final ImagePicker _picker = ImagePicker();
+  bool _uploadingPhotos = false;
+  int _uploadDone = 0;
+  int _uploadTotal = 0;
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _locationCtrl.dispose();
+    _priceCtrl.dispose();
+    _depositCtrl.dispose();
+    _bedroomsCtrl.dispose();
+    _bathroomsCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickLocation() async {
     final latlng = await Navigator.push<LatLng>(
@@ -51,8 +72,80 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       setState(() {
         _latitude = latlng.latitude;
         _longitude = latlng.longitude;
+        _locationConfirmed = true;
       });
     }
+  }
+
+  Future<void> _pickFromGallery() async {
+    final remaining = _maxPhotos - _imageUrls.length;
+    if (remaining <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Maximum $_maxPhotos photos per listing')),
+      );
+      return;
+    }
+    // Compress/downscale at pick time rather than adding a separate
+    // image-processing dependency -- keeps uploads fast on mobile data.
+    final files = await _picker.pickMultiImage(imageQuality: 75, maxWidth: 1600);
+    if (files.isEmpty) return;
+
+    final toUpload = files.take(remaining).toList();
+    if (files.length > remaining && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Only added $remaining -- maximum $_maxPhotos photos per listing')),
+      );
+    }
+    await _uploadPhotos(toUpload);
+  }
+
+  Future<void> _takePhoto() async {
+    if (_imageUrls.length >= _maxPhotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Maximum $_maxPhotos photos per listing')),
+      );
+      return;
+    }
+    final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 1600);
+    if (file == null) return;
+    await _uploadPhotos([file]);
+  }
+
+  /// Uploads sequentially rather than in parallel -- simpler progress
+  /// tracking and more reliable on the mobile data connections most
+  /// landlords will actually be using.
+  Future<void> _uploadPhotos(List<XFile> files) async {
+    setState(() {
+      _uploadingPhotos = true;
+      _uploadDone = 0;
+      _uploadTotal = files.length;
+    });
+
+    for (final file in files) {
+      try {
+        final bytes = await file.readAsBytes();
+        final result = await ApiService.post('/api/properties/upload-photo', {
+          'data': base64Encode(bytes),
+        });
+        final url = result is Map ? result['url'] as String? : null;
+        if (url != null && mounted) {
+          setState(() => _imageUrls.add(url));
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('A photo failed to upload: $e')),
+          );
+        }
+      }
+      if (mounted) setState(() => _uploadDone++);
+    }
+
+    if (mounted) setState(() => _uploadingPhotos = false);
+  }
+
+  void _removePhoto(String url) {
+    setState(() => _imageUrls.remove(url));
   }
 
   Future<void> _submitProperty() async {
@@ -63,13 +156,23 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       return;
     }
 
+    if (_imageUrls.length < _minPhotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Add at least $_minPhotos photos before publishing.')),
+      );
+      return;
+    }
+
+    if (!_locationConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pin the exact location on the map before publishing.')),
+      );
+      return;
+    }
+
     setState(() => _isLoading = true);
 
     try {
-      final primaryImage = _imageUrlCtrl.text.trim().isNotEmpty
-          ? _imageUrlCtrl.text.trim()
-          : (_imageUrls.isNotEmpty ? _imageUrls.first : 'https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800');
-
       await ApiService.post('/api/properties', {
         'title': _titleCtrl.text.trim(),
         'location': _locationCtrl.text.trim(),
@@ -80,10 +183,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         'houseType': _houseType,
         'type': 'RENTAL',
         'available': true,
-        'verified': true,
+        // Not verified until an actual verification signal exists (GPS
+        // confirmation happens above; phone OTP and photo review are
+        // still pending -- see the landlord-flow plan). Was previously
+        // hardcoded true, making the "Verified" badge shown everywhere
+        // in the app meaningless.
+        'verified': false,
         'landlordPhone': _phoneCtrl.text.trim(),
         'description': _descriptionCtrl.text.trim(),
-        'imageUrl': primaryImage,
+        'imageUrl': _imageUrls.first,
         'imageUrls': _imageUrls,
         'latitude': _latitude,
         'longitude': _longitude,
@@ -115,6 +223,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   void _nextStep() {
+    if (_step == 0 && _imageUrls.length < _minPhotos) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Add at least $_minPhotos photos to continue.')),
+      );
+      return;
+    }
+    if (_step == 2 && !_locationConfirmed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Pin the exact location on the map to continue.')),
+      );
+      return;
+    }
     if (_step < 4) {
       setState(() => _step++);
     } else {
@@ -220,50 +340,116 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             const Text('Property Photos', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text('Add high quality photos to attract renters', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _imageUrlCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Primary Photo Image URL'),
+            const SizedBox(height: 8),
+            Text(
+              _imageUrls.length >= _minPhotos
+                  ? '${_imageUrls.length} of $_minPhotos minimum photos added'
+                  : '${_imageUrls.length} of $_minPhotos minimum photos added -- add ${_minPhotos - _imageUrls.length} more',
+              style: TextStyle(
+                color: _imageUrls.length >= _minPhotos ? Colors.greenAccent : Colors.amber,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 20),
             Row(
               children: [
                 Expanded(
-                  child: TextField(
-                    controller: _galleryUrlCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Gallery Photo URL'),
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingPhotos ? null : _takePhoto,
+                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
+                    label: const Text('Take Photo'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF3A3A3C)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconButton(
-                  onPressed: () {
-                    final url = _galleryUrlCtrl.text.trim();
-                    if (url.isNotEmpty) {
-                      setState(() {
-                        _imageUrls.add(url);
-                        _galleryUrlCtrl.clear();
-                      });
-                    }
-                  },
-                  icon: const Icon(Icons.add_circle, color: Colors.white, size: 36),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _uploadingPhotos ? null : _pickFromGallery,
+                    icon: const Icon(Icons.photo_library_outlined, size: 18),
+                    label: const Text('Gallery'),
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.white,
+                      side: const BorderSide(color: Color(0xFF3A3A3C)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                  ),
                 ),
               ],
             ),
-            const SizedBox(height: 12),
-            if (_imageUrls.isNotEmpty)
-              Wrap(
-                spacing: 8,
-                children: _imageUrls.map((url) {
-                  return Chip(
-                    backgroundColor: const Color(0xFF1C1C1E),
-                    label: Text(url.length > 20 ? '${url.substring(0, 20)}...' : url, style: const TextStyle(color: Colors.white)),
-                    deleteIcon: const Icon(Icons.close, color: Colors.grey, size: 14),
-                    onDeleted: () => setState(() => _imageUrls.remove(url)),
-                  );
-                }).toList(),
+            if (_uploadingPhotos) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Text('Uploading $_uploadDone of $_uploadTotal...', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                ],
               ),
+            ],
+            if (_imageUrls.isNotEmpty) ...[
+              const SizedBox(height: 20),
+              GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  crossAxisSpacing: 8,
+                  mainAxisSpacing: 8,
+                ),
+                itemCount: _imageUrls.length,
+                itemBuilder: (context, index) {
+                  final url = _imageUrls[index];
+                  return Stack(
+                    fit: StackFit.expand,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(10),
+                        child: Image.network(
+                          url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                            color: const Color(0xFF1C1C1E),
+                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                      if (index == 0)
+                        Positioned(
+                          left: 4,
+                          top: 4,
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(6)),
+                            child: const Text('Cover', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                          ),
+                        ),
+                      Positioned(
+                        right: 4,
+                        top: 4,
+                        child: GestureDetector(
+                          onTap: () => _removePhoto(url),
+                          child: Container(
+                            padding: const EdgeInsets.all(3),
+                            decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
+                            child: const Icon(Icons.close, color: Colors.white, size: 14),
+                          ),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+            ],
           ],
         );
 
@@ -358,16 +544,20 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C1C1E),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF2C2C2E)),
+                  border: Border.all(
+                    color: _locationConfirmed ? const Color(0xFF2C2C2E) : Colors.amber.withValues(alpha: 0.6),
+                  ),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.my_location, color: Colors.white),
+                    Icon(Icons.my_location, color: _locationConfirmed ? Colors.white : Colors.amber),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
-                        _latitude != null ? 'Coordinates: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}' : 'Tap to pin on Map',
-                        style: const TextStyle(color: Colors.white, fontSize: 14),
+                        _locationConfirmed
+                            ? 'Coordinates: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}'
+                            : 'Required -- tap to pin the exact location on the map',
+                        style: TextStyle(color: _locationConfirmed ? Colors.white : Colors.amber, fontSize: 14),
                       ),
                     ),
                     const Icon(Icons.chevron_right, color: Colors.grey),

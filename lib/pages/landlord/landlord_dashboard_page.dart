@@ -48,26 +48,11 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   }
 
   Future<void> _toggleAvailability(Property property) async {
-    final updated = Property(
-      id: property.id,
-      title: property.title,
-      description: property.description,
-      location: property.location,
-      price: property.price,
-      bedrooms: property.bedrooms,
-      type: property.type,
-      landlordPhone: property.landlordPhone,
-      available: !property.available,
-      imageUrl: property.imageUrl,
-      verified: property.verified,
-      holdingFeePaid: property.holdingFeePaid,
-      latitude: property.latitude,
-      longitude: property.longitude,
-      imageUrls: property.imageUrls,
-    );
-
+    if (property.id == null) return;
     try {
-      await ApiService.put('/api/properties/${property.id}', updated.toJson());
+      await ApiService.patch('/api/properties/${property.id}/availability', {
+        'available': !property.available,
+      });
       _loadListings();
     } catch (e) {
       if (!mounted) return;
