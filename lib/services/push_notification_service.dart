@@ -1,8 +1,26 @@
 import 'dart:convert';
+
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:roost_app/firebase_options.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/services/navigator_key.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+/// Handles FCM messages that arrive while the app is backgrounded or
+/// terminated. Runs in a separate background isolate on Android, which
+/// does not share the main isolate's Firebase instance -- it must
+/// initialize its own. Deliberately minimal: for 'notification'-type
+/// payloads (which is all this app sends, see FirebasePushService on the
+/// backend), the OS already displays the system tray notification on its
+/// own without any code here. This handler exists only so FCM has
+/// somewhere to route the message and doesn't drop it.
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+}
 
 class NotificationItem {
   final String id;
@@ -24,16 +42,17 @@ class NotificationItem {
   });
 
   Map<String, dynamic> toJson() => {
-        'id': id,
-        'title': title,
-        'body': body,
-        'timestamp': timestamp.toIso8601String(),
-        'isRead': isRead,
-        'type': type,
-        if (payload != null) 'payload': payload,
-      };
+    'id': id,
+    'title': title,
+    'body': body,
+    'timestamp': timestamp.toIso8601String(),
+    'isRead': isRead,
+    'type': type,
+    if (payload != null) 'payload': payload,
+  };
 
-  factory NotificationItem.fromJson(Map<String, dynamic> json) => NotificationItem(
+  factory NotificationItem.fromJson(Map<String, dynamic> json) =>
+      NotificationItem(
         id: json['id'] ?? '',
         title: json['title'] ?? '',
         body: json['body'] ?? '',
@@ -42,7 +61,9 @@ class NotificationItem {
             : DateTime.now(),
         isRead: json['isRead'] == true,
         type: json['type'] ?? 'system',
-        payload: json['payload'] is Map<String, dynamic> ? json['payload'] : null,
+        payload: json['payload'] is Map<String, dynamic>
+            ? json['payload']
+            : null,
       );
 }
 
@@ -64,7 +85,10 @@ class PushNotificationService {
     try {
       final email = await AuthService.getUserEmail();
       if (email != null && email.isNotEmpty) {
-        final sanitized = email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+        final sanitized = email.toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9_]'),
+          '_',
+        );
         return '${_baseHistoryKey}_$sanitized';
       }
     } catch (_) {}
@@ -75,23 +99,75 @@ class PushNotificationService {
     try {
       final email = await AuthService.getUserEmail();
       if (email != null && email.isNotEmpty) {
-        final sanitized = email.toLowerCase().replaceAll(RegExp(r'[^a-z0-9_]'), '_');
+        final sanitized = email.toLowerCase().replaceAll(
+          RegExp(r'[^a-z0-9_]'),
+          '_',
+        );
         return '${_baseEnabledKey}_$sanitized';
       }
     } catch (_) {}
     return '${_baseEnabledKey}_guest';
   }
 
-  /// Initializes notification channels, loads user settings, and registers device token.
+  /// Initializes notification channels, loads user settings, requests
+  /// permission, and registers the real device token with the backend.
   static Future<void> initialize() async {
     await reloadForUser();
 
     try {
       if (await isEnabled()) {
-        _fcmToken = 'roost_device_token_${DateTime.now().millisecondsSinceEpoch}';
-        await registerTokenWithBackend(_fcmToken!);
+        await FirebaseMessaging.instance.requestPermission(
+          alert: true,
+          badge: true,
+          sound: true,
+        );
+
+        _fcmToken = await FirebaseMessaging.instance.getToken();
+        await registerTokenWithBackend(_fcmToken);
+
+        // Token can rotate (reinstall, expiry) -- keep the backend in sync.
+        FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+          _fcmToken = newToken;
+          registerTokenWithBackend(newToken);
+        });
       }
     } catch (_) {}
+
+    // Foreground messages: unlike background/terminated, the OS does NOT
+    // auto-display these, so route them through the existing in-app
+    // banner + local history.
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final context = navigatorKey.currentContext;
+      addNotification(
+        title: message.notification?.title ?? 'Roost',
+        body: message.notification?.body ?? '',
+        type: message.data['type'] ?? 'system',
+        payload: message.data,
+        context: (context != null && context.mounted) ? context : null,
+      );
+    });
+
+    // User tapped a notification while the app was backgrounded.
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      addNotification(
+        title: message.notification?.title ?? 'Roost',
+        body: message.notification?.body ?? '',
+        type: message.data['type'] ?? 'system',
+        payload: message.data,
+      );
+    });
+
+    // App was launched by tapping a notification from a fully terminated
+    // state -- record it the same way once history has loaded.
+    final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
+    if (initialMessage != null) {
+      addNotification(
+        title: initialMessage.notification?.title ?? 'Roost',
+        body: initialMessage.notification?.body ?? '',
+        type: initialMessage.data['type'] ?? 'system',
+        payload: initialMessage.data,
+      );
+    }
   }
 
   /// Reloads notifications and preferences for the currently logged-in user profile
@@ -111,7 +187,8 @@ class PushNotificationService {
     final key = await _getEnabledKey();
     final prefs = await SharedPreferences.getInstance();
     await prefs.setBool(key, enabled);
-    if (enabled && _fcmToken != null) {
+    if (enabled) {
+      _fcmToken ??= await FirebaseMessaging.instance.getToken();
       await registerTokenWithBackend(_fcmToken);
     }
   }
@@ -218,7 +295,11 @@ class PushNotificationService {
                 color: Colors.white.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.notifications_active_rounded, color: Colors.white, size: 20),
+              child: const Icon(
+                Icons.notifications_active_rounded,
+                color: Colors.white,
+                size: 20,
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -226,9 +307,21 @@ class PushNotificationService {
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 14,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(body, style: TextStyle(color: Colors.grey[400], fontSize: 12), maxLines: 2, overflow: TextOverflow.ellipsis),
+                  Text(
+                    body,
+                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ],
               ),
             ),
@@ -246,7 +339,12 @@ class PushNotificationService {
   }
 
   /// Legacy method for backward compatibility
-  static void showInAppNotification(BuildContext context, {required String title, required String body, VoidCallback? onTap}) {
+  static void showInAppNotification(
+    BuildContext context, {
+    required String title,
+    required String body,
+    VoidCallback? onTap,
+  }) {
     showInAppBanner(context, title: title, body: body, onTap: onTap);
   }
 
@@ -257,14 +355,17 @@ class PushNotificationService {
       final rawJson = prefs.getString(key);
       if (rawJson != null && rawJson.isNotEmpty) {
         final List decoded = jsonDecode(rawJson);
-        _notifications = decoded.map((j) => NotificationItem.fromJson(j)).toList();
+        _notifications = decoded
+            .map((j) => NotificationItem.fromJson(j))
+            .toList();
       } else {
         // Initial welcome notification unique to this new user profile
         _notifications = [
           NotificationItem(
             id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
             title: 'Welcome to Roost!',
-            body: 'Find verified rental listings near you in Nairobi. Save properties and chat directly with landlords.',
+            body:
+                'Find verified rental listings near you in Nairobi. Save properties and chat directly with landlords.',
             timestamp: DateTime.now(),
             isRead: false,
             type: 'system',
@@ -282,7 +383,9 @@ class PushNotificationService {
     try {
       final key = await _getHistoryKey();
       final prefs = await SharedPreferences.getInstance();
-      final rawJson = jsonEncode(_notifications.map((n) => n.toJson()).toList());
+      final rawJson = jsonEncode(
+        _notifications.map((n) => n.toJson()).toList(),
+      );
       await prefs.setString(key, rawJson);
     } catch (_) {}
   }

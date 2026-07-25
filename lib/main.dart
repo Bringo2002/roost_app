@@ -1,6 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/models/property.dart';
@@ -21,8 +23,15 @@ import 'package:roost_app/widgets/property/property_card.dart';
 
 import 'package:roost_app/pages/splash/splash_page.dart';
 import 'package:roost_app/services/push_notification_service.dart';
+import 'package:roost_app/services/navigator_key.dart';
+import 'firebase_options.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  // Must be registered before runApp so background/terminated messages
+  // are never dropped between app launches.
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
   runApp(const MyApp());
 }
 
@@ -32,6 +41,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'Roost',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
