@@ -17,7 +17,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   int _step = 0;
 
   CountryConfig _selectedCountry = CountryService.config;
-  String _houseType = 'Any';
+  String _houseType = 'ANY';
   String _budget = '';
   String _moveInTimeframe = 'This Month';
 
@@ -62,12 +62,12 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   final List<Map<String, dynamic>> _houseTypes = [
-    {'title': 'Bedsitter', 'icon': Icons.bed_outlined, 'desc': 'Compact & affordable'},
-    {'title': 'Studio', 'icon': Icons.single_bed_outlined, 'desc': 'Open plan layout'},
-    {'title': '1 Bedroom', 'icon': Icons.apartment, 'desc': 'Separate living area'},
-    {'title': '2 Bedroom', 'icon': Icons.home_outlined, 'desc': 'Ideal for sharing/couples'},
-    {'title': '3 Bedroom+', 'icon': Icons.domain, 'desc': 'Spacious family homes'},
-    {'title': 'Any', 'icon': Icons.grid_view_rounded, 'desc': 'Show all property types'},
+    {'title': 'Bedsitter', 'value': 'BEDSITTER', 'icon': Icons.bed_outlined, 'desc': 'Compact & affordable'},
+    {'title': 'Studio', 'value': 'STUDIO', 'icon': Icons.single_bed_outlined, 'desc': 'Open plan layout'},
+    {'title': '1 Bedroom', 'value': '1BR', 'icon': Icons.apartment, 'desc': 'Separate living area'},
+    {'title': '2 Bedroom', 'value': '2BR', 'icon': Icons.home_outlined, 'desc': 'Ideal for sharing/couples'},
+    {'title': '3 Bedroom+', 'value': '3BR+', 'icon': Icons.domain, 'desc': 'Spacious family homes'},
+    {'title': 'Any', 'value': 'ANY', 'icon': Icons.grid_view_rounded, 'desc': 'Show all property types'},
   ];
 
   List<Map<String, dynamic>> get _budgets {
@@ -639,12 +639,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
             itemBuilder: (context, index) {
               final item = _houseTypes[index];
               final title = item['title'] as String;
+              final value = item['value'] as String;
               final icon = item['icon'] as IconData;
               final desc = item['desc'] as String;
-              final selected = _houseType == title;
+              final selected = _houseType == value;
 
               return GestureDetector(
-                onTap: () => setState(() => _houseType = title),
+                onTap: () => setState(() => _houseType = value),
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.all(14),

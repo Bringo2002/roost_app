@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:roost_app/models/property.dart';
@@ -33,8 +35,10 @@ class _SearchPageState extends State<SearchPage> {
   bool _balcony = false;
   bool _petFriendly = false;
   bool _verifiedOnly = false;
+  bool _sortNewestFirst = false;
 
   Position? _userPosition;
+  Timer? _debounceTimer;
 
   @override
   void initState() {
@@ -43,14 +47,20 @@ class _SearchPageState extends State<SearchPage> {
     _priceRange = RangeValues(config.priceMin, config.priceMax);
     _loadProperties();
     _loadUserLocation();
-    _searchCtrl.addListener(_filterResults);
+    _searchCtrl.addListener(_onSearchChanged);
   }
 
   @override
   void dispose() {
-    _searchCtrl.removeListener(_filterResults);
+    _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
+    _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 300), _filterResults);
   }
 
   Future<void> _loadUserLocation() async {
@@ -60,6 +70,18 @@ class _SearchPageState extends State<SearchPage> {
       _userPosition = position;
     });
     _filterResults();
+  }
+
+  /// Distance from the user to [p] in km, or null if either the user's
+  /// location or the property's coordinates are unknown. Never falls back
+  /// to a default coordinate -- an unknown distance stays unknown rather
+  /// than being sorted as if the property were at (0, 0).
+  double? _distanceKmTo(Property p) {
+    final pos = _userPosition;
+    final lat = p.latitude;
+    final lng = p.longitude;
+    if (pos == null || lat == null || lng == null) return null;
+    return LocationService.distanceKm(pos.latitude, pos.longitude, lat, lng);
   }
 
   Future<void> _loadProperties() async {
@@ -118,24 +140,44 @@ class _SearchPageState extends State<SearchPage> {
             matchesPetFriendly;
       }).toList();
 
-      if (_userPosition != null) {
+      if (_sortNewestFirst) {
         _results.sort((a, b) {
-          final distA = Geolocator.distanceBetween(
-            _userPosition!.latitude,
-            _userPosition!.longitude,
-            a.latitude ?? 0.0,
-            a.longitude ?? 0.0,
-          );
-          final distB = Geolocator.distanceBetween(
-            _userPosition!.latitude,
-            _userPosition!.longitude,
-            b.latitude ?? 0.0,
-            b.longitude ?? 0.0,
-          );
+          final dateA = DateTime.tryParse(a.listedAt ?? '');
+          final dateB = DateTime.tryParse(b.listedAt ?? '');
+          if (dateA == null && dateB == null) return 0;
+          if (dateA == null) return 1;
+          if (dateB == null) return -1;
+          return dateB.compareTo(dateA); // newest first
+        });
+      } else if (_userPosition != null) {
+        _results.sort((a, b) {
+          final distA = _distanceKmTo(a) ?? double.infinity;
+          final distB = _distanceKmTo(b) ?? double.infinity;
           return distA.compareTo(distB);
         });
       }
     });
+  }
+
+  /// Resets all filters to their defaults, deriving the price range from
+  /// the current country's actual configured bounds rather than a
+  /// hardcoded range that only made sense for one currency.
+  void _resetFilters() {
+    setState(() {
+      _houseType = 'All';
+      _bedrooms = 0;
+      _priceRange = RangeValues(CountryService.config.priceMin, CountryService.config.priceMax);
+      _furnished = false;
+      _parking = false;
+      _wifi = false;
+      _water = false;
+      _security = false;
+      _balcony = false;
+      _petFriendly = false;
+      _verifiedOnly = false;
+      _sortNewestFirst = false;
+    });
+    _filterResults();
   }
 
   void _showFilterBottomSheet(BuildContext context) {
@@ -165,19 +207,8 @@ class _SearchPageState extends State<SearchPage> {
                         ),
                         TextButton(
                           onPressed: () {
-                            setSheetState(() {
-                              _houseType = 'All';
-                              _bedrooms = 0;
-                              _priceRange = const RangeValues(5000, 150000);
-                              _furnished = false;
-                              _parking = false;
-                              _wifi = false;
-                              _water = false;
-                              _security = false;
-                              _balcony = false;
-                              _petFriendly = false;
-                              _verifiedOnly = false;
-                            });
+                            _resetFilters();
+                            setSheetState(() {});
                           },
                           child: const Text('Reset', style: TextStyle(color: Colors.grey)),
                         ),
@@ -303,6 +334,15 @@ class _SearchPageState extends State<SearchPage> {
                       contentPadding: EdgeInsets.zero,
                     ),
 
+                    // Newest first (overrides distance sort while active)
+                    SwitchListTile(
+                      title: const Text('Newest Listings First', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      value: _sortNewestFirst,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) => setSheetState(() => _sortNewestFirst = val),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+
                     const SizedBox(height: 24),
 
                     SizedBox(
@@ -382,29 +422,12 @@ class _SearchPageState extends State<SearchPage> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
               child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    '${_results.length} rentals found',
-                    style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                  ),
                   TextButton(
                     onPressed: () {
                       _searchCtrl.clear();
-                      setState(() {
-                        _houseType = 'All';
-                        _bedrooms = 0;
-                        _priceRange = const RangeValues(5000, 150000);
-                        _furnished = false;
-                        _parking = false;
-                        _wifi = false;
-                        _water = false;
-                        _security = false;
-                        _balcony = false;
-                        _petFriendly = false;
-                        _verifiedOnly = false;
-                      });
-                      _filterResults();
+                      _resetFilters();
                     },
                     child: const Text('Reset', style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ),
@@ -428,7 +451,12 @@ class _SearchPageState extends State<SearchPage> {
                   : ListView.builder(
                       itemCount: _results.length,
                       itemBuilder: (context, index) {
-                        return PropertyCard(property: _results[index]);
+                        final property = _results[index];
+                        final km = _distanceKmTo(property);
+                        return PropertyCard(
+                          property: property,
+                          distanceLabel: km != null ? LocationService.formatDistance(km) : null,
+                        );
                       },
                     ),
             ),

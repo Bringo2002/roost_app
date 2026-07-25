@@ -427,11 +427,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
       }
     }
 
-    // 2. House Type match (+10 pts)
-    if (_prefHouseType != null && _prefHouseType != 'Any') {
-      final prefType = _prefHouseType!.toLowerCase().replaceAll(' ', '');
-      final pType = p.houseType.toLowerCase().replaceAll(' ', '');
-      if (pType.contains(prefType) || prefType.contains(pType)) {
+    // 2. House Type match (+10 pts) -- both sides now use the canonical
+    // backend format (BEDSITTER/STUDIO/1BR/2BR/3BR+), so this is an exact
+    // match rather than a fragile substring comparison.
+    if (_prefHouseType != null && _prefHouseType != 'ANY') {
+      if (p.houseType.toUpperCase() == _prefHouseType!.toUpperCase()) {
         score += 10;
       }
     }
