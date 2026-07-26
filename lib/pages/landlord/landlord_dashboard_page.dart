@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/pages/landlord/add_property_page.dart';
 
 class LandlordDashboardPage extends StatefulWidget {
   const LandlordDashboardPage({super.key});
@@ -49,6 +50,35 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
 
   Future<void> _toggleAvailability(Property property) async {
     if (property.id == null) return;
+
+    // Marking rented is the more consequential direction (removes the
+    // listing from discovery), so it gets a confirmation -- matching
+    // the brief's "Tap Mark as Rented" as a deliberate action, not a
+    // switch someone could flip by accident. Re-marking available
+    // doesn't need the same friction.
+    if (property.available) {
+      final confirm = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text('Mark as Rented?', style: TextStyle(color: Colors.white)),
+          content: const Text(
+            'This listing will disappear from discovery. You can mark it available again anytime.',
+            style: TextStyle(color: Colors.white70),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('Mark as Rented'),
+            ),
+          ],
+        ),
+      );
+      if (confirm != true) return;
+    }
+
     try {
       await ApiService.patch('/api/properties/${property.id}/availability', {
         'available': !property.available,
@@ -210,8 +240,28 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                   Row(
                                     children: [
                                       IconButton(
+                                        icon: const Icon(Icons.edit_outlined, color: Colors.white70),
+                                        tooltip: 'Edit listing',
+                                        onPressed: () async {
+                                          final updated = await Navigator.push<bool>(
+                                            context,
+                                            MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
+                                          );
+                                          if (updated == true) _loadListings();
+                                        },
+                                      ),
+                                      IconButton(
                                         icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                                        tooltip: 'Delete listing',
                                         onPressed: () => _deleteListing(property),
+                                      ),
+                                      Text(
+                                        property.available ? 'Available' : 'Rented',
+                                        style: TextStyle(
+                                          color: property.available ? Colors.greenAccent : Colors.grey[500],
+                                          fontSize: 11,
+                                          fontWeight: FontWeight.w600,
+                                        ),
                                       ),
                                       Switch(
                                         value: property.available,

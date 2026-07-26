@@ -3,13 +3,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/search/location_picker_page.dart';
 import 'package:roost_app/services/api_service.dart';
 
 import 'package:roost_app/services/country_service.dart';
 
 class AddPropertyPage extends StatefulWidget {
-  const AddPropertyPage({super.key});
+  const AddPropertyPage({super.key, this.editingProperty});
+
+  /// When set, the page opens pre-filled with this listing's data and
+  /// submits as an update (PUT) instead of creating a new listing.
+  final Property? editingProperty;
 
   @override
   State<AddPropertyPage> createState() => _AddPropertyPageState();
@@ -49,6 +54,41 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _uploadingPhotos = false;
   int _uploadDone = 0;
   int _uploadTotal = 0;
+
+  bool get _isEditing => widget.editingProperty != null;
+
+  @override
+  void initState() {
+    super.initState();
+    final p = widget.editingProperty;
+    if (p == null) return;
+
+    _titleCtrl.text = p.title;
+    _locationCtrl.text = p.location;
+    _priceCtrl.text = p.price == p.price.roundToDouble() ? p.price.toInt().toString() : p.price.toString();
+    _depositCtrl.text = p.deposit ?? '';
+    _bedroomsCtrl.text = p.bedrooms.toString();
+    _bathroomsCtrl.text = p.bathrooms.toString();
+    _descriptionCtrl.text = p.description;
+    _phoneCtrl.text = p.landlordPhone;
+
+    _houseType = p.houseType;
+    if (p.latitude != null && p.longitude != null) {
+      _latitude = p.latitude;
+      _longitude = p.longitude;
+      _locationConfirmed = true;
+    }
+
+    _furnished = p.furnished;
+    _parking = p.parking;
+    _wifi = p.wifi;
+    _water = p.water;
+    _security = p.security;
+    _balcony = p.balcony;
+    _petFriendly = p.petFriendly;
+
+    _imageUrls.addAll(p.imageUrls);
+  }
 
   @override
   void dispose() {
@@ -172,49 +212,54 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
     setState(() => _isLoading = true);
 
+    final payload = {
+      'title': _titleCtrl.text.trim(),
+      'location': _locationCtrl.text.trim(),
+      'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      'deposit': _depositCtrl.text.trim(),
+      'bedrooms': int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
+      'bathrooms': int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
+      'houseType': _houseType,
+      'type': 'RENTAL',
+      // Editing preserves whatever the listing's current available/verified
+      // status already is -- an edit shouldn't silently re-publish a
+      // listing the landlord marked as rented, or un-verify one that
+      // passed verification, just because they fixed a typo.
+      'available': _isEditing ? widget.editingProperty!.available : true,
+      'verified': _isEditing ? widget.editingProperty!.verified : false,
+      'landlordPhone': _phoneCtrl.text.trim(),
+      'description': _descriptionCtrl.text.trim(),
+      'imageUrl': _imageUrls.first,
+      'imageUrls': _imageUrls,
+      'latitude': _latitude,
+      'longitude': _longitude,
+      'furnished': _furnished,
+      'parking': _parking,
+      'wifi': _wifi,
+      'water': _water,
+      'security': _security,
+      'balcony': _balcony,
+      'petFriendly': _petFriendly,
+      'moveInDate': _moveInDate,
+      'country': CountryService.config.code,
+    };
+
     try {
-      await ApiService.post('/api/properties', {
-        'title': _titleCtrl.text.trim(),
-        'location': _locationCtrl.text.trim(),
-        'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-        'deposit': _depositCtrl.text.trim(),
-        'bedrooms': int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
-        'bathrooms': int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
-        'houseType': _houseType,
-        'type': 'RENTAL',
-        'available': true,
-        // Not verified until an actual verification signal exists (GPS
-        // confirmation happens above; phone OTP and photo review are
-        // still pending -- see the landlord-flow plan). Was previously
-        // hardcoded true, making the "Verified" badge shown everywhere
-        // in the app meaningless.
-        'verified': false,
-        'landlordPhone': _phoneCtrl.text.trim(),
-        'description': _descriptionCtrl.text.trim(),
-        'imageUrl': _imageUrls.first,
-        'imageUrls': _imageUrls,
-        'latitude': _latitude,
-        'longitude': _longitude,
-        'furnished': _furnished,
-        'parking': _parking,
-        'wifi': _wifi,
-        'water': _water,
-        'security': _security,
-        'balcony': _balcony,
-        'petFriendly': _petFriendly,
-        'moveInDate': _moveInDate,
-        'country': CountryService.config.code,
-      });
+      if (_isEditing) {
+        await ApiService.put('/api/properties/${widget.editingProperty!.id}', payload);
+      } else {
+        await ApiService.post('/api/properties', payload);
+      }
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Property listed successfully!')),
+        SnackBar(content: Text(_isEditing ? 'Listing updated' : 'Property listed successfully!')),
       );
       Navigator.pop(context, true);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to publish listing: $e')),
+          SnackBar(content: Text('Failed to ${_isEditing ? 'update' : 'publish'} listing: $e')),
         );
       }
     } finally {
@@ -255,7 +300,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('List a Property', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(_isEditing ? 'Edit Listing' : 'List a Property', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))
@@ -317,7 +362,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                             ),
                             child: Text(
-                              _step == 4 ? 'Publish Listing' : 'Next Step',
+                              _step == 4 ? (_isEditing ? 'Save Changes' : 'Publish Listing') : 'Next Step',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                           ),
