@@ -19,6 +19,20 @@ class RecipientKeyUnavailableException implements Exception {
   String toString() => message;
 }
 
+/// Thrown when the on-device keypair can't be loaded, generated, or
+/// persisted at all -- as opposed to [RecipientKeyUnavailableException],
+/// which is about the *other* user's key. Carries a message that's safe
+/// to show directly in the UI (never a raw platform/native exception).
+class SecureMessagingSetupException implements Exception {
+  final String message;
+  SecureMessagingSetupException([
+    this.message = 'Could not set up secure messaging. Please try again.',
+  ]);
+
+  @override
+  String toString() => message;
+}
+
 /// Handles end-to-end encryption for chat messages.
 ///
 /// Scheme: X25519 key agreement + ChaCha20-Poly1305 authenticated
@@ -41,7 +55,18 @@ class RecipientKeyUnavailableException implements Exception {
 class EncryptionService {
   EncryptionService._();
 
-  static const _storage = FlutterSecureStorage();
+  // resetOnError tells the plugin to catch its own KeyStoreException/
+  // BadPaddingException internally and wipe+recreate the underlying
+  // encrypted preferences file rather than throwing. This is Android's
+  // documented recovery path for exactly the "keystore key survived a
+  // restore but the data it was protecting didn't" scenario -- it's
+  // defense in depth alongside the manual read/write recovery below,
+  // which still exists because resetOnError only covers operations
+  // *after* it's set and doesn't help us produce our own clean error
+  // message when even the reset doesn't work.
+  static const _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(resetOnError: true),
+  );
 
   static final X25519 _keyExchange = X25519();
   static final Chacha20 _cipher = Chacha20.poly1305Aead();
@@ -107,19 +132,53 @@ class EncryptionService {
     final privateBytes = await newKeyPair.extractPrivateKeyBytes();
     final publicKey = await newKeyPair.extractPublicKey();
 
+    // Writing can fail with the same BadPaddingException as reading, if
+    // the underlying Keystore-backed encryption key itself is broken
+    // rather than just this one stored value -- resetOnError above
+    // should recover from that automatically, but if it doesn't, retry
+    // once after an explicit delete before giving up.
+    try {
+      await _writeKeyPair(privateKeyStorageKey, publicKeyStorageKey, privateBytes, publicKey.bytes);
+    } catch (_) {
+      try {
+        await _storage.delete(key: privateKeyStorageKey);
+        await _storage.delete(key: publicKeyStorageKey);
+        await _writeKeyPair(privateKeyStorageKey, publicKeyStorageKey, privateBytes, publicKey.bytes);
+      } catch (_) {
+        throw SecureMessagingSetupException(
+          'Could not set up secure messaging on this device. '
+          'Try restarting the app; if this keeps happening, reinstalling should clear it.',
+        );
+      }
+    }
+    _keyPair = newKeyPair;
+
+    try {
+      await ApiService.put('/api/users/public-key', {
+        'publicKey': base64Encode(publicKey.bytes),
+      });
+    } catch (_) {
+      throw SecureMessagingSetupException(
+        'Generated a secure messaging key but could not reach the server to register it. '
+        'Please check your connection and try again.',
+      );
+    }
+  }
+
+  static Future<void> _writeKeyPair(
+    String privateKeyStorageKey,
+    String publicKeyStorageKey,
+    List<int> privateBytes,
+    List<int> publicBytes,
+  ) async {
     await _storage.write(
       key: privateKeyStorageKey,
       value: base64Encode(privateBytes),
     );
     await _storage.write(
       key: publicKeyStorageKey,
-      value: base64Encode(publicKey.bytes),
+      value: base64Encode(publicBytes),
     );
-    _keyPair = newKeyPair;
-
-    await ApiService.put('/api/users/public-key', {
-      'publicKey': base64Encode(publicKey.bytes),
-    });
   }
 
   /// Encrypts [plaintext] for [otherUserId]. Throws
