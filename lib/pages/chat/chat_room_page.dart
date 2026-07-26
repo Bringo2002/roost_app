@@ -33,6 +33,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   List<Message> _messages = [];
   bool _isLoading = true;
+  bool _isLoadingMore = false;
+  bool _hasMoreHistory = true;
   String? _currentUserEmail;
   Timer? _pollingTimer;
   late User _livePartner = widget.partner;
@@ -60,12 +62,27 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   @override
   void initState() {
     super.initState();
+    _scrollController.addListener(_onScroll);
     _initChat();
+  }
+
+  void _onScroll() {
+    // Load earlier messages once the user scrolls near the top of the
+    // list. Guarded by _isLoadingMore/_hasMoreHistory so a fast scroll
+    // can't fire this a dozen times or keep querying once history is
+    // exhausted.
+    if (!_isLoadingMore &&
+        _hasMoreHistory &&
+        _scrollController.hasClients &&
+        _scrollController.position.pixels <= 200) {
+      _loadOlderMessages();
+    }
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _searchController.dispose();
     _pollingTimer?.cancel();
@@ -94,13 +111,13 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       return;
     }
 
-    await _loadMessages();
+    await _loadInitialMessages();
     if (!mounted) return;
 
     // Poll for new messages, presence and typing status every 5 seconds.
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (_) {
       if (mounted) {
-        _loadMessages(silent: true);
+        _pollNewMessages();
         _refreshPresence();
         _checkTypingStatus();
       }
@@ -132,52 +149,135 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
-  Future<void> _loadMessages({bool silent = false}) async {
-    if (!silent) {
-      setState(() {
-        _isLoading = true;
-      });
-    }
+  /// Initial load: fetches the most recent page of the conversation.
+  Future<void> _loadInitialMessages() async {
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final messages = await ChatService.getChatHistory(widget.partner.id);
       if (!mounted) return;
 
-      // Mark read in background
       ChatService.markAsRead(widget.partner.id);
 
-      // Determine first unread message ID on initial load
-      if (_firstUnreadMessageId == null) {
-        for (final m in messages) {
-          final isMe = m.sender.email == _currentUserEmail;
-          if (!isMe && !m.read) {
-            _firstUnreadMessageId = m.id;
-            break;
-          }
+      for (final m in messages) {
+        final isMe = m.sender.email == _currentUserEmail;
+        if (!isMe && !m.read) {
+          _firstUnreadMessageId = m.id;
+          break;
         }
       }
 
-      // Check if there are new messages
-      bool isNewMessage = _messages.length != messages.length;
-
       setState(() {
         _messages = messages;
-        if (!silent) _isLoading = false;
+        _isLoading = false;
+        // A short page means there's nothing earlier to load.
+        _hasMoreHistory = messages.length >= ChatService.kHistoryPageSize;
       });
-
-      if (isNewMessage) {
-        _scrollToBottom();
-      }
+      _scrollToBottom();
     } catch (e) {
       if (!mounted) return;
-      if (!silent) {
-        setState(() {
-          _isLoading = false;
-        });
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to load messages: $e')),
-        );
-      }
+      setState(() {
+        _isLoading = false;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to load messages: $e')),
+      );
+    }
+  }
+
+  /// Poll tick: fetches only messages newer than the last one already
+  /// loaded and appends them, instead of re-fetching (and re-decrypting)
+  /// the entire conversation every 5 seconds.
+  Future<void> _pollNewMessages() async {
+    if (_messages.isEmpty) {
+      // Nothing loaded yet (e.g. a brand new conversation) -- fall back
+      // to a normal initial-style fetch so the first incoming message
+      // still appears without waiting for a manual refresh.
+      await _loadInitialMessages();
+      return;
+    }
+
+    try {
+      final newMessages = await ChatService.getChatHistory(
+        widget.partner.id,
+        afterId: _messages.last.id,
+      );
+      if (!mounted || newMessages.isEmpty) return;
+
+      ChatService.markAsRead(widget.partner.id);
+
+      setState(() {
+        _messages = [..._messages, ...newMessages];
+      });
+      _scrollToBottom();
+    } catch (_) {
+      // Silent -- this is a background poll tick, not a user-initiated
+      // action, so a transient network hiccup shouldn't surface an error.
+    }
+  }
+
+  /// Triggered by scrolling near the top: fetches the page of messages
+  /// immediately before the oldest one currently loaded and prepends it,
+  /// preserving the user's scroll position so the view doesn't jump.
+  Future<void> _loadOlderMessages() async {
+    if (_isLoadingMore || !_hasMoreHistory || _messages.isEmpty) return;
+    _isLoadingMore = true;
+
+    final oldExtent = _scrollController.hasClients
+        ? _scrollController.position.maxScrollExtent
+        : 0.0;
+
+    try {
+      final older = await ChatService.getChatHistory(
+        widget.partner.id,
+        beforeId: _messages.first.id,
+      );
+      if (!mounted) return;
+
+      setState(() {
+        _messages = [...older, ..._messages];
+        _hasMoreHistory = older.length >= ChatService.kHistoryPageSize;
+      });
+
+      // Prepending shifts every existing message down the list, which
+      // would otherwise yank the viewport to a different spot. Restore
+      // the same visual position by jumping forward by exactly however
+      // much the scrollable content grew.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (_scrollController.hasClients) {
+          final newExtent = _scrollController.position.maxScrollExtent;
+          _scrollController.jumpTo(_scrollController.position.pixels + (newExtent - oldExtent));
+        }
+      });
+    } catch (_) {
+      // Silent -- a failed "load more" just means the user can try
+      // scrolling again; it shouldn't interrupt the conversation view.
+    } finally {
+      _isLoadingMore = false;
+    }
+  }
+
+  /// Refreshes the most recent page and merges it into whatever's already
+  /// loaded, updating in place by message id. Used after actions that
+  /// mutate an existing message (e.g. reactions) rather than create a new
+  /// one -- an afterId poll wouldn't see those changes since the message
+  /// id itself isn't new.
+  Future<void> _refreshRecentMessages() async {
+    try {
+      final recent = await ChatService.getChatHistory(widget.partner.id);
+      if (!mounted) return;
+      setState(() {
+        final byId = {for (final m in _messages) m.id: m};
+        for (final m in recent) {
+          byId[m.id] = m;
+        }
+        _messages = byId.values.toList()..sort((a, b) => a.timestamp.compareTo(b.timestamp));
+      });
+    } catch (_) {
+      // Silent -- same rationale as _pollNewMessages: background refresh,
+      // not a user-initiated action worth surfacing an error for.
     }
   }
 
@@ -318,7 +418,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     try {
       final res = await ChatService.toggleReaction(message.id, emoji);
       if (res != null) {
-        _loadMessages(silent: true);
+        _refreshRecentMessages();
       }
     } catch (e) {
       if (!mounted) return;
@@ -746,9 +846,22 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     return ListView.builder(
       controller: _scrollController,
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      itemCount: displayMessages.length,
+      itemCount: displayMessages.length + (_isLoadingMore && _searchQuery.isEmpty ? 1 : 0),
       itemBuilder: (context, index) {
-        final message = displayMessages[index];
+        if (_isLoadingMore && _searchQuery.isEmpty && index == 0) {
+          return const Padding(
+            padding: EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.white),
+              ),
+            ),
+          );
+        }
+        final messageIndex = _isLoadingMore && _searchQuery.isEmpty ? index - 1 : index;
+        final message = displayMessages[messageIndex];
         final isMe = message.sender.email == _currentUserEmail;
         final replyMsg = _findMessageById(message.replyToMessageId);
 
@@ -756,7 +869,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           key: ValueKey(message.id),
           message: message,
           isMe: isMe,
-          isGroupEnd: _isDisplayGroupEnd(displayMessages, index),
+          isGroupEnd: _isDisplayGroupEnd(displayMessages, messageIndex),
           replyMessage: replyMsg,
           onReply: () => _setReplyMessage(message),
           onEdit: () => _setEditMessage(message),
@@ -766,7 +879,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         );
 
         final isFirstUnread = message.id == _firstUnreadMessageId;
-        final isNewDay = _isDisplayNewDay(displayMessages, index);
+        final isNewDay = _isDisplayNewDay(displayMessages, messageIndex);
 
         Widget result = bubble;
         if (isNewDay) {

@@ -68,12 +68,34 @@ class ChatService {
     return null;
   }
 
-  /// Fetches the encrypted history with [userId] and decrypts every
-  /// message (and any attachment) in place before returning -- callers
-  /// always receive plaintext, never ciphertext. Reuses cached results
-  /// for messages already decrypted on a previous poll.
-  static Future<List<Message>> getChatHistory(int userId) async {
-    final response = await ApiService.get('/api/chat/history/$userId');
+  /// Page size used for the initial load and "load earlier messages".
+  /// Kept in sync with the backend's DEFAULT_HISTORY_PAGE_SIZE.
+  static const int kHistoryPageSize = 30;
+
+  /// Fetches chat history with [userId] and decrypts every message (and any
+  /// attachment) in place before returning -- callers always receive
+  /// plaintext, never ciphertext. Reuses cached results for messages
+  /// already decrypted on a previous call.
+  ///
+  /// Exactly one of [beforeId]/[afterId] should be passed:
+  /// - [afterId]: returns only messages newer than it (used by the polling
+  ///   loop, so each poll fetches just what's new instead of the whole
+  ///   conversation).
+  /// - [beforeId]: returns up to [limit] messages older than it (used for
+  ///   "load earlier messages" when the user scrolls to the top).
+  /// - neither: returns the most recent [limit] messages (initial load).
+  static Future<List<Message>> getChatHistory(
+    int userId, {
+    int? beforeId,
+    int? afterId,
+    int limit = kHistoryPageSize,
+  }) async {
+    final params = <String, String>{'limit': '$limit'};
+    if (afterId != null) params['afterId'] = '$afterId';
+    if (beforeId != null) params['beforeId'] = '$beforeId';
+    final query = params.entries.map((e) => '${e.key}=${e.value}').join('&');
+
+    final response = await ApiService.get('/api/chat/history/$userId?$query');
     if (response is! List) return [];
 
     final messages = response.map((json) => Message.fromJson(json)).toList();
