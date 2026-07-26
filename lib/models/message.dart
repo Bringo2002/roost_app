@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:roost_app/models/user.dart';
+import 'package:roost_app/utils/server_time.dart';
 
 /// A single reaction on a message (emoji + who reacted).
 class MessageReaction {
@@ -94,11 +95,13 @@ class Message {
       recipient: json['recipient'] != null ? User.fromJson(json['recipient']) : User(id: 0, name: 'Unknown', email: '', role: ''),
       content: json['content'] ?? '',
       nonce: json['nonce'],
-      timestamp: json['timestamp'] != null ? DateTime.parse(json['timestamp']) : DateTime.now(),
+      timestamp: json['timestamp'] != null
+          ? (parseServerDateTime(json['timestamp'] as String) ?? DateTime.now())
+          : DateTime.now(),
       read: json['read'] == true,
       replyToMessageId: (json['replyToMessageId'] as num?)?.toInt(),
       edited: json['edited'] == true,
-      editedAt: json['editedAt'] != null ? DateTime.parse(json['editedAt']) : null,
+      editedAt: parseServerDateTime(json['editedAt'] as String?),
       reactions: json['reactions'] != null
           ? (json['reactions'] as List).map((r) => MessageReaction.fromJson(r)).toList()
           : [],

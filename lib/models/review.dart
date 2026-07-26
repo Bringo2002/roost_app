@@ -1,4 +1,5 @@
 import 'package:roost_app/models/user.dart';
+import 'package:roost_app/utils/server_time.dart';
 
 class Review {
   final int id;
@@ -26,9 +27,7 @@ class Review {
           : User(id: 0, name: 'Unknown', email: '', role: ''),
       rating: (json['rating'] as num?)?.toInt() ?? 0,
       comment: json['comment'] ?? '',
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : DateTime.now(),
+      createdAt: parseServerDateTime(json['createdAt'] as String?) ?? DateTime.now(),
     );
   }
 }

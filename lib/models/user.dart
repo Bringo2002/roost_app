@@ -1,3 +1,5 @@
+import 'package:roost_app/utils/server_time.dart';
+
 class User {
   final int id;
   final String name;
@@ -29,7 +31,7 @@ class User {
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       role: json['role']?.toString() ?? '',
-      lastActiveAt: json['lastActiveAt'] != null ? DateTime.tryParse(json['lastActiveAt'].toString()) : null,
+      lastActiveAt: parseServerDateTime(json['lastActiveAt']?.toString()),
     );
   }
 }

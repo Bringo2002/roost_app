@@ -1,4 +1,5 @@
 import 'package:roost_app/models/user.dart';
+import 'package:roost_app/utils/server_time.dart';
 
 /// Summary of a conversation for the active-chats list. Contains the
 /// partner, the last message (as ciphertext — the client decrypts it
@@ -46,9 +47,7 @@ class ConversationSummary {
       partner: User.fromJson(json['partner']),
       lastMessageContent: json['lastMessageContent'],
       lastMessageNonce: json['lastMessageNonce'],
-      lastMessageTimestamp: json['lastMessageTimestamp'] != null
-          ? DateTime.parse(json['lastMessageTimestamp'])
-          : null,
+      lastMessageTimestamp: parseServerDateTime(json['lastMessageTimestamp'] as String?),
       lastMessageSenderId: (json['lastMessageSenderId'] as num?)?.toInt(),
       unreadCount: (json['unreadCount'] as num?)?.toInt() ?? 0,
       lastMessageAttachmentMeta: json['lastMessageAttachmentMeta'],

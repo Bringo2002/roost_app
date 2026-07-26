@@ -1,5 +1,6 @@
 import 'package:roost_app/models/user.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/utils/server_time.dart';
 
 class Application {
   final int id;
@@ -38,9 +39,7 @@ class Application {
       employmentStatus: json['employmentStatus'] ?? '',
       monthlyIncome: (json['monthlyIncome'] ?? 0.0).toDouble(),
       status: json['status'] ?? 'PENDING',
-      createdAt: json['createdAt'] != null
-          ? DateTime.parse(json['createdAt'])
-          : DateTime.now(),
+      createdAt: parseServerDateTime(json['createdAt'] as String?) ?? DateTime.now(),
     );
   }
 }
