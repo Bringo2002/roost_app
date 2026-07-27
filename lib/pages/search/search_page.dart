@@ -73,7 +73,7 @@ class _SearchPageState extends State<SearchPage> {
 
   void _onSearchChanged() {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), _filterResults);
+    _debounceTimer = Timer(const Duration(milliseconds: 300), _applyClientSideFilters);
   }
 
   Future<void> _loadUserLocation() async {
@@ -82,7 +82,7 @@ class _SearchPageState extends State<SearchPage> {
     setState(() {
       _userPosition = position;
     });
-    _filterResults();
+    _applyClientSideFilters();
   }
 
   /// Distance from the user to [p] in km, or null if either the user's
@@ -98,18 +98,62 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   Future<void> _loadProperties() async {
+    await _fetchFiltered();
+  }
+
+  /// Builds the query string for GET /api/properties/filter from the
+  /// filter sheet's own state. Deliberately does NOT include anything
+  /// parsed from free-text search (_parseSearchIntent) -- the backend has
+  /// no NLP matching, so that stays a client-side pass over whatever this
+  /// returns, exactly as before. This still captures the common case
+  /// (narrowing via the filter sheet) without the full table download.
+  String _buildFilterQuery() {
+    final params = <String, String>{};
+
+    // '3BR+' isn't a literal value in the houseType column -- it means
+    // "3 or more bedrooms", which is exactly what the bedrooms param's
+    // >= semantics already express, so it's folded into the bedrooms
+    // floor instead of sent as `type` (which does an exact string match
+    // and would incorrectly exclude a stored, say, "4BR").
+    if (_houseType == '3BR+') {
+      final floor = _bedrooms > 3 ? _bedrooms : 3;
+      params['bedrooms'] = '$floor';
+    } else {
+      if (_houseType != 'All') params['type'] = _houseType;
+      if (_bedrooms > 0) params['bedrooms'] = '$_bedrooms';
+    }
+
+    final config = CountryService.config;
+    if (_priceRange.start > config.priceMin) params['minPrice'] = '${_priceRange.start}';
+    if (_priceRange.end < config.priceMax) params['maxPrice'] = '${_priceRange.end}';
+
+    if (_furnished) params['furnished'] = 'true';
+    if (_parking) params['parking'] = 'true';
+    if (_wifi) params['wifi'] = 'true';
+    if (_water) params['water'] = 'true';
+    if (_security) params['security'] = 'true';
+    if (_verifiedOnly) params['verified'] = 'true';
+
+    return params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+  }
+
+  /// Fetches from the server with the filter sheet's constraints already
+  /// applied, then runs the remaining client-only pass (free-text NLP
+  /// matching, balcony/petFriendly, sorting) on the smaller result set.
+  Future<void> _fetchFiltered() async {
     setState(() => _loadError = false);
     try {
-      final jsonList = await ApiService.get('/api/properties');
+      final query = _buildFilterQuery();
+      final path = query.isEmpty ? '/api/properties/filter' : '/api/properties/filter?$query';
+      final jsonList = await ApiService.get(path);
       final props = (jsonList as List).map((j) => Property.fromJson(j)).toList();
 
       if (!mounted) return;
       setState(() {
         _allProperties = props;
-        _results = props;
         _loading = false;
       });
-      _filterResults();
+      _applyClientSideFilters();
     } catch (_) {
       if (mounted) setState(() {
         _loading = false;
@@ -178,7 +222,13 @@ class _SearchPageState extends State<SearchPage> {
     );
   }
 
-  void _filterResults() {
+  /// Client-only pass over the already server-filtered [_allProperties]:
+  /// free-text NLP matching (the backend has no text search), balcony and
+  /// pet-friendly (not supported by /api/properties/filter), and sorting
+  /// (the backend doesn't sort). Everything else -- house type, bedrooms,
+  /// price, furnished/parking/wifi/water/security, verified -- was already
+  /// applied server-side by _fetchFiltered before this runs.
+  void _applyClientSideFilters() {
     final intent = _parseSearchIntent(_searchCtrl.text.trim());
     final query = intent.remainingText;
     setState(() {
@@ -188,63 +238,48 @@ class _SearchPageState extends State<SearchPage> {
             p.location.toLowerCase().contains(query) ||
             p.houseType.toLowerCase().contains(query);
 
-        final matchesHouseType = _houseType == 'All' ||
-            p.houseType.toLowerCase() == _houseType.toLowerCase() ||
-            (_houseType == '3BR+' && p.bedrooms >= 3);
-
-        // House type parsed from the search text itself (e.g. "Studio
-        // under 20k") -- an additional constraint alongside the filter
-        // sheet's own selection, not a replacement for it.
+        // House type/price/furnished parsed from the search text itself
+        // (e.g. "Studio under 20k") -- additional constraints on top of
+        // whatever the filter sheet already narrowed server-side, not a
+        // replacement for it.
         final matchesIntentHouseType = intent.houseType == null ||
             p.houseType.toUpperCase() == intent.houseType ||
             (intent.houseType == '3BR+' && p.bedrooms >= 3);
-
-        final matchesBedrooms = _bedrooms == 0 || p.bedrooms >= _bedrooms;
-        final matchesPrice = p.price >= _priceRange.start && p.price <= _priceRange.end;
         final matchesIntentPrice = intent.maxPrice == null || p.price <= intent.maxPrice!;
-        final matchesVerified = !_verifiedOnly || p.verified;
+        final matchesIntentFurnished = !intent.furnished || p.furnished;
 
-        final matchesFurnished = !(_furnished || intent.furnished) || p.furnished;
-        final matchesParking = !_parking || p.parking;
-        final matchesWifi = !_wifi || p.wifi;
-        final matchesWater = !_water || p.water;
-        final matchesSecurity = !_security || p.security;
         final matchesBalcony = !_balcony || p.balcony;
         final matchesPetFriendly = !_petFriendly || p.petFriendly;
 
         return matchesQuery &&
-            matchesHouseType &&
             matchesIntentHouseType &&
-            matchesBedrooms &&
-            matchesPrice &&
             matchesIntentPrice &&
-            matchesVerified &&
-            matchesFurnished &&
-            matchesParking &&
-            matchesWifi &&
-            matchesWater &&
-            matchesSecurity &&
+            matchesIntentFurnished &&
             matchesBalcony &&
             matchesPetFriendly;
       }).toList();
 
-      if (_sortNewestFirst) {
-        _results.sort((a, b) {
-          final dateA = DateTime.tryParse(a.listedAt ?? '');
-          final dateB = DateTime.tryParse(b.listedAt ?? '');
-          if (dateA == null && dateB == null) return 0;
-          if (dateA == null) return 1;
-          if (dateB == null) return -1;
-          return dateB.compareTo(dateA); // newest first
-        });
-      } else if (_userPosition != null) {
-        _results.sort((a, b) {
-          final distA = _distanceKmTo(a) ?? double.infinity;
-          final distB = _distanceKmTo(b) ?? double.infinity;
-          return distA.compareTo(distB);
-        });
-      }
+      _sortResults();
     });
+  }
+
+  void _sortResults() {
+    if (_sortNewestFirst) {
+      _results.sort((a, b) {
+        final dateA = DateTime.tryParse(a.listedAt ?? '');
+        final dateB = DateTime.tryParse(b.listedAt ?? '');
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        return dateB.compareTo(dateA); // newest first
+      });
+    } else if (_userPosition != null) {
+      _results.sort((a, b) {
+        final distA = _distanceKmTo(a) ?? double.infinity;
+        final distB = _distanceKmTo(b) ?? double.infinity;
+        return distA.compareTo(distB);
+      });
+    }
   }
 
   /// Resets all filters to their defaults, deriving the price range from
@@ -265,7 +300,7 @@ class _SearchPageState extends State<SearchPage> {
       _verifiedOnly = false;
       _sortNewestFirst = false;
     });
-    _filterResults();
+    _fetchFiltered();
   }
 
   /// Number of filters currently set away from their defaults. Drives the
@@ -489,7 +524,7 @@ class _SearchPageState extends State<SearchPage> {
                       child: ElevatedButton(
                         onPressed: () {
                           Navigator.pop(context);
-                          _filterResults();
+                          _fetchFiltered();
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.white,
@@ -531,7 +566,7 @@ class _SearchPageState extends State<SearchPage> {
                       textInputAction: TextInputAction.search,
                       onSubmitted: (_) {
                         _debounceTimer?.cancel();
-                        _filterResults();
+                        _applyClientSideFilters();
                       },
                       decoration: InputDecoration(
                         hintText: CountryService.config.searchHint,
@@ -546,7 +581,7 @@ class _SearchPageState extends State<SearchPage> {
                               onPressed: () {
                                 _searchCtrl.clear();
                                 _debounceTimer?.cancel();
-                                _filterResults();
+                                _applyClientSideFilters();
                               },
                             );
                           },
