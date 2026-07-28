@@ -97,6 +97,17 @@ class AuthService {
     }
   }
 
+  /// Changes the current user's password via POST /api/auth/change-password.
+  ///
+  /// This used to probe three different endpoint paths with four payload
+  /// key variants, plus fall back to PUT /api/users/me if all three
+  /// 404'd -- leftover from before the backend's shape was settled. That
+  /// fallback was also a real bug: PUT /api/users/me only reads name/phone
+  /// from its payload and silently ignores an unrecognized `password` key,
+  /// so it would return 200 (a harmless no-op profile save) and this
+  /// method would report success even though the password was never
+  /// actually changed. Now that /api/auth/change-password is a known,
+  /// stable endpoint, there's exactly one call and no ambiguity.
   static Future<AuthResult> changePassword(String currentPassword, String newPassword) async {
     try {
       final token = await getToken();
@@ -104,82 +115,28 @@ class AuthService {
         return AuthResult(success: false, error: 'Not authenticated. Please log in again.');
       }
 
-      final payload = jsonEncode({
-        'currentPassword': currentPassword,
-        'oldPassword': currentPassword,
-        'newPassword': newPassword,
-        'password': newPassword,
-      });
+      final res = await http.post(
+        Uri.parse('${AppConfig.baseUrl}/api/auth/change-password'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $token',
+        },
+        body: jsonEncode({
+          'currentPassword': currentPassword,
+          'newPassword': newPassword,
+        }),
+      ).timeout(const Duration(seconds: 8));
 
-      final headers = {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer $token',
-      };
-
-      // Candidate API endpoints on backend
-      final endpoints = [
-        '${AppConfig.baseUrl}/api/auth/change-password',
-        '${AppConfig.baseUrl}/api/users/change-password',
-        '${AppConfig.baseUrl}/api/users/me/change-password',
-      ];
-
-      bool sawConnectivityError = false;
-
-      for (final url in endpoints) {
-        try {
-          final res = await http.post(
-            Uri.parse(url),
-            headers: headers,
-            body: payload,
-          ).timeout(const Duration(seconds: 8));
-
-          if (res.statusCode == 200 || res.statusCode == 204) {
-            return AuthResult(success: true);
-          }
-
-          // Handle server-side business errors (e.g. 400 invalid current password)
-          if (res.statusCode != 404) {
-            String errorMsg = 'Failed to change password (${res.statusCode})';
-            try {
-              final body = jsonDecode(res.body);
-              if (body['error'] != null) {
-                errorMsg = body['error'];
-              } else if (body['message'] != null && !body['message'].toString().contains('No static resource')) {
-                errorMsg = body['message'];
-              }
-            } catch (_) {}
-            return AuthResult(success: false, error: errorMsg);
-          }
-        } on SocketException {
-          sawConnectivityError = true;
-        } catch (_) {}
+      if (res.statusCode == 200 || res.statusCode == 204) {
+        return AuthResult(success: true);
       }
 
-      // Try PUT /api/users/me as fallback
+      String errorMsg = 'Failed to change password (${res.statusCode})';
       try {
-        final res = await http.put(
-          Uri.parse('${AppConfig.baseUrl}/api/users/me'),
-          headers: headers,
-          body: jsonEncode({'password': newPassword}),
-        ).timeout(const Duration(seconds: 8));
-
-        if (res.statusCode == 200 || res.statusCode == 204) {
-          return AuthResult(success: true);
-        }
-      } on SocketException {
-        sawConnectivityError = true;
+        final body = jsonDecode(res.body);
+        if (body['error'] != null) errorMsg = body['error'];
       } catch (_) {}
-
-      // Every endpoint attempt failed (404 or unreachable). A security-
-      // sensitive action like this must fail honestly rather than report
-      // success when the password was never actually changed server-side.
-      if (sawConnectivityError) {
-        return AuthResult(success: false, error: 'No internet connection');
-      }
-      return AuthResult(
-        success: false,
-        error: 'Unable to change password right now. Please try again later.',
-      );
+      return AuthResult(success: false, error: errorMsg);
     } on SocketException {
       return AuthResult(success: false, error: 'No internet connection');
     } catch (e) {
