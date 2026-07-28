@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/main.dart';
 import 'package:roost_app/pages/auth/signup_page.dart';
+import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 class LoginPage extends StatefulWidget {
@@ -18,6 +19,25 @@ class _LoginPageState extends State<LoginPage> {
   bool _obscurePassword = true;
 
   static const _goldAccent = Colors.white;
+
+  void _signInWithGoogle() async {
+    setState(() => _isLoading = true);
+    final result = await AuthService.signInWithGoogle();
+    setState(() => _isLoading = false);
+
+    if (!mounted) return;
+    if (result.success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => result.isNewUser ? const OnboardingPage() : const HomePage()),
+        (route) => false,
+      );
+    } else if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error!), duration: const Duration(seconds: 4)),
+      );
+    }
+  }
 
   void _login() async {
     if (_emailCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
@@ -78,7 +98,7 @@ class _LoginPageState extends State<LoginPage> {
         iconTheme: const IconThemeData(color: Colors.white),
       ),
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.symmetric(horizontal: 32),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,7 +169,7 @@ class _LoginPageState extends State<LoginPage> {
                 ),
               ),
 
-              const Spacer(),
+              const SizedBox(height: 32),
 
               SizedBox(
                 width: double.infinity,
@@ -175,6 +195,39 @@ class _LoginPageState extends State<LoginPage> {
                           'Log In',
                           style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
                         ),
+                ),
+              ),
+
+              const SizedBox(height: 20),
+
+              Row(
+                children: [
+                  Expanded(child: Divider(color: Colors.grey[900])),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('OR', style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold)),
+                  ),
+                  Expanded(child: Divider(color: Colors.grey[900])),
+                ],
+              ),
+
+              const SizedBox(height: 20),
+
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: OutlinedButton.icon(
+                  onPressed: _isLoading ? null : _signInWithGoogle,
+                  style: OutlinedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1C1C1E),
+                    side: BorderSide(color: Colors.grey[850]!),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  icon: const Icon(Icons.account_circle_outlined, color: Colors.white, size: 20),
+                  label: const Text(
+                    'Continue with Google',
+                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+                  ),
                 ),
               ),
 

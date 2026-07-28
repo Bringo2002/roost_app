@@ -3,13 +3,19 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:roost_app/config.dart';
 import 'package:roost_app/services/push_notification_service.dart';
 
 class AuthResult {
   final bool success;
   final String? error;
-  AuthResult({required this.success, this.error});
+  /// True only when this call created a brand-new account (Google
+  /// sign-in on a first-time user). Lets the caller route to onboarding
+  /// instead of home, matching what plain signup already does.
+  final bool isNewUser;
+  AuthResult({required this.success, this.error, this.isNewUser = false});
 }
 
 class AuthService {
@@ -97,6 +103,91 @@ class AuthService {
     }
   }
 
+  static bool _googleSignInReady = false;
+
+  /// GoogleSignIn.instance.initialize() must be called exactly once
+  /// before any other GoogleSignIn method -- this guard makes repeated
+  /// calls to signInWithGoogle() safe without re-initializing.
+  static Future<void> _ensureGoogleSignInReady() async {
+    if (_googleSignInReady) return;
+    await GoogleSignIn.instance.initialize();
+    _googleSignInReady = true;
+  }
+
+  /// Signs in (or signs up) with Google. [role] is only used the first
+  /// time a given Google account signs up -- pass the value the user
+  /// picked on the signup screen's Tenant/Landlord chips. It's ignored
+  /// for an existing account, same as the plain signup form's role only
+  /// applying at account creation.
+  ///
+  /// Flow: Google identity -> Firebase credential -> Firebase ID token
+  /// -> our backend's /api/auth/google, which verifies that token and
+  /// returns our own JWT (same shape as /login and /signup).
+  static Future<AuthResult> signInWithGoogle({String? role}) async {
+    try {
+      await _ensureGoogleSignInReady();
+
+      final googleUser = await GoogleSignIn.instance.authenticate(scopeHint: ['email']);
+      final googleIdToken = googleUser.authentication.idToken;
+      if (googleIdToken == null) {
+        return AuthResult(success: false, error: 'Google sign-in did not return a token. Please try again.');
+      }
+
+      final credential = fb_auth.GoogleAuthProvider.credential(idToken: googleIdToken);
+      final userCredential = await fb_auth.FirebaseAuth.instance.signInWithCredential(credential);
+      final firebaseIdToken = await userCredential.user?.getIdToken();
+      if (firebaseIdToken == null) {
+        return AuthResult(success: false, error: 'Could not complete Google sign-in. Please try again.');
+      }
+
+      return _exchangeGoogleToken(firebaseIdToken, role);
+    } on GoogleSignInException catch (e) {
+      if (e.code == GoogleSignInExceptionCode.canceled) {
+        // User closed the account picker -- not an error, nothing to show.
+        return AuthResult(success: false);
+      }
+      return AuthResult(success: false, error: 'Google sign-in failed. Please try again.');
+    } catch (e) {
+      return AuthResult(success: false, error: 'Google sign-in failed. Please try again.');
+    }
+  }
+
+  static Future<AuthResult> _exchangeGoogleToken(String firebaseIdToken, String? role) async {
+    try {
+      final response = await http.post(
+        Uri.parse('$baseUrl/google'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'idToken': firebaseIdToken,
+          if (role != null) 'role': role,
+        }),
+      ).timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _saveToken(data['token']);
+        return AuthResult(success: true, isNewUser: data['isNewUser'] == true);
+      }
+
+      String errorMsg = 'Google sign-in failed (${response.statusCode})';
+      try {
+        final body = jsonDecode(response.body);
+        if (body['error'] != null) {
+          errorMsg = body['error'];
+        } else if (body['message'] != null) {
+          errorMsg = body['message'];
+        }
+      } catch (_) {}
+      return AuthResult(success: false, error: errorMsg);
+    } on SocketException {
+      return AuthResult(success: false, error: 'Cannot reach server. Check your internet connection.');
+    } on http.ClientException {
+      return AuthResult(success: false, error: 'Connection error. The server may be down.');
+    } catch (e) {
+      return AuthResult(success: false, error: 'Unexpected error: $e');
+    }
+  }
+
   /// Changes the current user's password via POST /api/auth/change-password.
   ///
   /// This used to probe three different endpoint paths with four payload
@@ -172,6 +263,13 @@ class AuthService {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove(_tokenKey);
     await PushNotificationService.reloadForUser();
+
+    // Best-effort: only matters for users who signed in with Google, and
+    // failure here shouldn't block logout from completing.
+    try {
+      await fb_auth.FirebaseAuth.instance.signOut();
+      await GoogleSignIn.instance.signOut();
+    } catch (_) {}
   }
 
   static Future<bool> isLoggedIn() async {
