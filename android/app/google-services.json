@@ -12,7 +12,20 @@
           "package_name": "com.roost.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "1085731102031-n44u1af70t8ji5cshpqqajs6jn943i5a.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.roost.app",
+            "certificate_hash": "625682b476e1be1d0c4214540738aa61cea671d0"
+          }
+        },
+        {
+          "client_id": "1085731102031-c9285g1rff9qcm67tcep7ie0146ple5u.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyD3YH7grGwJ3hxcFqYtPhlNQJB-7xB7fw0"
@@ -20,7 +33,12 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "1085731102031-c9285g1rff9qcm67tcep7ie0146ple5u.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }
