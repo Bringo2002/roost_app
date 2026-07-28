@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:roost_app/models/property.dart';
-import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
@@ -35,23 +34,10 @@ class _SavedPageState extends State<SavedPage> {
     if (!mounted) return;
     setState(() => _loading = true);
     try {
-      final favoriteIds = await FavoritesService.getFavoriteIds();
-      if (favoriteIds.isEmpty) {
-        if (mounted) {
-          setState(() {
-            _savedProperties = [];
-            _loading = false;
-          });
-        }
-        return;
-      }
-
-      final jsonList = await ApiService.get('/api/properties');
-      final allProperties = (jsonList as List).map((j) => Property.fromJson(j)).toList();
+      final saved = await FavoritesService.getSavedProperties();
       if (!mounted) return;
-
       setState(() {
-        _savedProperties = allProperties.where((p) => p.id != null && favoriteIds.contains(p.id)).toList();
+        _savedProperties = saved;
         _loading = false;
       });
     } catch (e) {
