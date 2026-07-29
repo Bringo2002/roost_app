@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:developer' as developer;
 import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -105,12 +106,24 @@ class AuthService {
 
   static bool _googleSignInReady = false;
 
+  /// The "Web client" OAuth client ID from google-services.json
+  /// (client_type: 3) -- NOT the Android client ID (client_type: 1).
+  /// On Android, google_sign_in v7's authenticate() will only populate
+  /// authentication.idToken if this is passed to initialize(); without
+  /// it, the account picker still works (the user can select an
+  /// account), but the returned idToken is silently null, which is
+  /// exactly what was showing up as "Google sign-in did not return a
+  /// token" -- there was never a token to return, since nothing told
+  /// the plugin which audience to mint one for.
+  static const String _googleServerClientId =
+      '1085731102031-c9285g1rff9qcm67tcep7ie0146ple5u.apps.googleusercontent.com';
+
   /// GoogleSignIn.instance.initialize() must be called exactly once
   /// before any other GoogleSignIn method -- this guard makes repeated
   /// calls to signInWithGoogle() safe without re-initializing.
   static Future<void> _ensureGoogleSignInReady() async {
     if (_googleSignInReady) return;
-    await GoogleSignIn.instance.initialize();
+    await GoogleSignIn.instance.initialize(serverClientId: _googleServerClientId);
     _googleSignInReady = true;
   }
 
@@ -146,8 +159,16 @@ class AuthService {
         // User closed the account picker -- not an error, nothing to show.
         return AuthResult(success: false);
       }
+      // The user-facing message stays generic, but the real exception
+      // (e.g. a DEVELOPER_ERROR code, which almost always means the
+      // signing certificate's SHA-1 isn't registered for this OAuth
+      // client) is worth seeing in the console -- this exact class of
+      // failure is invisible otherwise, since GoogleSignInException's
+      // description rarely says anything more specific than the code.
+      developer.log('Google sign-in failed: ${e.code} ${e.description ?? ''}', name: 'AuthService');
       return AuthResult(success: false, error: 'Google sign-in failed. Please try again.');
     } catch (e) {
+      developer.log('Google sign-in failed with unexpected error: $e', name: 'AuthService');
       return AuthResult(success: false, error: 'Google sign-in failed. Please try again.');
     }
   }
