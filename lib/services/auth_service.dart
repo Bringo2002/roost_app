@@ -1,21 +1,23 @@
 import 'dart:convert';
-import 'dart:developer' as developer;
 import 'dart:io';
-import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:jwt_decoder/jwt_decoder.dart';
+
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:http/http.dart' as http;
+import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:roost_app/config.dart';
 import 'package:roost_app/services/push_notification_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthResult {
   final bool success;
   final String? error;
+
   /// True only when this call created a brand-new account (Google
   /// sign-in on a first-time user). Lets the caller route to onboarding
   /// instead of home, matching what plain signup already does.
   final bool isNewUser;
+
   AuthResult({required this.success, this.error, this.isNewUser = false});
 }
 
@@ -23,18 +25,25 @@ class AuthService {
   static final String baseUrl = '${AppConfig.baseurl}/api/auth';
   static const String _tokenKey = 'jwt_token';
 
-  static Future<AuthResult> signup(String name, String email, String password, String role) async {
+  static Future<AuthResult> signup(
+    String name,
+    String email,
+    String password,
+    String role,
+  ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/signup'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'name': name,
-          'email': email,
-          'password': password,
-          'role': role,
-        }),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/signup'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'name': name,
+              'email': email,
+              'password': password,
+              'role': role,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -54,12 +63,21 @@ class AuthService {
       } catch (_) {}
       return AuthResult(success: false, error: errorMsg);
     } on SocketException {
-      return AuthResult(success: false, error: 'Cannot reach server. Check your internet connection.');
+      return AuthResult(
+        success: false,
+        error: 'Cannot reach server. Check your internet connection.',
+      );
     } on http.ClientException {
-      return AuthResult(success: false, error: 'Connection error. The server may be down.');
+      return AuthResult(
+        success: false,
+        error: 'Connection error. The server may be down.',
+      );
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
-        return AuthResult(success: false, error: 'Request timed out. Please try again.');
+        return AuthResult(
+          success: false,
+          error: 'Request timed out. Please try again.',
+        );
       }
       return AuthResult(success: false, error: 'Unexpected error: $e');
     }
@@ -67,14 +85,13 @@ class AuthService {
 
   static Future<AuthResult> login(String email, String password) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/login'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'email': email,
-          'password': password,
-        }),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/login'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({'email': email, 'password': password}),
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -93,12 +110,21 @@ class AuthService {
       } catch (_) {}
       return AuthResult(success: false, error: errorMsg);
     } on SocketException {
-      return AuthResult(success: false, error: 'Cannot reach server. Check your internet connection.');
+      return AuthResult(
+        success: false,
+        error: 'Cannot reach server. Check your internet connection.',
+      );
     } on http.ClientException {
-      return AuthResult(success: false, error: 'Connection error. The server may be down.');
+      return AuthResult(
+        success: false,
+        error: 'Connection error. The server may be down.',
+      );
     } catch (e) {
       if (e.toString().contains('TimeoutException')) {
-        return AuthResult(success: false, error: 'Request timed out. Please try again.');
+        return AuthResult(
+          success: false,
+          error: 'Request timed out. Please try again.',
+        );
       }
       return AuthResult(success: false, error: 'Unexpected error: $e');
     }
@@ -123,7 +149,9 @@ class AuthService {
   /// calls to signInWithGoogle() safe without re-initializing.
   static Future<void> _ensureGoogleSignInReady() async {
     if (_googleSignInReady) return;
-    await GoogleSignIn.instance.initialize(serverClientId: _googleServerClientId);
+    await GoogleSignIn.instance.initialize(
+      serverClientId: _googleServerClientId,
+    );
     _googleSignInReady = true;
   }
 
@@ -140,17 +168,28 @@ class AuthService {
     try {
       await _ensureGoogleSignInReady();
 
-      final googleUser = await GoogleSignIn.instance.authenticate(scopeHint: ['email']);
+      final googleUser = await GoogleSignIn.instance.authenticate(
+        scopeHint: ['email'],
+      );
       final googleIdToken = googleUser.authentication.idToken;
       if (googleIdToken == null) {
-        return AuthResult(success: false, error: 'Google sign-in did not return a token. Please try again.');
+        return AuthResult(
+          success: false,
+          error: 'Google sign-in did not return a token. Please try again.',
+        );
       }
 
-      final credential = fb_auth.GoogleAuthProvider.credential(idToken: googleIdToken);
-      final userCredential = await fb_auth.FirebaseAuth.instance.signInWithCredential(credential);
+      final credential = fb_auth.GoogleAuthProvider.credential(
+        idToken: googleIdToken,
+      );
+      final userCredential = await fb_auth.FirebaseAuth.instance
+          .signInWithCredential(credential);
       final firebaseIdToken = await userCredential.user?.getIdToken();
       if (firebaseIdToken == null) {
-        return AuthResult(success: false, error: 'Could not complete Google sign-in. Please try again.');
+        return AuthResult(
+          success: false,
+          error: 'Could not complete Google sign-in. Please try again.',
+        );
       }
 
       return _exchangeGoogleToken(firebaseIdToken, role);
@@ -159,30 +198,30 @@ class AuthService {
         // User closed the account picker -- not an error, nothing to show.
         return AuthResult(success: false);
       }
-      // The user-facing message stays generic, but the real exception
-      // (e.g. a DEVELOPER_ERROR code, which almost always means the
-      // signing certificate's SHA-1 isn't registered for this OAuth
-      // client) is worth seeing in the console -- this exact class of
-      // failure is invisible otherwise, since GoogleSignInException's
-      // description rarely says anything more specific than the code.
-      developer.log('Google sign-in failed: ${e.code} ${e.description ?? ''}', name: 'AuthService');
-      return AuthResult(success: false, error: 'Google sign-in failed. Please try again.');
+      return AuthResult(
+        success: false,
+        error: 'Google sign-in failed: ${e.code} ${e.description ?? ''}',
+      );
     } catch (e) {
-      developer.log('Google sign-in failed with unexpected error: $e', name: 'AuthService');
-      return AuthResult(success: false, error: 'Google sign-in failed. Please try again.');
+      return AuthResult(success: false, error: 'Google sign-in failed: $e');
     }
   }
 
-  static Future<AuthResult> _exchangeGoogleToken(String firebaseIdToken, String? role) async {
+  static Future<AuthResult> _exchangeGoogleToken(
+    String firebaseIdToken,
+    String? role,
+  ) async {
     try {
-      final response = await http.post(
-        Uri.parse('$baseUrl/google'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'idToken': firebaseIdToken,
-          if (role != null) 'role': role,
-        }),
-      ).timeout(const Duration(seconds: 30));
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/google'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'idToken': firebaseIdToken,
+              if (role != null) 'role': role,
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -201,9 +240,15 @@ class AuthService {
       } catch (_) {}
       return AuthResult(success: false, error: errorMsg);
     } on SocketException {
-      return AuthResult(success: false, error: 'Cannot reach server. Check your internet connection.');
+      return AuthResult(
+        success: false,
+        error: 'Cannot reach server. Check your internet connection.',
+      );
     } on http.ClientException {
-      return AuthResult(success: false, error: 'Connection error. The server may be down.');
+      return AuthResult(
+        success: false,
+        error: 'Connection error. The server may be down.',
+      );
     } catch (e) {
       return AuthResult(success: false, error: 'Unexpected error: $e');
     }
@@ -220,24 +265,32 @@ class AuthService {
   /// method would report success even though the password was never
   /// actually changed. Now that /api/auth/change-password is a known,
   /// stable endpoint, there's exactly one call and no ambiguity.
-  static Future<AuthResult> changePassword(String currentPassword, String newPassword) async {
+  static Future<AuthResult> changePassword(
+    String currentPassword,
+    String newPassword,
+  ) async {
     try {
       final token = await getToken();
       if (token == null) {
-        return AuthResult(success: false, error: 'Not authenticated. Please log in again.');
+        return AuthResult(
+          success: false,
+          error: 'Not authenticated. Please log in again.',
+        );
       }
 
-      final res = await http.post(
-        Uri.parse('${AppConfig.baseUrl}/api/auth/change-password'),
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer $token',
-        },
-        body: jsonEncode({
-          'currentPassword': currentPassword,
-          'newPassword': newPassword,
-        }),
-      ).timeout(const Duration(seconds: 8));
+      final res = await http
+          .post(
+            Uri.parse('${AppConfig.baseUrl}/api/auth/change-password'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+            body: jsonEncode({
+              'currentPassword': currentPassword,
+              'newPassword': newPassword,
+            }),
+          )
+          .timeout(const Duration(seconds: 8));
 
       if (res.statusCode == 200 || res.statusCode == 204) {
         return AuthResult(success: true);
