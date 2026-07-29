@@ -200,10 +200,13 @@ class AuthService {
       }
       return AuthResult(
         success: false,
-        error: 'Google sign-in failed: ${e.code} ${e.description ?? ''}',
+        error: 'Google sign-in failed. Please try again.',
       );
     } catch (e) {
-      return AuthResult(success: false, error: 'Google sign-in failed: $e');
+      return AuthResult(
+        success: false,
+        error: 'Google sign-in failed. Please try again.',
+      );
     }
   }
 
