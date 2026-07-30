@@ -296,6 +296,30 @@ class ChatService {
     }
   }
 
+  /// Clears all messages in this conversation from the current user's
+  /// view only -- [partnerId] keeps their full history. Any messages
+  /// sent after this point still show up normally.
+  static Future<bool> clearChat(int partnerId) async {
+    try {
+      await ApiService.post('/api/chat/$partnerId/clear');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /// Removes this conversation from the current user's chat list only.
+  /// Reappears automatically the moment [partnerId] sends a new message
+  /// -- there's no separate "undelete" action.
+  static Future<bool> deleteChat(int partnerId) async {
+    try {
+      await ApiService.post('/api/chat/$partnerId/delete-chat');
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   // ─── Reactions ─────────────────────────────────────────────────────
 
   /// Toggles a reaction on a message. The backend adds it if absent, or

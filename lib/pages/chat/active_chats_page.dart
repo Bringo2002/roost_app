@@ -86,6 +86,41 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
     }
   }
 
+  Future<bool> _confirmDeleteChat(ConversationSummary summary) async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete this chat?', style: TextStyle(color: Colors.white, fontSize: 18)),
+        content: Text(
+          'This removes ${summary.partner.name} from your chat list. '
+          'It\'ll reappear if they message you again.',
+          style: const TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return false;
+
+    final success = await ChatService.deleteChat(summary.partner.id);
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete chat. Please try again.')),
+      );
+    }
+    return success;
+  }
+
   @override
   Widget build(BuildContext context) {
     return _buildBody();
@@ -141,16 +176,32 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
         ),
         itemBuilder: (context, index) {
           final summary = _conversations[index];
-          return ChatTile(
-            summary: summary,
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => ChatRoomPage(partner: summary.partner),
-                ),
-              ).then((_) => _loadChats());
+          return Dismissible(
+            key: ValueKey(summary.partner.id),
+            direction: DismissDirection.endToStart,
+            background: Container(
+              color: Colors.redAccent,
+              alignment: Alignment.centerRight,
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: const Icon(Icons.delete_outline, color: Colors.white),
+            ),
+            confirmDismiss: (_) => _confirmDeleteChat(summary),
+            onDismissed: (_) {
+              setState(() {
+                _conversations.removeAt(index);
+              });
             },
+            child: ChatTile(
+              summary: summary,
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ChatRoomPage(partner: summary.partner),
+                  ),
+                ).then((_) => _loadChats());
+              },
+            ),
           );
         },
       ),

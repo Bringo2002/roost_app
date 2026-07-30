@@ -453,6 +453,82 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
   }
 
+  Future<void> _confirmClearChat() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Clear this chat?', style: TextStyle(color: Colors.white, fontSize: 18)),
+        content: Text(
+          'This removes all messages with ${widget.partner.name} from your view only. '
+          '${widget.partner.name} will still see their full history.',
+          style: const TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Clear', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final success = await ChatService.clearChat(widget.partner.id);
+    if (!mounted) return;
+    if (success) {
+      setState(() {
+        _messages = [];
+      });
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to clear chat. Please try again.')),
+      );
+    }
+  }
+
+  Future<void> _confirmDeleteChat() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Delete this chat?', style: TextStyle(color: Colors.white, fontSize: 18)),
+        content: Text(
+          'This removes ${widget.partner.name} from your chat list. '
+          'It\'ll reappear if they message you again.',
+          style: const TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    final success = await ChatService.deleteChat(widget.partner.id);
+    if (!mounted) return;
+    if (success) {
+      Navigator.pop(context); // back to the chat list
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to delete chat. Please try again.')),
+      );
+    }
+  }
+
   void _showForwardSheet(Message message) async {
     showDialog(
       context: context,
@@ -805,6 +881,24 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                   const SnackBar(content: Text('Messages in this conversation are end-to-end encrypted.')),
                 );
               },
+            ),
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.more_vert, size: 20),
+              color: const Color(0xFF1C1C1E),
+              onSelected: (value) {
+                if (value == 'clear') _confirmClearChat();
+                if (value == 'delete') _confirmDeleteChat();
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'clear',
+                  child: Text('Clear chat', style: TextStyle(color: Colors.white)),
+                ),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete chat', style: TextStyle(color: Colors.redAccent)),
+                ),
+              ],
             ),
           ]
         ],
