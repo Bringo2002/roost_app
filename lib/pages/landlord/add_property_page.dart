@@ -58,9 +58,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   bool get _isEditing => widget.editingProperty != null;
 
+  /// Tracks the id of whatever draft this wizard session is building,
+  /// whether that's an existing listing passed in via editingProperty
+  /// or one silently created by autosave partway through a fresh
+  /// session. Once set, every subsequent save (autosave, explicit Save
+  /// Draft, or final Publish) becomes a PUT against this id instead of
+  /// a new POST -- otherwise autosaving on every step would create a
+  /// new orphaned draft every time instead of updating the same one.
+  int? _draftId;
+
   @override
   void initState() {
     super.initState();
+    _draftId = widget.editingProperty?.id;
     final p = widget.editingProperty;
     if (p == null) return;
 
@@ -189,6 +199,80 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     setState(() => _imageUrls.remove(url));
   }
 
+  /// Shared payload builder for every save path (autosave, explicit
+  /// Save Draft, and final Publish) -- only the status differs between
+  /// them, so this is the single place field mapping lives instead of
+  /// three copies drifting apart over time.
+  Map<String, dynamic> _buildPayload({required String status}) {
+    return {
+      'title': _titleCtrl.text.trim(),
+      'location': _locationCtrl.text.trim(),
+      'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      'deposit': _depositCtrl.text.trim(),
+      'bedrooms': int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
+      'bathrooms': int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
+      'houseType': _houseType,
+      'type': 'RENTAL',
+      // Preserves whatever the ORIGINAL listing's available/verified
+      // status already was, if one was passed in -- an edit (or an
+      // autosave of a listing that started life as one) shouldn't
+      // silently re-publish something marked rented, or un-verify one
+      // that passed verification, just because a field changed.
+      'available': _isEditing ? widget.editingProperty!.available : true,
+      'verified': _isEditing ? widget.editingProperty!.verified : false,
+      'landlordPhone': _phoneCtrl.text.trim(),
+      'description': _descriptionCtrl.text.trim(),
+      if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
+      'imageUrls': _imageUrls,
+      'latitude': _latitude,
+      'longitude': _longitude,
+      'furnished': _furnished,
+      'parking': _parking,
+      'wifi': _wifi,
+      'water': _water,
+      'security': _security,
+      'balcony': _balcony,
+      'petFriendly': _petFriendly,
+      'moveInDate': _moveInDate,
+      'country': CountryService.config.code,
+      'status': status,
+    };
+  }
+
+  /// Creates the listing on first save, updates it on every save after
+  /// that -- `_draftId` is how every other method knows which case it
+  /// is. Returns the saved property's id (updating `_draftId` as a
+  /// side effect) so callers don't have to duplicate that bookkeeping.
+  Future<int?> _persist(Map<String, dynamic> payload) async {
+    if (_draftId != null) {
+      await ApiService.put('/api/properties/$_draftId', payload);
+      return _draftId;
+    }
+    final result = await ApiService.post('/api/properties', payload);
+    final newId = result is Map ? result['id'] as int? : null;
+    if (newId != null) _draftId = newId;
+    return _draftId;
+  }
+
+  /// Fires on every step advance so a listing exists as a draft on the
+  /// server from partway through the wizard onward, not just when the
+  /// user explicitly taps Save Draft or reaches the final Publish step.
+  /// Deliberately silent and non-blocking: it must never interrupt or
+  /// delay navigation between steps, and a failure here isn't the
+  /// user's problem to see -- Save Draft and Publish still report
+  /// their own errors normally, and either will simply retry the save
+  /// next time it's called.
+  void _autosaveDraft() async {
+    // Nothing worth persisting yet on a completely untouched first step.
+    if (_titleCtrl.text.trim().isEmpty && _imageUrls.isEmpty && !_isEditing) return;
+    try {
+      await _persist(_buildPayload(status: 'DRAFT'));
+    } catch (_) {
+      // Swallow silently -- see method doc. Explicit saves still surface
+      // their own errors to the user.
+    }
+  }
+
   /// Landlords must have a verified phone before their first listing can
   /// go live -- checked here rather than earlier in the wizard so
   /// browsing/drafting the listing itself stays frictionless, matching
@@ -239,45 +323,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
     setState(() => _isLoading = true);
 
-    final payload = {
-      'title': _titleCtrl.text.trim(),
-      'location': _locationCtrl.text.trim(),
-      'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-      'deposit': _depositCtrl.text.trim(),
-      'bedrooms': int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
-      'bathrooms': int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
-      'houseType': _houseType,
-      'type': 'RENTAL',
-      // Editing preserves whatever the listing's current available/verified
-      // status already is -- an edit shouldn't silently re-publish a
-      // listing the landlord marked as rented, or un-verify one that
-      // passed verification, just because they fixed a typo.
-      'available': _isEditing ? widget.editingProperty!.available : true,
-      'verified': _isEditing ? widget.editingProperty!.verified : false,
-      'landlordPhone': _phoneCtrl.text.trim(),
-      'description': _descriptionCtrl.text.trim(),
-      'imageUrl': _imageUrls.first,
-      'imageUrls': _imageUrls,
-      'latitude': _latitude,
-      'longitude': _longitude,
-      'furnished': _furnished,
-      'parking': _parking,
-      'wifi': _wifi,
-      'water': _water,
-      'security': _security,
-      'balcony': _balcony,
-      'petFriendly': _petFriendly,
-      'moveInDate': _moveInDate,
-      'country': CountryService.config.code,
-      'status': 'PUBLISHED',
-    };
-
     try {
-      if (_isEditing) {
-        await ApiService.put('/api/properties/${widget.editingProperty!.id}', payload);
-      } else {
-        await ApiService.post('/api/properties', payload);
-      }
+      await _persist(_buildPayload(status: 'PUBLISHED'));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -287,7 +334,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to ${_isEditing ? 'update' : 'publish'} listing: $e')),
+          SnackBar(content: Text('Failed to publish listing: $e')),
         );
       }
     } finally {
@@ -309,6 +356,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       return;
     }
     if (_step < 4) {
+      _autosaveDraft();
       setState(() => _step++);
     } else {
       _submitProperty();
@@ -326,45 +374,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   /// checks that publishing enforces -- a draft is allowed to be
   /// incomplete by definition. Available from any step, not just the
   /// final review screen, so closing the wizard early doesn't lose
-  /// everything typed so far.
+  /// everything typed so far. Unlike _autosaveDraft, this is a visible,
+  /// user-triggered action, so it does show success/failure feedback.
   Future<void> _saveDraft() async {
     setState(() => _isLoading = true);
 
-    final payload = {
-      'title': _titleCtrl.text.trim(),
-      'location': _locationCtrl.text.trim(),
-      'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-      'deposit': _depositCtrl.text.trim(),
-      'bedrooms': int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
-      'bathrooms': int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
-      'houseType': _houseType,
-      'type': 'RENTAL',
-      'available': _isEditing ? widget.editingProperty!.available : true,
-      'verified': _isEditing ? widget.editingProperty!.verified : false,
-      'landlordPhone': _phoneCtrl.text.trim(),
-      'description': _descriptionCtrl.text.trim(),
-      if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
-      'imageUrls': _imageUrls,
-      'latitude': _latitude,
-      'longitude': _longitude,
-      'furnished': _furnished,
-      'parking': _parking,
-      'wifi': _wifi,
-      'water': _water,
-      'security': _security,
-      'balcony': _balcony,
-      'petFriendly': _petFriendly,
-      'moveInDate': _moveInDate,
-      'country': CountryService.config.code,
-      'status': 'DRAFT',
-    };
-
     try {
-      if (_isEditing) {
-        await ApiService.put('/api/properties/${widget.editingProperty!.id}', payload);
-      } else {
-        await ApiService.post('/api/properties', payload);
-      }
+      await _persist(_buildPayload(status: 'DRAFT'));
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
