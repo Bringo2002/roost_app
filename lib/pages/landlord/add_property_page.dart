@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/pages/search/location_picker_page.dart';
 import 'package:roost_app/services/api_service.dart';
 
@@ -188,7 +189,33 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     setState(() => _imageUrls.remove(url));
   }
 
+  /// Landlords must have a verified phone before their first listing can
+  /// go live -- checked here rather than earlier in the wizard so
+  /// browsing/drafting the listing itself stays frictionless, matching
+  /// the deferred-verification model already used for becoming a
+  /// landlord in the first place. Returns false if the user backs out
+  /// of verification, in which case publish should not proceed.
+  Future<bool> _ensurePhoneVerified() async {
+    try {
+      final me = await ApiService.get('/api/users/me');
+      if (me['phoneVerified'] == true) return true;
+    } catch (_) {
+      // If the check itself fails (network hiccup), fall through to the
+      // verification screen rather than silently allowing an unverified
+      // publish.
+    }
+
+    if (!mounted) return false;
+    final verified = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (_) => const PhoneVerificationPage()),
+    );
+    return verified == true;
+  }
+
   Future<void> _submitProperty() async {
+    if (!await _ensurePhoneVerified()) return;
+
     if (_titleCtrl.text.isEmpty || _priceCtrl.text.isEmpty || _locationCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please complete all required fields.')),
