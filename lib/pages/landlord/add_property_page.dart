@@ -269,6 +269,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       'petFriendly': _petFriendly,
       'moveInDate': _moveInDate,
       'country': CountryService.config.code,
+      'status': 'PUBLISHED',
     };
 
     try {
@@ -320,6 +321,65 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
+  /// Saves whatever's been filled in so far as a DRAFT and exits the
+  /// wizard, without the phone-verification gate or required-field
+  /// checks that publishing enforces -- a draft is allowed to be
+  /// incomplete by definition. Available from any step, not just the
+  /// final review screen, so closing the wizard early doesn't lose
+  /// everything typed so far.
+  Future<void> _saveDraft() async {
+    setState(() => _isLoading = true);
+
+    final payload = {
+      'title': _titleCtrl.text.trim(),
+      'location': _locationCtrl.text.trim(),
+      'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      'deposit': _depositCtrl.text.trim(),
+      'bedrooms': int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
+      'bathrooms': int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
+      'houseType': _houseType,
+      'type': 'RENTAL',
+      'available': _isEditing ? widget.editingProperty!.available : true,
+      'verified': _isEditing ? widget.editingProperty!.verified : false,
+      'landlordPhone': _phoneCtrl.text.trim(),
+      'description': _descriptionCtrl.text.trim(),
+      if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
+      'imageUrls': _imageUrls,
+      'latitude': _latitude,
+      'longitude': _longitude,
+      'furnished': _furnished,
+      'parking': _parking,
+      'wifi': _wifi,
+      'water': _water,
+      'security': _security,
+      'balcony': _balcony,
+      'petFriendly': _petFriendly,
+      'moveInDate': _moveInDate,
+      'country': CountryService.config.code,
+      'status': 'DRAFT',
+    };
+
+    try {
+      if (_isEditing) {
+        await ApiService.put('/api/properties/${widget.editingProperty!.id}', payload);
+      } else {
+        await ApiService.post('/api/properties', payload);
+      }
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Draft saved. Resume it anytime from your listings.')),
+      );
+      Navigator.pop(context, true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not save draft: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -328,6 +388,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
         title: Text(_isEditing ? 'Edit Listing' : 'List a Property', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        actions: [
+          TextButton(
+            onPressed: _isLoading ? null : _saveDraft,
+            child: const Text('Save Draft', style: TextStyle(color: Colors.white70)),
+          ),
+        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator(color: Colors.white))

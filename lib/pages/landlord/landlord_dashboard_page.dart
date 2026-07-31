@@ -29,7 +29,8 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       final jsonList = await ApiService.get('/api/properties/my-listings');
       if (!mounted) return;
       setState(() {
-        _myListings = (jsonList as List).map((j) => Property.fromJson(j)).toList();
+        _myListings = (jsonList as List).map((j) => Property.fromJson(j)).toList()
+          ..sort((a, b) => a.status == b.status ? 0 : (a.status == 'DRAFT' ? -1 : 1));
         _loading = false;
       });
     } catch (e) {
@@ -112,6 +113,46 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     }
   }
 
+  /// One-tap publish for a draft, without reopening the wizard. Backend
+  /// still enforces phone verification (PropertyService.assertCanPublish)
+  /// even though this shortcut skips the wizard's own verification UI --
+  /// if that check fails, send the landlord into the wizard instead,
+  /// where the phone-verification screen actually lives.
+  Future<void> _publishDraft(Property property) async {
+    try {
+      await ApiService.patch('/api/properties/${property.id}/publish', {});
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Listing published')),
+      );
+      _loadListings();
+    } catch (e) {
+      if (!mounted) return;
+      final proceedToWizard = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: Colors.grey[900],
+          title: const Text('Could not publish', style: TextStyle(color: Colors.white)),
+          content: Text(
+            'This usually means your phone isn\'t verified yet. Open the listing to verify and publish?',
+            style: TextStyle(color: Colors.grey[400]),
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Open Listing')),
+          ],
+        ),
+      );
+      if (proceedToWizard == true) {
+        final updated = await Navigator.push<bool>(
+          context,
+          MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
+        );
+        if (updated == true) _loadListings();
+      }
+    }
+  }
+
   Widget _buildStatsHeader() {
     return Container(
       padding: const EdgeInsets.all(16),
@@ -124,6 +165,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           _buildStatItem('Listings', '${_myListings.length}'),
+          _buildStatItem('Drafts', '${_myListings.where((p) => p.status == 'DRAFT').length}'),
           _buildStatItem('Available', '${_myListings.where((p) => p.available).length}'),
         ],
       ),
@@ -207,11 +249,32 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
                                   Expanded(
-                                    child: Text(
-                                      property.title,
-                                      style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
+                                    child: Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            property.title,
+                                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                        if (property.status == 'DRAFT') ...[
+                                          const SizedBox(width: 8),
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                            decoration: BoxDecoration(
+                                              color: Colors.amber.withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(6),
+                                              border: Border.all(color: Colors.amber, width: 1),
+                                            ),
+                                            child: const Text(
+                                              'DRAFT',
+                                              style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
+                                            ),
+                                          ),
+                                        ],
+                                      ],
                                     ),
                                   ),
                                   Row(
@@ -278,17 +341,26 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                               Row(
                                 children: [
                                   Text(
-                                    property.listedAt != null
-                                        ? 'Listed ${DateFormat('dd MMM yyyy').format(DateTime.parse(property.listedAt!))}'
-                                        : 'Listed recently',
+                                    property.status == 'DRAFT'
+                                        ? 'Not published yet'
+                                        : (property.listedAt != null
+                                            ? 'Listed ${DateFormat('dd MMM yyyy').format(DateTime.parse(property.listedAt!))}'
+                                            : 'Listed recently'),
                                     style: const TextStyle(color: Colors.white38, fontSize: 13),
                                   ),
                                   const Spacer(),
-                                  TextButton(
-                                    onPressed: () => _viewApplications(property),
-                                    style: TextButton.styleFrom(foregroundColor: Colors.white, padding: EdgeInsets.zero),
-                                    child: const Text('Applications', style: TextStyle(fontSize: 12)),
-                                  ),
+                                  if (property.status == 'DRAFT')
+                                    TextButton(
+                                      onPressed: () => _publishDraft(property),
+                                      style: TextButton.styleFrom(foregroundColor: Colors.amber, padding: EdgeInsets.zero),
+                                      child: const Text('Publish', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                    )
+                                  else
+                                    TextButton(
+                                      onPressed: () => _viewApplications(property),
+                                      style: TextButton.styleFrom(foregroundColor: Colors.white, padding: EdgeInsets.zero),
+                                      child: const Text('Applications', style: TextStyle(fontSize: 12)),
+                                    ),
                                 ],
                               ),
                             ],
