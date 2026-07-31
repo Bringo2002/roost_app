@@ -16,7 +16,6 @@ class _SignupPageState extends State<SignupPage> {
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  String _role = 'TENANT';
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -35,7 +34,6 @@ class _SignupPageState extends State<SignupPage> {
       _nameCtrl.text.trim(),
       _emailCtrl.text.trim(),
       _passwordCtrl.text,
-      _role,
     );
     setState(() => _isLoading = false);
 
@@ -59,7 +57,7 @@ class _SignupPageState extends State<SignupPage> {
 
   void _signUpWithGoogle() async {
     setState(() => _isLoading = true);
-    final result = await AuthService.signInWithGoogle(role: _role);
+    final result = await AuthService.signInWithGoogle();
     setState(() => _isLoading = false);
 
     if (!mounted) return;
@@ -150,81 +148,6 @@ class _SignupPageState extends State<SignupPage> {
               ),
 
               const SizedBox(height: 32),
-
-              // Role Selector Chips
-              const Text('Account Type', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _role = 'TENANT'),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: _role == 'TENANT' ? _goldAccent.withValues(alpha: 0.15) : const Color(0xFF1C1C1E),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: _role == 'TENANT' ? _goldAccent : Colors.grey[900]!,
-                            width: _role == 'TENANT' ? 2 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.home_outlined, color: _role == 'TENANT' ? _goldAccent : Colors.grey[500], size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Tenant',
-                              style: TextStyle(
-                                color: _role == 'TENANT' ? Colors.white : Colors.grey[400],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => setState(() => _role = 'LANDLORD'),
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        decoration: BoxDecoration(
-                          color: _role == 'LANDLORD' ? _goldAccent.withValues(alpha: 0.15) : const Color(0xFF1C1C1E),
-                          borderRadius: BorderRadius.circular(14),
-                          border: Border.all(
-                            color: _role == 'LANDLORD' ? _goldAccent : Colors.grey[900]!,
-                            width: _role == 'LANDLORD' ? 2 : 1,
-                          ),
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.vpn_key_outlined, color: _role == 'LANDLORD' ? _goldAccent : Colors.grey[500], size: 18),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Landlord',
-                              style: TextStyle(
-                                color: _role == 'LANDLORD' ? Colors.white : Colors.grey[400],
-                                fontWeight: FontWeight.bold,
-                                fontSize: 14,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              const SizedBox(height: 20),
 
               TextField(
                 controller: _nameCtrl,

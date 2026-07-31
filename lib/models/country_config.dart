@@ -25,8 +25,6 @@ class CountryConfig {
   final String searchHint;     // Placeholder in search bar
   final List<BudgetOption> budgets; // Onboarding budget tiers
   final String browsingDesc;   // "Just Browsing" description text
-  final String paymentLabel;   // "M-Pesa Receipt" / "UPI Reference" / "Payment Reference"
-  final double holdingFee;     // Holding fee amount in local currency
 
   const CountryConfig({
     required this.code,
@@ -41,8 +39,6 @@ class CountryConfig {
     required this.searchHint,
     required this.budgets,
     required this.browsingDesc,
-    required this.paymentLabel,
-    required this.holdingFee,
   });
 
   // ── Supported Countries ───────────────────────────────────────────
@@ -59,8 +55,6 @@ class CountryConfig {
     priceDivisions: 29,
     searchHint: 'Search Nairobi rentals, Kilimani, Westlands...',
     browsingDesc: 'Checking Nairobi market prices',
-    paymentLabel: 'M-Pesa Receipt',
-    holdingFee: 2000,
     budgets: [
       BudgetOption(title: 'Under KES 15,000', badge: 'Budget Friendly', desc: 'Affordable studio & bedsitter listings'),
       BudgetOption(title: 'KES 15k – 30k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
@@ -81,8 +75,6 @@ class CountryConfig {
     priceDivisions: 19,
     searchHint: 'Search Mumbai, Bangalore, Delhi rentals...',
     browsingDesc: 'Checking Indian rental market prices',
-    paymentLabel: 'UPI Reference',
-    holdingFee: 500,
     budgets: [
       BudgetOption(title: 'Under ₹10,000', badge: 'Budget Friendly', desc: 'Affordable PG & 1RK listings'),
       BudgetOption(title: '₹10k – ₹25k', badge: 'Popular', desc: 'Standard 1BHK & 2BHK flats'),
@@ -103,8 +95,6 @@ class CountryConfig {
     priceDivisions: 39,
     searchHint: 'Search Lagos, Abuja, Port Harcourt rentals...',
     browsingDesc: 'Checking Nigerian rental market prices',
-    paymentLabel: 'Bank Transfer Reference',
-    holdingFee: 5000,
     budgets: [
       BudgetOption(title: 'Under ₦150,000', badge: 'Budget Friendly', desc: 'Affordable self-contain & mini flats'),
       BudgetOption(title: '₦150k – ₦500k', badge: 'Popular', desc: 'Standard 2 & 3 bedroom flats'),
@@ -125,8 +115,6 @@ class CountryConfig {
     priceDivisions: 18,
     searchHint: 'Search NYC, LA, Chicago rentals...',
     browsingDesc: 'Checking US rental market prices',
-    paymentLabel: 'Payment Reference',
-    holdingFee: 200,
     budgets: [
       BudgetOption(title: 'Under \$1,000', badge: 'Budget Friendly', desc: 'Affordable studio & shared apartments'),
       BudgetOption(title: '\$1,000 – \$2,000', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
@@ -147,8 +135,6 @@ class CountryConfig {
     priceDivisions: 18,
     searchHint: 'Search London, Manchester, Birmingham rentals...',
     browsingDesc: 'Checking UK rental market prices',
-    paymentLabel: 'Payment Reference',
-    holdingFee: 150,
     budgets: [
       BudgetOption(title: 'Under £800', badge: 'Budget Friendly', desc: 'Affordable studio & shared flats'),
       BudgetOption(title: '£800 – £1,500', badge: 'Popular', desc: 'Standard 1 & 2 bed flats'),
@@ -169,8 +155,6 @@ class CountryConfig {
     priceDivisions: 18,
     searchHint: 'Search Dubai, Abu Dhabi, Sharjah rentals...',
     browsingDesc: 'Checking UAE rental market prices',
-    paymentLabel: 'Payment Reference',
-    holdingFee: 500,
     budgets: [
       BudgetOption(title: 'Under AED 3,000', badge: 'Budget Friendly', desc: 'Affordable studio & sharing options'),
       BudgetOption(title: 'AED 3k – 6k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),

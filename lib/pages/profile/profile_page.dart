@@ -67,6 +67,27 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Upgrades this account to LANDLORD via POST /api/auth/lister-profile,
+  /// then reloads the profile so isLandlord flips and the dashboard menu
+  /// item appears. Role is never chosen at signup -- this is the one
+  /// explicit, user-triggered moment it's granted.
+  Future<void> _becomeLandlord() async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ApiService.post('/api/auth/lister-profile');
+      await _loadProfile();
+      if (!mounted) return;
+      messenger.showSnackBar(
+        const SnackBar(content: Text('You can now list properties on Roost')),
+      );
+      Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordDashboardPage()));
+    } catch (e) {
+      messenger.showSnackBar(
+        SnackBar(content: Text('Could not enable listing: $e')),
+      );
+    }
+  }
+
 
 
   @override
@@ -183,7 +204,9 @@ class _ProfilePageState extends State<ProfilePage> {
               if (isLandlord)
                 _buildMenuItem(Icons.holiday_village_outlined, 'My Listed Properties', () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordDashboardPage()));
-                }),
+                })
+              else
+                _buildMenuItem(Icons.add_home_work_outlined, 'List Your Property', _becomeLandlord),
 
               const SizedBox(height: 24),
 

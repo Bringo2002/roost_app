@@ -29,7 +29,6 @@ class AuthService {
     String name,
     String email,
     String password,
-    String role,
   ) async {
     try {
       final response = await http
@@ -40,7 +39,6 @@ class AuthService {
               'name': name,
               'email': email,
               'password': password,
-              'role': role,
             }),
           )
           .timeout(const Duration(seconds: 30));
@@ -155,16 +153,15 @@ class AuthService {
     _googleSignInReady = true;
   }
 
-  /// Signs in (or signs up) with Google. [role] is only used the first
-  /// time a given Google account signs up -- pass the value the user
-  /// picked on the signup screen's Tenant/Landlord chips. It's ignored
-  /// for an existing account, same as the plain signup form's role only
-  /// applying at account creation.
+  /// Signs in (or signs up) with Google. Every account -- new or
+  /// existing -- starts as a plain browsing (TENANT) account; there's
+  /// no role to pass in at this point. Someone becomes a landlord later,
+  /// explicitly, via AuthService.becomeLandlord.
   ///
   /// Flow: Google identity -> Firebase credential -> Firebase ID token
   /// -> our backend's /api/auth/google, which verifies that token and
   /// returns our own JWT (same shape as /login and /signup).
-  static Future<AuthResult> signInWithGoogle({String? role}) async {
+  static Future<AuthResult> signInWithGoogle() async {
     try {
       await _ensureGoogleSignInReady();
 
@@ -192,7 +189,7 @@ class AuthService {
         );
       }
 
-      return _exchangeGoogleToken(firebaseIdToken, role);
+      return _exchangeGoogleToken(firebaseIdToken);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         // User closed the account picker -- not an error, nothing to show.
@@ -212,7 +209,6 @@ class AuthService {
 
   static Future<AuthResult> _exchangeGoogleToken(
     String firebaseIdToken,
-    String? role,
   ) async {
     try {
       final response = await http
@@ -221,7 +217,6 @@ class AuthService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({
               'idToken': firebaseIdToken,
-              if (role != null) 'role': role,
             }),
           )
           .timeout(const Duration(seconds: 30));

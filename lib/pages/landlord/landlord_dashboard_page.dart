@@ -15,9 +15,6 @@ class LandlordDashboardPage extends StatefulWidget {
 class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   List<Property> _myListings = [];
   bool _loading = true;
-  int _totalListings = 0;
-  int _totalSecured = 0;
-  double _totalRevenue = 0.0;
 
   @override
   void initState() {
@@ -30,13 +27,9 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     setState(() => _loading = true);
     try {
       final jsonList = await ApiService.get('/api/properties/my-listings');
-      final stats = await ApiService.get('/api/verification/landlord-stats');
       if (!mounted) return;
       setState(() {
         _myListings = (jsonList as List).map((j) => Property.fromJson(j)).toList();
-        _totalListings = stats['totalListings'] ?? 0;
-        _totalSecured = stats['totalSecured'] ?? 0;
-        _totalRevenue = (stats['totalRevenue'] ?? 0.0).toDouble();
         _loading = false;
       });
     } catch (e) {
@@ -127,27 +120,11 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
         color: Colors.grey[900],
         borderRadius: BorderRadius.circular(16),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          const Text(
-            'REVENUE SUMMARY',
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _buildStatItem('Total Earnings', CountryService.price(_totalRevenue)),
-              _buildStatItem('Secured', '$_totalSecured'),
-              _buildStatItem('Listings', '$_totalListings'),
-            ],
-          ),
+          _buildStatItem('Listings', '${_myListings.length}'),
+          _buildStatItem('Available', '${_myListings.where((p) => p.available).length}'),
         ],
       ),
     );
@@ -300,21 +277,12 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                               const Divider(color: Colors.white12, height: 24),
                               Row(
                                 children: [
-                                  if (property.holdingFeePaid) ...[
-                                    const Icon(Icons.check_circle_outline, color: Colors.white70, size: 18),
-                                    const SizedBox(width: 8),
-                                    const Text('SECURED', style: TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w600)),
-                                    const SizedBox(width: 8),
-                                    TextButton(
-                                      onPressed: () => _viewApplicants(property),
-                                      style: TextButton.styleFrom(foregroundColor: Colors.white, padding: EdgeInsets.zero),
-                                      child: const Text('View Payment', style: TextStyle(fontSize: 12)),
-                                    ),
-                                  ] else ...[
-                                    const Icon(Icons.info_outline, color: Colors.white38, size: 18),
-                                    const SizedBox(width: 8),
-                                    const Text('NO HOLDING FEE', style: TextStyle(color: Colors.white38, fontSize: 13)),
-                                  ],
+                                  Text(
+                                    property.listedAt != null
+                                        ? 'Listed ${DateFormat('dd MMM yyyy').format(DateTime.parse(property.listedAt!))}'
+                                        : 'Listed recently',
+                                    style: const TextStyle(color: Colors.white38, fontSize: 13),
+                                  ),
                                   const Spacer(),
                                   TextButton(
                                     onPressed: () => _viewApplications(property),
@@ -331,77 +299,6 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                 ],
               ),
             ),
-    );
-  }
-
-  void _viewApplicants(Property property) async {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: Colors.grey[900],
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        return FutureBuilder<List<dynamic>>(
-          future: ApiService.get('/api/verification/property/${property.id}').then((val) => val as List),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const SizedBox(
-                height: 200,
-                child: Center(child: CircularProgressIndicator(color: Colors.white)),
-              );
-            }
-            if (snapshot.hasError || !snapshot.hasData || snapshot.data!.isEmpty) {
-              return Container(
-                padding: const EdgeInsets.all(24),
-                height: 200,
-                child: const Center(child: Text('No payment records found', style: TextStyle(color: Colors.grey))),
-              );
-            }
-
-            final payments = snapshot.data!;
-            return Padding(
-              padding: const EdgeInsets.all(24),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('Payment Details', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  ...payments.map((p) {
-                    final receipt = p['mpesaReceiptNumber'] ?? '';
-                    final phone = p['tenantPhone'] ?? '';
-                    final dateStr = p['createdAt'] != null
-                        ? DateFormat('dd MMM yyyy, hh:mm a').format(DateTime.parse(p['createdAt']))
-                        : '';
-
-                    return Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildRow(CountryService.config.paymentLabel, receipt),
-                        _buildRow('Tenant Phone', phone),
-                        _buildRow('Timestamp', dateStr),
-                        _buildRow('Amount', CountryService.price(CountryService.config.holdingFee)),
-                      ],
-                    );
-                  }),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildRow(String label, String val) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 6),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
-          Text(val, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
-        ],
-      ),
     );
   }
 

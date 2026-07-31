@@ -14,7 +14,6 @@ class Property {
   final bool available;
   final String? imageUrl;
   final bool verified;
-  final bool holdingFeePaid;
   final double? latitude;
   final double? longitude;
   final User? owner;
@@ -54,7 +53,6 @@ class Property {
     required this.available,
     this.imageUrl,
     this.verified = false,
-    this.holdingFeePaid = false,
     this.latitude,
     this.longitude,
     this.owner,
@@ -95,7 +93,6 @@ class Property {
       available: json['available'] ?? true,
       imageUrl: json['imageUrl']?.toString(),
       verified: json['verified'] ?? false,
-      holdingFeePaid: json['holdingFeePaid'] ?? false,
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       owner: json['owner'] is Map<String, dynamic> ? User.fromJson(json['owner']) : null,
@@ -137,7 +134,6 @@ class Property {
       'available': available,
       'imageUrl': imageUrl,
       'verified': verified,
-      'holdingFeePaid': holdingFeePaid,
       'latitude': latitude,
       'longitude': longitude,
       'imageUrls': imageUrls,
