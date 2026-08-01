@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -27,6 +28,8 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
   bool _isFavorite = false;
   int _currentImageIndex = 0;
   Position? _userPosition;
+  bool _communityCheckEligible = false;
+  bool _communityCheckSubmitted = false;
 
   @override
   void initState() {
@@ -34,6 +37,25 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     _checkIfFavorite();
     _incrementViewCount();
     _loadUserPosition();
+    _checkCommunityCheckEligibility();
+  }
+
+  /// Only shows the "did this match?" prompt to tenants who actually
+  /// applied to this listing -- the closest concrete signal of genuine
+  /// engagement Roost has today (no scheduled-viewing tracking exists
+  /// yet). The backend re-checks this independently on submit; this
+  /// call is purely so the app knows whether to show the prompt at all.
+  Future<void> _checkCommunityCheckEligibility() async {
+    if (widget.property.id == null) return;
+    try {
+      final result = await ApiService.get('/api/properties/${widget.property.id}/community-check/eligible');
+      if (mounted) {
+        setState(() => _communityCheckEligible = result is Map && result['eligible'] == true);
+      }
+    } catch (_) {
+      // Not logged in, or the call failed -- just don't show the
+      // prompt rather than surfacing an error for a non-essential check.
+    }
   }
 
   Future<void> _loadUserPosition() async {
@@ -91,6 +113,112 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     final link = p.id != null ? '${AppConfig.baseUrl}/api/properties/${p.id}' : AppConfig.baseUrl;
     final shareText = 'Check out this listing on Roost:\n${p.title} — ${CountryService.pricePerMonth(p.price)} in ${p.location}\n$link';
     Share.share(shareText, subject: p.title);
+  }
+
+  void _showCommunityCheckSheet() {
+    bool visited = true;
+    bool photosAccurate = true;
+    bool locationAccurate = true;
+    bool priceAccurate = true;
+    bool wouldRecommend = true;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        bool isSubmitting = false;
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            Widget switchTile(String label, bool value, ValueChanged<bool> onChanged) {
+              return SwitchListTile(
+                title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
+                value: value,
+                onChanged: isSubmitting ? null : onChanged,
+                activeThumbColor: Colors.white,
+                contentPadding: EdgeInsets.zero,
+              );
+            }
+
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Did this listing match?',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Since you applied to this listing, your answer helps other renters trust Roost.',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                    const SizedBox(height: 8),
+                    switchTile('I visited or contacted about this property', visited, (v) => setSheetState(() => visited = v)),
+                    if (visited) ...[
+                      switchTile('Photos were accurate', photosAccurate, (v) => setSheetState(() => photosAccurate = v)),
+                      switchTile('Location was accurate', locationAccurate, (v) => setSheetState(() => locationAccurate = v)),
+                      switchTile('Price was accurate', priceAccurate, (v) => setSheetState(() => priceAccurate = v)),
+                      switchTile('I would recommend this listing', wouldRecommend, (v) => setSheetState(() => wouldRecommend = v)),
+                    ],
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                setSheetState(() => isSubmitting = true);
+                                try {
+                                  await ApiService.post('/api/properties/${widget.property.id}/community-check', {
+                                    'visited': visited,
+                                    'photosAccurate': visited && photosAccurate,
+                                    'locationAccurate': visited && locationAccurate,
+                                    'priceAccurate': visited && priceAccurate,
+                                    'wouldRecommend': visited && wouldRecommend,
+                                  });
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (!mounted) return;
+                                  setState(() => _communityCheckSubmitted = true);
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Thanks for helping keep Roost accurate.')),
+                                  );
+                                } catch (e) {
+                                  if (ctx.mounted) Navigator.pop(ctx);
+                                  if (!mounted) return;
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(content: Text('Could not submit: $e')),
+                                  );
+                                }
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Submit', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   void _showReportBottomSheet() {
@@ -216,68 +344,65 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     }
 
     final hasVideo = widget.property.videoUrl != null && widget.property.videoUrl!.isNotEmpty;
+    // Video leads the gallery when present -- the walkthrough is the
+    // richest thing a renter can see before contacting the landlord,
+    // so it shouldn't be buried behind static photos.
+    final int slideCount = urls.length + (hasVideo ? 1 : 0);
 
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        if (hasVideo)
-          Container(
-            height: 320,
-            width: double.infinity,
-            color: Colors.grey[900],
-            child: const Center(child: Icon(Icons.videocam, color: Colors.white38, size: 48)),
-          )
-        else if (urls.isEmpty)
-          Container(
-            height: 320,
-            width: double.infinity,
-            color: Colors.grey[900],
-            child: const Center(
-              child: Icon(Icons.home_outlined, color: Colors.white30, size: 64),
-            ),
-          )
-        else
-          SizedBox(
-            height: 320,
-            child: Stack(
-              children: [
-                PageView.builder(
-                  itemCount: urls.length,
-                  onPageChanged: (idx) => setState(() => _currentImageIndex = idx),
-                  itemBuilder: (context, idx) {
-                    return CachedNetworkImage(
-                      imageUrl: urls[idx],
-                      height: 320,
-                      width: double.infinity,
-                      fit: BoxFit.cover,
-                      placeholder: (context, url) => Container(color: Colors.black),
-                      errorWidget: (context, url, error) => Container(
-                        color: Colors.grey[900],
-                        child: const Icon(Icons.broken_image, color: Colors.grey, size: 48),
-                      ),
-                    );
-                  },
+    if (slideCount == 0) {
+      return Container(
+        height: 320,
+        width: double.infinity,
+        color: Colors.grey[900],
+        child: const Center(
+          child: Icon(Icons.home_outlined, color: Colors.white30, size: 64),
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: 320,
+      child: Stack(
+        children: [
+          PageView.builder(
+            itemCount: slideCount,
+            onPageChanged: (idx) => setState(() => _currentImageIndex = idx),
+            itemBuilder: (context, idx) {
+              if (hasVideo && idx == 0) {
+                return _HeroVideoSlide(url: widget.property.videoUrl!);
+              }
+              final photoIdx = hasVideo ? idx - 1 : idx;
+              return CachedNetworkImage(
+                imageUrl: urls[photoIdx],
+                height: 320,
+                width: double.infinity,
+                fit: BoxFit.cover,
+                placeholder: (context, url) => Container(color: Colors.black),
+                errorWidget: (context, url, error) => Container(
+                  color: Colors.grey[900],
+                  child: const Icon(Icons.broken_image, color: Colors.grey, size: 48),
                 ),
-                if (urls.length > 1)
-                  Positioned(
-                    bottom: 24,
-                    right: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        '${_currentImageIndex + 1} / ${urls.length}',
-                        style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                      ),
-                    ),
-                  ),
-              ],
-            ),
+              );
+            },
           ),
-      ],
+          if (slideCount > 1)
+            Positioned(
+              bottom: 24,
+              right: 16,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  '${_currentImageIndex + 1} / $slideCount',
+                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 
@@ -325,6 +450,13 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                     widget.property.title,
                     style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
                   ),
+                  if (widget.property.buildingName != null && widget.property.buildingName!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'at ${widget.property.buildingName}',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 14, fontStyle: FontStyle.italic),
+                    ),
+                  ],
                   const SizedBox(height: 6),
                   Row(
                     children: [
@@ -414,6 +546,25 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                               Icon(Icons.verified, color: Colors.white, size: 14),
                               SizedBox(width: 4),
                               Text('Verified', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (widget.property.communityVerified) ...[
+                        const SizedBox(width: 8),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          decoration: BoxDecoration(
+                            color: Colors.greenAccent.withValues(alpha: 0.12),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.6)),
+                          ),
+                          child: const Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.groups_2_outlined, color: Colors.greenAccent, size: 14),
+                              SizedBox(width: 4),
+                              Text('Community Verified', style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
                             ],
                           ),
                         ),
@@ -703,6 +854,47 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
                   const SizedBox(height: 24),
 
+                  if (_communityCheckEligible && !_communityCheckSubmitted) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: const Color(0xFF2C2C2E)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Did this listing match what was advertised?',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Since you applied to this property, your answer helps build trust for other renters.',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                          ),
+                          const SizedBox(height: 12),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton(
+                              onPressed: _showCommunityCheckSheet,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.white,
+                                side: const BorderSide(color: Color(0xFF3A3A3C)),
+                                padding: const EdgeInsets.symmetric(vertical: 12),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: const Text('Confirm accuracy'),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                  ],
+
                   // Report Button
                   Center(
                     child: TextButton.icon(
@@ -737,6 +929,105 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
           const SizedBox(width: 6),
           Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
         ],
+      ),
+    );
+  }
+}
+
+/// A single autoplay, looping, muted-by-default video slide for the
+/// gallery -- the vertical short-form feel the walkthrough is meant to
+/// have. Tap toggles sound, matching the muted-until-tapped convention
+/// most people already expect from short vertical video elsewhere.
+class _HeroVideoSlide extends StatefulWidget {
+  final String url;
+
+  const _HeroVideoSlide({required this.url});
+
+  @override
+  State<_HeroVideoSlide> createState() => _HeroVideoSlideState();
+}
+
+class _HeroVideoSlideState extends State<_HeroVideoSlide> {
+  VideoPlayerController? _controller;
+  bool _muted = true;
+  bool _failed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
+      ..setLooping(true)
+      ..setVolume(0)
+      ..initialize().then((_) {
+        if (!mounted) return;
+        setState(() {});
+        _controller?.play();
+      }).catchError((_) {
+        if (mounted) setState(() => _failed = true);
+      });
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  void _toggleMute() {
+    setState(() {
+      _muted = !_muted;
+      _controller?.setVolume(_muted ? 0 : 1);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (_failed) {
+      return Container(
+        height: 320,
+        width: double.infinity,
+        color: Colors.grey[900],
+        child: const Center(child: Icon(Icons.videocam_off_outlined, color: Colors.white38, size: 48)),
+      );
+    }
+
+    final controller = _controller;
+    if (controller == null || !controller.value.isInitialized) {
+      return Container(
+        height: 320,
+        width: double.infinity,
+        color: Colors.black,
+        child: const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
+      );
+    }
+
+    return GestureDetector(
+      onTap: _toggleMute,
+      child: SizedBox(
+        height: 320,
+        width: double.infinity,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            FittedBox(
+              fit: BoxFit.cover,
+              child: SizedBox(
+                width: controller.value.size.width,
+                height: controller.value.size.height,
+                child: VideoPlayer(controller),
+              ),
+            ),
+            Positioned(
+              bottom: 24,
+              left: 16,
+              child: Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
+                child: Icon(_muted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 18),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

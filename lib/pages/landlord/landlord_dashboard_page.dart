@@ -3,6 +3,7 @@ import 'package:intl/intl.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
 
 class LandlordDashboardPage extends StatefulWidget {
@@ -118,6 +119,40 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   /// even though this shortcut skips the wizard's own verification UI --
   /// if that check fails, send the landlord into the wizard instead,
   /// where the phone-verification screen actually lives.
+  /// Called when the landlord is physically at the property and taps
+  /// the "verify location" prompt -- takes the device's live GPS
+  /// reading and sends it to the backend, which independently checks
+  /// the distance to the listing's pinned coordinates
+  /// (PropertyService.verifyGpsLocation) rather than trusting a
+  /// client-reported "yes I'm here."
+  Future<void> _verifyGps(Property property) async {
+    final position = await LocationService.getCurrentPosition();
+    if (position == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not get your location. Check that location services are enabled.')),
+      );
+      return;
+    }
+
+    try {
+      await ApiService.post('/api/properties/${property.id}/verify-gps', {
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+      });
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Location verified')),
+      );
+      _loadListings();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('$e')),
+      );
+    }
+  }
+
   Future<void> _publishDraft(Property property) async {
     try {
       await ApiService.patch('/api/properties/${property.id}/publish', {});
@@ -363,6 +398,22 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                     ),
                                 ],
                               ),
+                              if (property.status == 'PUBLISHED' && !property.gpsVerified) ...[
+                                const SizedBox(height: 10),
+                                GestureDetector(
+                                  onTap: () => _verifyGps(property),
+                                  child: Row(
+                                    children: [
+                                      const Icon(Icons.location_searching, color: Colors.amber, size: 16),
+                                      const SizedBox(width: 6),
+                                      const Text(
+                                        'Stand at the property and tap to verify location',
+                                        style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ],
                           ),
                         ),

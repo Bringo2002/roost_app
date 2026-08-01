@@ -3,6 +3,7 @@ import 'package:roost_app/models/user.dart';
 class Property {
   final int? id;
   final String title;
+  final String? buildingName;
   final String description;
   final String location;
   final double price;
@@ -14,6 +15,8 @@ class Property {
   final bool available;
   final String? imageUrl;
   final bool verified;
+  final bool gpsVerified;
+  final bool communityVerified;
   final String status;
   final double? latitude;
   final double? longitude;
@@ -43,6 +46,7 @@ class Property {
   Property({
     this.id,
     required this.title,
+    this.buildingName,
     required this.description,
     required this.location,
     required this.price,
@@ -54,6 +58,8 @@ class Property {
     required this.available,
     this.imageUrl,
     this.verified = false,
+    this.gpsVerified = false,
+    this.communityVerified = false,
     this.status = 'PUBLISHED',
     this.latitude,
     this.longitude,
@@ -84,6 +90,7 @@ class Property {
     return Property(
       id: (json['id'] as num?)?.toInt(),
       title: json['title'] ?? '',
+      buildingName: json['buildingName']?.toString(),
       description: json['description'] ?? '',
       location: json['location'] ?? '',
       price: (json['price'] as num?)?.toDouble() ?? 0.0,
@@ -95,6 +102,8 @@ class Property {
       available: json['available'] ?? true,
       imageUrl: json['imageUrl']?.toString(),
       verified: json['verified'] ?? false,
+      gpsVerified: json['gpsVerified'] ?? false,
+      communityVerified: json['communityVerified'] ?? false,
       status: json['status'] ?? 'PUBLISHED',
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
@@ -126,6 +135,7 @@ class Property {
     return {
       if (id != null) 'id': id,
       'title': title,
+      'buildingName': buildingName,
       'description': description,
       'location': location,
       'price': price,
@@ -137,6 +147,8 @@ class Property {
       'available': available,
       'imageUrl': imageUrl,
       'verified': verified,
+      'gpsVerified': gpsVerified,
+      'communityVerified': communityVerified,
       'status': status,
       'latitude': latitude,
       'longitude': longitude,

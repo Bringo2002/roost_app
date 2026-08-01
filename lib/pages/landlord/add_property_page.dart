@@ -26,6 +26,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _isLoading = false;
 
   final _titleCtrl = TextEditingController();
+  final _buildingNameCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
   final _priceCtrl = TextEditingController();
   final _depositCtrl = TextEditingController();
@@ -51,10 +52,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   static const int _minPhotos = 3;
   static const int _maxPhotos = 10;
   final List<String> _imageUrls = [];
+  String? _videoUrl;
   final ImagePicker _picker = ImagePicker();
   bool _uploadingPhotos = false;
   int _uploadDone = 0;
   int _uploadTotal = 0;
+  bool _uploadingVideo = false;
 
   bool get _isEditing => widget.editingProperty != null;
 
@@ -75,6 +78,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (p == null) return;
 
     _titleCtrl.text = p.title;
+    _buildingNameCtrl.text = p.buildingName ?? '';
     _locationCtrl.text = p.location;
     _priceCtrl.text = p.price == p.price.roundToDouble() ? p.price.toInt().toString() : p.price.toString();
     _depositCtrl.text = p.deposit ?? '';
@@ -99,11 +103,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _petFriendly = p.petFriendly;
 
     _imageUrls.addAll(p.imageUrls);
+    _videoUrl = p.videoUrl;
   }
 
   @override
   void dispose() {
     _titleCtrl.dispose();
+    _buildingNameCtrl.dispose();
     _locationCtrl.dispose();
     _priceCtrl.dispose();
     _depositCtrl.dispose();
@@ -195,6 +201,44 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (mounted) setState(() => _uploadingPhotos = false);
   }
 
+  /// A single optional walkthrough video per listing -- picked from the
+  /// gallery or recorded fresh, capped at 60s to keep uploads reasonable
+  /// on mobile data (the backend independently caps by file size too;
+  /// this is just a friendlier first line of defense). Replaces any
+  /// previously attached video rather than allowing multiple, since the
+  /// gallery/detail view is built around exactly one.
+  Future<void> _pickVideo(ImageSource source) async {
+    final file = await _picker.pickVideo(
+      source: source,
+      maxDuration: const Duration(seconds: 60),
+    );
+    if (file == null) return;
+
+    setState(() => _uploadingVideo = true);
+    try {
+      final bytes = await file.readAsBytes();
+      final result = await ApiService.post('/api/properties/upload-video', {
+        'data': base64Encode(bytes),
+      });
+      final url = result is Map ? result['url'] as String? : null;
+      if (url != null && mounted) {
+        setState(() => _videoUrl = url);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Video upload failed: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingVideo = false);
+    }
+  }
+
+  void _removeVideo() {
+    setState(() => _videoUrl = null);
+  }
+
   void _removePhoto(String url) {
     setState(() => _imageUrls.remove(url));
   }
@@ -206,6 +250,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   Map<String, dynamic> _buildPayload({required String status}) {
     return {
       'title': _titleCtrl.text.trim(),
+      'buildingName': _buildingNameCtrl.text.trim().isEmpty ? null : _buildingNameCtrl.text.trim(),
       'location': _locationCtrl.text.trim(),
       'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
       'deposit': _depositCtrl.text.trim(),
@@ -224,6 +269,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       'description': _descriptionCtrl.text.trim(),
       if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
       'imageUrls': _imageUrls,
+      'videoUrl': _videoUrl,
       'latitude': _latitude,
       'longitude': _longitude,
       'furnished': _furnished,
@@ -604,6 +650,80 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 },
               ),
             ],
+
+            const SizedBox(height: 28),
+            const Divider(color: Colors.white12),
+            const SizedBox(height: 12),
+            const Text('Walkthrough Video (optional)', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 4),
+            Text('A short vertical walkthrough helps renters picture the space', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+            const SizedBox(height: 16),
+
+            if (_uploadingVideo)
+              Row(
+                children: [
+                  const SizedBox(
+                    width: 16, height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  ),
+                  const SizedBox(width: 10),
+                  Text('Uploading video...', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+                ],
+              )
+            else if (_videoUrl != null)
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2C2C2E)),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.videocam, color: Colors.white70),
+                    const SizedBox(width: 12),
+                    const Expanded(
+                      child: Text('Video attached', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
+                    ),
+                    GestureDetector(
+                      onTap: _removeVideo,
+                      child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                    ),
+                  ],
+                ),
+              )
+            else
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickVideo(ImageSource.camera),
+                      icon: const Icon(Icons.videocam_outlined, size: 18),
+                      label: const Text('Record Video'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFF3A3A3C)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () => _pickVideo(ImageSource.gallery),
+                      icon: const Icon(Icons.video_library_outlined, size: 18),
+                      label: const Text('From Gallery'),
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: const BorderSide(color: Color(0xFF3A3A3C)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
           ],
         );
 
@@ -619,6 +739,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               controller: _titleCtrl,
               style: const TextStyle(color: Colors.white),
               decoration: _inputDecoration('Listing Title (e.g. Modern 2BR Kilimani)'),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _buildingNameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDecoration('Apartment / Building Name (optional)'),
             ),
             const SizedBox(height: 16),
             DropdownButtonFormField<String>(
