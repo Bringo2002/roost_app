@@ -25,6 +25,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   int _step = 0;
   bool _isLoading = false;
 
+  /// Tracks whether the last step change was forward (Next) or backward
+  /// (Back), so the step transition animation can slide the right way --
+  /// content entering from the right when advancing, from the left when
+  /// going back, matching how directional wizards like this are
+  /// conventionally expected to feel rather than a generic cross-fade.
+  bool _movingForward = true;
+
   final _titleCtrl = TextEditingController();
   final _buildingNameCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
@@ -403,15 +410,21 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
     if (_step < 4) {
       _autosaveDraft();
-      setState(() => _step++);
+      setState(() {
+        _movingForward = true;
+        _step++;
+      });
     } else {
       _submitProperty();
     }
   }
 
   void _prevStep() {
-    if (_step > 0) {
-      setState(() => _step--);
+    if (_step > 0 && !_isLoading) {
+      setState(() {
+        _movingForward = false;
+        _step--;
+      });
     }
   }
 
@@ -453,81 +466,112 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         actions: [
           TextButton(
             onPressed: _isLoading ? null : _saveDraft,
-            child: const Text('Save Draft', style: TextStyle(color: Colors.white70)),
+            child: Text('Save Draft', style: TextStyle(color: _isLoading ? Colors.white24 : Colors.white70)),
           ),
         ],
       ),
-      body: _isLoading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  children: [
-                    // Step Progress Indicator
-                    Row(
-                      children: List.generate(
-                        5,
-                        (idx) => Expanded(
-                          child: Container(
-                            height: 4,
-                            margin: const EdgeInsets.symmetric(horizontal: 2),
-                            decoration: BoxDecoration(
-                              color: idx <= _step ? Colors.white : const Color(0xFF1C1C1E),
-                              borderRadius: BorderRadius.circular(2),
-                            ),
-                          ),
-                        ),
+      body: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            children: [
+              // Step Progress Indicator -- animates its fill so advancing
+              // a step reads as forward motion rather than an instant
+              // snap, matching the rest of the wizard's transitions.
+              Row(
+                children: List.generate(
+                  5,
+                  (idx) => Expanded(
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 300),
+                      curve: Curves.easeOut,
+                      height: 4,
+                      margin: const EdgeInsets.symmetric(horizontal: 2),
+                      decoration: BoxDecoration(
+                        color: idx <= _step ? Colors.white : const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(2),
                       ),
                     ),
+                  ),
+                ),
+              ),
 
-                    const SizedBox(height: 24),
+              const SizedBox(height: 24),
 
+              // Step content slides in the direction of travel (right-to-
+              // left advancing, left-to-right going back) with a fade,
+              // instead of jump-cutting straight to the next step's
+              // content -- this is the main thing that made the wizard
+              // feel choppy rather than like a single guided flow.
+              Expanded(
+                child: AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 280),
+                  transitionBuilder: (child, animation) {
+                    final offsetTween = Tween<Offset>(
+                      begin: Offset(_movingForward ? 0.08 : -0.08, 0),
+                      end: Offset.zero,
+                    );
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(
+                        position: animation.drive(offsetTween),
+                        child: child,
+                      ),
+                    );
+                  },
+                  child: SingleChildScrollView(
+                    key: ValueKey(_step),
+                    child: _buildStepContent(),
+                  ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Row(
+                children: [
+                  if (_step > 0)
                     Expanded(
-                      child: SingleChildScrollView(
-                        child: _buildStepContent(),
+                      child: OutlinedButton(
+                        onPressed: _isLoading ? null : _prevStep,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white,
+                          side: const BorderSide(color: Color(0xFF2C2C2E)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Back'),
                       ),
                     ),
-
-                    const SizedBox(height: 16),
-
-                    Row(
-                      children: [
-                        if (_step > 0)
-                          Expanded(
-                            child: OutlinedButton(
-                              onPressed: _prevStep,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: const BorderSide(color: Color(0xFF2C2C2E)),
-                                padding: const EdgeInsets.symmetric(vertical: 14),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text('Back'),
-                            ),
-                          ),
-                        if (_step > 0) const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton(
-                            onPressed: _nextStep,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: Colors.black,
-                              padding: const EdgeInsets.symmetric(vertical: 14),
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            ),
-                            child: Text(
+                  if (_step > 0) const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _nextStep,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        disabledBackgroundColor: Colors.white54,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      child: _isLoading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
+                            )
+                          : Text(
                               _step == 4 ? (_isEditing ? 'Save Changes' : 'Publish Listing') : 'Next Step',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
-                          ),
-                        ),
-                      ],
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
-            ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 
@@ -609,7 +653,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 itemCount: _imageUrls.length,
                 itemBuilder: (context, index) {
                   final url = _imageUrls[index];
-                  return Stack(
+                  return TweenAnimationBuilder<double>(
+                    tween: Tween(begin: 0, end: 1),
+                    duration: const Duration(milliseconds: 250),
+                    curve: Curves.easeOut,
+                    builder: (context, value, child) => Opacity(
+                      opacity: value,
+                      child: Transform.scale(scale: 0.85 + (0.15 * value), child: child),
+                    ),
+                    child: Stack(
                     fit: StackFit.expand,
                     children: [
                       ClipRRect(
@@ -646,6 +698,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         ),
                       ),
                     ],
+                    ),
                   );
                 },
               ),
