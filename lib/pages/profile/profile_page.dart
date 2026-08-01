@@ -3,6 +3,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
+import 'package:roost_app/pages/admin/admin_flagged_listings_page.dart';
 import 'package:roost_app/pages/profile/saved_page.dart';
 
 import 'package:roost_app/models/country_config.dart';
@@ -124,6 +125,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final phone = _user?['phone'] ?? '+254 712 345 678';
     final role = _user?['role'] ?? 'TENANT';
     final isLandlord = role.toString().toUpperCase() == 'LANDLORD';
+    final isAdmin = role.toString().toUpperCase() == 'ADMIN';
     final initials = name.isNotEmpty
         ? name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
         : 'R';
@@ -207,6 +209,11 @@ class _ProfilePageState extends State<ProfilePage> {
                 })
               else
                 _buildMenuItem(Icons.add_home_work_outlined, 'List Your Property', _becomeLandlord),
+
+              if (isAdmin)
+                _buildMenuItem(Icons.flag_outlined, 'Flagged Listings', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminFlaggedListingsPage()));
+                }),
 
               const SizedBox(height: 24),
 
