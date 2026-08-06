@@ -17,6 +17,15 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   List<Property> _myListings = [];
   bool _loading = true;
 
+  /// Ids of listings with an action (publish, verify-gps, delete,
+  /// toggle-availability) currently in flight. Guards every per-listing
+  /// action below so a slow round trip can't be fired twice from a
+  /// double-tap, and lets the UI show a spinner instead of sitting
+  /// silently unresponsive while the request is out.
+  final Set<int> _busyIds = {};
+
+  bool _isBusy(Property property) => property.id != null && _busyIds.contains(property.id);
+
   @override
   void initState() {
     super.initState();
@@ -44,7 +53,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   }
 
   Future<void> _toggleAvailability(Property property) async {
-    if (property.id == null) return;
+    if (property.id == null || _isBusy(property)) return;
 
     // Marking rented is the more consequential direction (removes the
     // listing from discovery), so it gets a confirmation -- matching
@@ -74,18 +83,23 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       if (confirm != true) return;
     }
 
+    setState(() => _busyIds.add(property.id!));
     try {
       await ApiService.patch('/api/properties/${property.id}/availability', {
         'available': !property.available,
       });
-      _loadListings();
+      await _loadListings();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(property.id));
     }
   }
 
   Future<void> _deleteListing(Property property) async {
+    if (property.id == null || _isBusy(property)) return;
+
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -103,14 +117,17 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       ),
     );
 
-    if (confirm == true && property.id != null) {
-      try {
-        await ApiService.delete('/api/properties/${property.id}');
-        _loadListings();
-      } catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
-      }
+    if (confirm != true) return;
+
+    setState(() => _busyIds.add(property.id!));
+    try {
+      await ApiService.delete('/api/properties/${property.id}');
+      await _loadListings();
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(property.id));
     }
   }
 
@@ -126,6 +143,8 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   /// (PropertyService.verifyGpsLocation) rather than trusting a
   /// client-reported "yes I'm here."
   Future<void> _verifyGps(Property property) async {
+    if (property.id == null || _isBusy(property)) return;
+
     final position = await LocationService.getCurrentPosition();
     if (position == null) {
       if (!mounted) return;
@@ -135,6 +154,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       return;
     }
 
+    setState(() => _busyIds.add(property.id!));
     try {
       await ApiService.post('/api/properties/${property.id}/verify-gps', {
         'latitude': position.latitude,
@@ -144,23 +164,28 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Location verified')),
       );
-      _loadListings();
+      await _loadListings();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('$e')),
       );
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(property.id));
     }
   }
 
   Future<void> _publishDraft(Property property) async {
+    if (property.id == null || _isBusy(property)) return;
+
+    setState(() => _busyIds.add(property.id!));
     try {
       await ApiService.patch('/api/properties/${property.id}/publish', {});
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Listing published')),
       );
-      _loadListings();
+      await _loadListings();
     } catch (e) {
       if (!mounted) return;
       final proceedToWizard = await showDialog<bool>(
@@ -185,6 +210,8 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
         );
         if (updated == true) _loadListings();
       }
+    } finally {
+      if (mounted) setState(() => _busyIds.remove(property.id));
     }
   }
 
@@ -271,6 +298,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                     )
                   else
                     ..._myListings.map((property) {
+                      final busy = _isBusy(property);
                       return Card(
                         color: Colors.grey[900],
                         margin: const EdgeInsets.only(bottom: 12),
@@ -328,7 +356,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                       IconButton(
                                         icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
                                         tooltip: 'Delete listing',
-                                        onPressed: () => _deleteListing(property),
+                                        onPressed: busy ? null : () => _deleteListing(property),
                                       ),
                                       Text(
                                         property.available ? 'Available' : 'Rented',
@@ -344,7 +372,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                         activeTrackColor: Colors.grey[800],
                                         inactiveThumbColor: Colors.grey[600],
                                         inactiveTrackColor: Colors.grey[950],
-                                        onChanged: (_) => _toggleAvailability(property),
+                                        onChanged: busy ? null : (_) => _toggleAvailability(property),
                                       ),
                                     ],
                                   ),
@@ -386,9 +414,15 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                   const Spacer(),
                                   if (property.status == 'DRAFT')
                                     TextButton(
-                                      onPressed: () => _publishDraft(property),
+                                      onPressed: busy ? null : () => _publishDraft(property),
                                       style: TextButton.styleFrom(foregroundColor: Colors.amber, padding: EdgeInsets.zero),
-                                      child: const Text('Publish', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                                      child: busy
+                                          ? const SizedBox(
+                                              width: 12,
+                                              height: 12,
+                                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                                            )
+                                          : const Text('Publish', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                                     )
                                   else
                                     TextButton(
@@ -401,10 +435,17 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                               if (property.status == 'PUBLISHED' && !property.gpsVerified) ...[
                                 const SizedBox(height: 10),
                                 GestureDetector(
-                                  onTap: () => _verifyGps(property),
+                                  onTap: busy ? null : () => _verifyGps(property),
                                   child: Row(
                                     children: [
-                                      const Icon(Icons.location_searching, color: Colors.amber, size: 16),
+                                      if (busy)
+                                        const SizedBox(
+                                          width: 16,
+                                          height: 16,
+                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                                        )
+                                      else
+                                        const Icon(Icons.location_searching, color: Colors.amber, size: 16),
                                       const SizedBox(width: 6),
                                       const Text(
                                         'Stand at the property and tap to verify location',

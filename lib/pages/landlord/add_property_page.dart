@@ -68,6 +68,17 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   bool get _isEditing => widget.editingProperty != null;
 
+  /// Guards against a second autosave firing (and racing to POST a
+  /// duplicate draft) while the first is still in flight -- see
+  /// _autosaveDraft.
+  bool _autosaving = false;
+
+  /// Single source of truth for "don't let the user move on right now" --
+  /// covers final submit/save-draft AND active photo/video uploads AND
+  /// an in-flight autosave, so Next/Back/Save Draft can't be tapped into
+  /// an inconsistent mid-upload or mid-save state.
+  bool get _busy => _isLoading || _uploadingPhotos || _uploadingVideo || _autosaving;
+
   /// Tracks the id of whatever draft this wizard session is building,
   /// whether that's an existing listing passed in via editingProperty
   /// or one silently created by autosave partway through a fresh
@@ -318,11 +329,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   void _autosaveDraft() async {
     // Nothing worth persisting yet on a completely untouched first step.
     if (_titleCtrl.text.trim().isEmpty && _imageUrls.isEmpty && !_isEditing) return;
+    // Already saving -- skip rather than fire a second concurrent POST,
+    // which would race the first and create a duplicate draft before
+    // _draftId gets set (see _persist).
+    if (_autosaving) return;
+    if (mounted) setState(() => _autosaving = true);
     try {
       await _persist(_buildPayload(status: 'DRAFT'));
     } catch (_) {
       // Swallow silently -- see method doc. Explicit saves still surface
       // their own errors to the user.
+    } finally {
+      if (mounted) setState(() => _autosaving = false);
     }
   }
 
@@ -396,6 +414,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   void _nextStep() {
+    if (_busy) return;
     if (_step == 0 && _imageUrls.length < _minPhotos) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Add at least $_minPhotos photos to continue.')),
@@ -420,7 +439,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   void _prevStep() {
-    if (_step > 0 && !_isLoading) {
+    if (_step > 0 && !_busy) {
       setState(() {
         _movingForward = false;
         _step--;
@@ -465,8 +484,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         title: Text(_isEditing ? 'Edit Listing' : 'List a Property', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         actions: [
           TextButton(
-            onPressed: _isLoading ? null : _saveDraft,
-            child: Text('Save Draft', style: TextStyle(color: _isLoading ? Colors.white24 : Colors.white70)),
+            onPressed: _busy ? null : _saveDraft,
+            child: Text('Save Draft', style: TextStyle(color: _busy ? Colors.white24 : Colors.white70)),
           ),
         ],
       ),
@@ -533,7 +552,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   if (_step > 0)
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _isLoading ? null : _prevStep,
+                        onPressed: _busy ? null : _prevStep,
                         style: OutlinedButton.styleFrom(
                           foregroundColor: Colors.white,
                           side: const BorderSide(color: Color(0xFF2C2C2E)),
@@ -546,7 +565,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   if (_step > 0) const SizedBox(width: 12),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: _isLoading ? null : _nextStep,
+                      onPressed: _busy ? null : _nextStep,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
@@ -554,7 +573,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
-                      child: _isLoading
+                      child: _busy
                           ? const SizedBox(
                               width: 20,
                               height: 20,
