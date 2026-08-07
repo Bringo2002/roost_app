@@ -20,11 +20,21 @@ void main() {
     // is what the original assertion here was actually checking for.
     expect(find.text('ROOST'), findsOneWidget);
 
-    // SplashPage holds for 2s before navigating on. Drain that timer
-    // instead of leaving it pending -- flutter_test fails a test that
-    // completes with an outstanding Timer -- then let the rest of the
-    // async chain and whatever it navigates to settle.
+    // SplashPage holds for 2s before navigating on -- drain that timer
+    // instead of leaving it pending (flutter_test fails a test that
+    // completes with an outstanding Timer), then pump a few more fixed
+    // frames to let the pushReplacement transition run.
+    //
+    // Deliberately NOT pumpAndSettle() here: whatever Splash navigates
+    // to next (OnboardingPage) shows an indeterminate
+    // CircularProgressIndicator while its own async location detection
+    // runs, and an indeterminate spinner's AnimationController keeps
+    // scheduling frames on its own -- pumpAndSettle loops until nothing
+    // is scheduled, which that never satisfies by itself, causing a
+    // timeout unrelated to anything this test is actually checking.
     await tester.pump(const Duration(seconds: 3));
-    await tester.pumpAndSettle();
+    for (var i = 0; i < 5; i++) {
+      await tester.pump(const Duration(milliseconds: 300));
+    }
   });
 }
