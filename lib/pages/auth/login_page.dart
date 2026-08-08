@@ -137,7 +137,7 @@ class _LoginPageState extends State<LoginPage> {
               const SizedBox(height: 8),
 
               Text(
-                'Log in to access verified Nairobi rentals',
+                'Log in to access verified rentals near you',
                 style: TextStyle(color: Colors.grey[500], fontSize: 14),
               ),
 

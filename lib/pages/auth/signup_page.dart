@@ -144,7 +144,7 @@ class _SignupPageState extends State<SignupPage> {
               const SizedBox(height: 8),
 
               Text(
-                'Join Nairobi\'s premier verified rental network',
+                'Join the premier verified rental network',
                 style: TextStyle(color: Colors.grey[500], fontSize: 14),
               ),
 
