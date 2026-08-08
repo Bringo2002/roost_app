@@ -24,6 +24,7 @@ class Property {
   final List<String> imageUrls;
   final double averageRating;
   final int reviewCount;
+  final int reportCount;
   final String? videoUrl;
 
   final String houseType;
@@ -67,6 +68,7 @@ class Property {
     this.imageUrls = const [],
     this.averageRating = 0.0,
     this.reviewCount = 0,
+    this.reportCount = 0,
     this.videoUrl,
     this.houseType = 'BEDSITTER',
     this.bathrooms = 1,
@@ -111,6 +113,7 @@ class Property {
       imageUrls: json['imageUrls'] is List ? (json['imageUrls'] as List).map((e) => e.toString()).toList() : [],
       averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
+      reportCount: (json['reportCount'] as num?)?.toInt() ?? 0,
       videoUrl: json['videoUrl']?.toString(),
       houseType: json['houseType']?.toString() ?? 'BEDSITTER',
       bathrooms: (json['bathrooms'] as num?)?.toInt() ?? 1,

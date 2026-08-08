@@ -4,11 +4,14 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 
-/// Admin-only screen for reviewing listings that were automatically
-/// hidden after crossing the community-report threshold (see
-/// PropertyService.reportProperty on the backend). Lets an admin see
-/// who reported a listing and why, then either restore it to public
-/// view or leave it hidden pending further action.
+/// Admin-only screen for reviewing listings with report activity. Shows
+/// every listing with at least one unreviewed report (see
+/// PropertyService.getFlaggedForReview) -- not just ones that crossed
+/// the auto-hide threshold, since a single credible report is worth a
+/// human look even below that bar. A listing here may still be
+/// PUBLISHED (reported but not yet hidden) or already UNDER_REVIEW
+/// (auto-hidden or manually hidden) -- the available actions differ
+/// accordingly.
 class AdminFlaggedListingsPage extends StatefulWidget {
   const AdminFlaggedListingsPage({super.key});
 
@@ -97,6 +100,7 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                         itemCount: _flagged.length,
                         itemBuilder: (context, index) {
                           final property = _flagged[index];
+                          final hidden = property.status == 'UNDER_REVIEW';
                           return Container(
                             margin: const EdgeInsets.only(bottom: 12),
                             padding: const EdgeInsets.all(16),
@@ -130,6 +134,31 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                                         style: TextStyle(color: Colors.grey[500], fontSize: 12),
                                         maxLines: 1,
                                         overflow: TextOverflow.ellipsis,
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Row(
+                                        children: [
+                                          Container(
+                                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                            decoration: BoxDecoration(
+                                              color: (hidden ? Colors.redAccent : Colors.amber).withValues(alpha: 0.15),
+                                              borderRadius: BorderRadius.circular(4),
+                                            ),
+                                            child: Text(
+                                              hidden ? 'Hidden' : 'Still live',
+                                              style: TextStyle(
+                                                color: hidden ? Colors.redAccent : Colors.amber,
+                                                fontSize: 10,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                          const SizedBox(width: 6),
+                                          Text(
+                                            '${property.reportCount} report${property.reportCount == 1 ? '' : 's'}',
+                                            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                                          ),
+                                        ],
                                       ),
                                     ],
                                   ),
@@ -203,6 +232,69 @@ class _ReportsSheetState extends State<_ReportsSheet> {
     }
   }
 
+  Future<void> _hide() async {
+    setState(() => _submitting = true);
+    try {
+      await ApiService.post('/api/admin/properties/${widget.property.id}/hide');
+      widget.onResolved();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not hide: $e')),
+      );
+    }
+  }
+
+  Future<void> _dismiss() async {
+    setState(() => _submitting = true);
+    try {
+      await ApiService.post('/api/admin/properties/${widget.property.id}/dismiss-reports');
+      widget.onResolved();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not dismiss: $e')),
+      );
+    }
+  }
+
+  Future<void> _delete() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: Colors.grey[900],
+        title: const Text('Delete Listing', style: TextStyle(color: Colors.white)),
+        content: const Text(
+          'This permanently removes the listing. This is separate from hiding it -- use this only for genuinely bad listings, not ones where the reports were just a judgment call.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    setState(() => _submitting = true);
+    try {
+      await ApiService.delete('/api/properties/${widget.property.id}');
+      widget.onResolved();
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _submitting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Could not delete: $e')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return DraggableScrollableSheet(
@@ -268,34 +360,72 @@ class _ReportsSheetState extends State<_ReportsSheet> {
                       ),
               ),
               const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _submitting ? null : () => _resolve(false),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white70,
-                        side: const BorderSide(color: Colors.white24),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+              if (widget.property.status == 'UNDER_REVIEW')
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _submitting ? null : () => _resolve(false),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: Colors.white24),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Keep Hidden'),
                       ),
-                      child: const Text('Keep Hidden'),
                     ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _submitting ? null : () => _resolve(true),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _submitting ? null : () => _resolve(true),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: _submitting
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Restore Listing', style: TextStyle(fontWeight: FontWeight.bold)),
                       ),
-                      child: _submitting
-                          ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
-                          : const Text('Restore Listing', style: TextStyle(fontWeight: FontWeight.bold)),
                     ),
-                  ),
-                ],
+                  ],
+                )
+              else
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _submitting ? null : _dismiss,
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.white70,
+                          side: const BorderSide(color: Colors.white24),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: const Text('Dismiss'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _submitting ? null : _hide,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
+                        child: _submitting
+                            ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2))
+                            : const Text('Hide Listing', style: TextStyle(fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
+              const SizedBox(height: 8),
+              Center(
+                child: TextButton(
+                  onPressed: _submitting ? null : _delete,
+                  child: Text('Delete listing permanently', style: TextStyle(color: Colors.red[300], fontSize: 12)),
+                ),
               ),
             ],
           ),
