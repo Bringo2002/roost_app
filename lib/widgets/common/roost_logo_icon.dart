@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 /// Roost Official Brand Logo Icon (#7 - Property Point)
-/// Renders the exact pixel-perfect PNG asset.
+/// Renders the icon mark directly -- transparent background, white glyph --
+/// so it sits straight on the app's own black background rather than
+/// inside a separate white card.
 class RoostLogoIcon extends StatelessWidget {
   final double size;
 
@@ -12,14 +14,11 @@ class RoostLogoIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(size * 0.22),
-      child: Image.asset(
-        'assets/icon/roost_logo.png',
-        width: size,
-        height: size,
-        fit: BoxFit.contain,
-      ),
+    return Image.asset(
+      'assets/icon/roost_logo.png',
+      width: size,
+      height: size,
+      fit: BoxFit.contain,
     );
   }
 }
