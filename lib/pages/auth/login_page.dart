@@ -105,22 +105,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 16),
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const RoostLogoIcon(size: 32),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'ROOST',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                ],
-              ),
+              const RoostLogoIcon(size: 48),
 
               const SizedBox(height: 28),
 

@@ -112,22 +112,7 @@ class _SignupPageState extends State<SignupPage> {
             children: [
               const SizedBox(height: 12),
 
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.center,
-                children: [
-                  const RoostLogoIcon(size: 32),
-                  const SizedBox(width: 10),
-                  const Text(
-                    'ROOST',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 4,
-                    ),
-                  ),
-                ],
-              ),
+              const RoostLogoIcon(size: 48),
 
               const SizedBox(height: 24),
 
