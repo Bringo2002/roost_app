@@ -83,7 +83,7 @@ class _SplashPageState extends State<SplashPage>
 
   Future<void> _navigateToNext() async {
     await CountryService.instance.init();
-    await Future.delayed(const Duration(seconds: 2));
+    await Future.delayed(const Duration(seconds: 3));
     if (!mounted) return;
 
     final isLoggedIn = await AuthService.isLoggedIn();
@@ -127,7 +127,7 @@ class _SplashPageState extends State<SplashPage>
                 opacity: _iconOpacity.value,
                 child: Transform.scale(
                   scale: _iconScale.value,
-                  child: const RoostLogoIcon(size: 100),
+                  child: const RoostLogoIcon(size: 132),
                 ),
               ),
               const SizedBox(height: 28),

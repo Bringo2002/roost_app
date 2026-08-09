@@ -112,7 +112,7 @@ class _SignupPageState extends State<SignupPage> {
             children: [
               const SizedBox(height: 12),
 
-              const RoostLogoIcon(size: 48),
+              const RoostLogoIcon(size: 64),
 
               const SizedBox(height: 24),
 

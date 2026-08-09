@@ -259,7 +259,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
-        const RoostLogoIcon(size: 48),
+        const RoostLogoIcon(size: 64),
         const SizedBox(height: 20),
         const Text(
           'Where are you\nlooking to rent?',
@@ -490,7 +490,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
-        const RoostLogoIcon(size: 48),
+        const RoostLogoIcon(size: 64),
         const SizedBox(height: 20),
         const Text(
           'Find Verified Homes.\nZero Brokers.',

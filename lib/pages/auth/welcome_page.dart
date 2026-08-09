@@ -114,7 +114,7 @@ class _WelcomePageState extends State<WelcomePage>
                   opacity: _logoOpacity.value,
                   child: Transform.scale(
                     scale: _logoScale.value,
-                    child: const RoostLogoIcon(size: 108),
+                    child: const RoostLogoIcon(size: 140),
                   ),
                 ),
 

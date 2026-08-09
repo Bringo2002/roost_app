@@ -20,10 +20,12 @@ void main() {
     // is what the original assertion here was actually checking for.
     expect(find.text('ROOST'), findsOneWidget);
 
-    // SplashPage holds for 2s before navigating on -- drain that timer
+    // SplashPage holds for 3s before navigating on -- drain that timer
     // instead of leaving it pending (flutter_test fails a test that
     // completes with an outstanding Timer), then pump a few more fixed
-    // frames to let the pushReplacement transition run.
+    // frames to let the pushReplacement transition run. Pump slightly
+    // longer than the actual delay (4s vs 3s) for safety margin, rather
+    // than pumping the exact boundary value.
     //
     // Deliberately NOT pumpAndSettle() here: whatever Splash navigates
     // to next (OnboardingPage) shows an indeterminate
@@ -32,7 +34,7 @@ void main() {
     // scheduling frames on its own -- pumpAndSettle loops until nothing
     // is scheduled, which that never satisfies by itself, causing a
     // timeout unrelated to anything this test is actually checking.
-    await tester.pump(const Duration(seconds: 3));
+    await tester.pump(const Duration(seconds: 4));
     for (var i = 0; i < 5; i++) {
       await tester.pump(const Duration(milliseconds: 300));
     }

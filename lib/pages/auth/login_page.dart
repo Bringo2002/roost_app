@@ -105,7 +105,7 @@ class _LoginPageState extends State<LoginPage> {
             children: [
               const SizedBox(height: 16),
 
-              const RoostLogoIcon(size: 48),
+              const RoostLogoIcon(size: 64),
 
               const SizedBox(height: 28),
 
