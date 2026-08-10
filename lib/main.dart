@@ -9,7 +9,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/chat/active_chats_page.dart';
-import 'package:roost_app/pages/landlord/add_property_page.dart';
+import 'package:roost_app/pages/landlord/listing_intro_page.dart';
 import 'package:roost_app/pages/profile/profile_page.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/pages/search/search_page.dart';
@@ -183,7 +183,7 @@ class _HomePageState extends State<HomePage> {
               onPressed: () async {
                 final result = await Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const AddPropertyPage()),
+                  MaterialPageRoute(builder: (_) => const ListingIntroPage()),
                 );
                 if (result == true) {
                   setState(() {

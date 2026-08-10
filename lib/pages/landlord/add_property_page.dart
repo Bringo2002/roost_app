@@ -57,6 +57,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _petFriendly = false;
 
   static const int _minPhotos = 3;
+  static const List<String> _stepLabels = ['Photos', 'Basics', 'Location', 'Amenities', 'Contact'];
   static const int _maxPhotos = 10;
   final List<String> _imageUrls = [];
   String? _videoUrl;
@@ -494,6 +495,23 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           padding: const EdgeInsets.all(20),
           child: Column(
             children: [
+              // Tells the user where they are in the journey by name, not
+              // just an abstract fraction -- "Step 3 of 5 · Location"
+              // instead of five unlabeled bars they have to decode.
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'STEP ${_step + 1} OF 5 · ${_stepLabels[_step].toUpperCase()}',
+                  style: TextStyle(
+                    color: Colors.grey[500],
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.6,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+
               // Step Progress Indicator -- animates its fill so advancing
               // a step reads as forward motion rather than an instant
               // snap, matching the rest of the wizard's transitions.
@@ -597,22 +615,58 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   Widget _buildStepContent() {
     switch (_step) {
       case 0:
+        final hasMinPhotos = _imageUrls.length >= _minPhotos;
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             const Text('Property Photos', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text('Add high quality photos to attract renters', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 8),
-            Text(
-              _imageUrls.length >= _minPhotos
-                  ? '${_imageUrls.length} of $_minPhotos minimum photos added'
-                  : '${_imageUrls.length} of $_minPhotos minimum photos added -- add ${_minPhotos - _imageUrls.length} more',
-              style: TextStyle(
-                color: _imageUrls.length >= _minPhotos ? Colors.greenAccent : Colors.amber,
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
+            const SizedBox(height: 12),
+
+            // Status as a pill, not bare colored text -- scannable at a
+            // glance, and the icon reinforces the color for anyone who
+            // can't easily distinguish amber from green.
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: (hasMinPhotos ? Colors.greenAccent : Colors.amber).withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(999),
               ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(
+                    hasMinPhotos ? Icons.check_circle : Icons.info_outline,
+                    size: 14,
+                    color: hasMinPhotos ? Colors.greenAccent : Colors.amber,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    hasMinPhotos
+                        ? '${_imageUrls.length} of $_minPhotos minimum photos added'
+                        : '${_imageUrls.length} of $_minPhotos minimum photos added -- add ${_minPhotos - _imageUrls.length} more',
+                    style: TextStyle(
+                      color: hasMinPhotos ? Colors.greenAccent : Colors.amber,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 8),
+            // Explains the "Cover" badge *before* it appears, rather than
+            // leaving the user to notice and infer it after the fact.
+            Row(
+              children: [
+                Icon(Icons.info_outline, size: 13, color: Colors.grey[600]),
+                const SizedBox(width: 5),
+                Text(
+                  'Your first photo becomes the cover image',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
             ),
             const SizedBox(height: 20),
             Row(
@@ -657,6 +711,33 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   const SizedBox(width: 10),
                   Text('Uploading $_uploadDone of $_uploadTotal...', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
                 ],
+              ),
+            ],
+            if (_imageUrls.isEmpty && !_uploadingPhotos) ...[
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: const Color(0xFF2C2C2E), width: 1.2),
+                ),
+                child: Column(
+                  children: [
+                    Icon(Icons.add_a_photo_outlined, color: Colors.grey[600], size: 28),
+                    const SizedBox(height: 12),
+                    const Text(
+                      'No photos yet',
+                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      'Natural light and landscape shots of each room\nusually get the most views',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12, height: 1.4),
+                    ),
+                  ],
+                ),
               ),
             ],
             if (_imageUrls.isNotEmpty) ...[
