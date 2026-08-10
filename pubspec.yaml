@@ -34,6 +34,7 @@ dependencies:
   open_filex: ^4.5.0
   record: ^7.1.1
   just_audio: ^0.9.36
+  flutter_native_splash: ^2.4.6
 
 
 dev_dependencies:
@@ -41,7 +42,6 @@ dev_dependencies:
     sdk: flutter
   flutter_lints: ^6.0.0
   flutter_launcher_icons: ^0.14.3
-  flutter_native_splash: ^2.4.6
 
 flutter_launcher_icons:
   android: true

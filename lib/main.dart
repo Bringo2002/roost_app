@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/models/property.dart';
@@ -27,7 +28,15 @@ import 'package:roost_app/services/navigator_key.dart';
 import 'firebase_options.dart';
 
 void main() async {
-  WidgetsFlutterBinding.ensureInitialized();
+  final binding = WidgetsFlutterBinding.ensureInitialized();
+  // Keep the native launch screen (android/app/src/main/res/drawable*/
+  // splash.png, android12splash.png) on screen past Flutter's first
+  // frame, instead of Android dismissing it the instant Flutter is
+  // ready to paint. SplashPage calls FlutterNativeSplash.remove() once
+  // routing is actually resolved -- this is what gives us real,
+  // controlled timing over the ONE native splash view the user sees,
+  // without a second Flutter-rendered "splash" screen underneath it.
+  FlutterNativeSplash.preserve(widgetsBinding: binding);
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   // Must be registered before runApp so background/terminated messages
   // are never dropped between app launches.
