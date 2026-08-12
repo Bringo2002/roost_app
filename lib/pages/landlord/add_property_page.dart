@@ -63,7 +63,71 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _petFriendly = false;
 
   static const int _minPhotos = 3;
-  static const List<String> _stepLabels = ['Photos', 'Basics', 'Location', 'Amenities', 'Contact'];
+  static const List<String> _stepLabels = ['Photos', 'Basics', 'Location', 'Amenities', 'Contact', 'Review'];
+
+  /// Field-level validation errors for the *current* step, keyed by field
+  /// name. Populated by _validateStep when advancing fails, and cleared
+  /// per-field as the user edits it -- shown inline under the offending
+  /// field instead of a SnackBar the user has to remember and go hunting
+  /// for the cause of.
+  final Map<String, String> _errors = {};
+
+  void _clearError(String key) {
+    if (_errors.containsKey(key)) setState(() => _errors.remove(key));
+  }
+
+  /// Validates only the fields belonging to [step], populating _errors
+  /// with anything wrong. Returns true if that step is complete.
+  bool _validateStep(int step) {
+    final errors = <String, String>{};
+    switch (step) {
+      case 0:
+        if (_imageUrls.length < _minPhotos) {
+          errors['photos'] = 'Add at least $_minPhotos photos to continue';
+        }
+        break;
+      case 1:
+        if (_titleCtrl.text.trim().isEmpty) {
+          errors['title'] = 'Give your listing a title';
+        }
+        final price = double.tryParse(_priceCtrl.text.trim());
+        if (_priceCtrl.text.trim().isEmpty) {
+          errors['price'] = 'Enter the monthly rent';
+        } else if (price == null || price <= 0) {
+          errors['price'] = 'Enter a valid amount';
+        }
+        final bedrooms = int.tryParse(_bedroomsCtrl.text.trim());
+        if (_bedroomsCtrl.text.trim().isEmpty || bedrooms == null || bedrooms < 0) {
+          errors['bedrooms'] = 'Enter a valid number';
+        }
+        final bathrooms = int.tryParse(_bathroomsCtrl.text.trim());
+        if (_bathroomsCtrl.text.trim().isEmpty || bathrooms == null || bathrooms < 0) {
+          errors['bathrooms'] = 'Enter a valid number';
+        }
+        break;
+      case 2:
+        if (_locationCtrl.text.trim().isEmpty) {
+          errors['locationText'] = 'Add a neighborhood or street';
+        }
+        if (!_locationConfirmed) {
+          errors['gps'] = "Use your current location to continue -- see above";
+        }
+        break;
+      case 3:
+        break; // Amenities are all optional toggles.
+      case 4:
+        if (_phoneCtrl.text.trim().isEmpty) {
+          errors['phone'] = 'Add a contact phone number';
+        }
+        break;
+    }
+    setState(() {
+      _errors
+        ..clear()
+        ..addAll(errors);
+    });
+    return errors.isEmpty;
+  }
   static const int _maxPhotos = 10;
   final List<String> _imageUrls = [];
   String? _videoUrl;
@@ -413,28 +477,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   Future<void> _submitProperty() async {
+    // Defense in depth: every step's fields were already validated on the
+    // way through to reach Review, but re-check here too in case this
+    // gets reached via some other path in the future.
+    for (var s = 0; s <= 4; s++) {
+      if (!_validateStep(s)) {
+        if (!mounted) return;
+        setState(() => _step = s);
+        return;
+      }
+    }
+
     if (!await _ensurePhoneVerified()) return;
-
-    if (_titleCtrl.text.isEmpty || _priceCtrl.text.isEmpty || _locationCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please complete all required fields.')),
-      );
-      return;
-    }
-
-    if (_imageUrls.length < _minPhotos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Add at least $_minPhotos photos before publishing.')),
-      );
-      return;
-    }
-
-    if (!_locationConfirmed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pin the exact location on the map before publishing.')),
-      );
-      return;
-    }
 
     setState(() => _isLoading = true);
 
@@ -459,19 +513,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   void _nextStep() {
     if (_busy) return;
-    if (_step == 0 && _imageUrls.length < _minPhotos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Add at least $_minPhotos photos to continue.')),
-      );
-      return;
-    }
-    if (_step == 2 && !_locationConfirmed) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Pin the exact location on the map to continue.')),
-      );
-      return;
-    }
-    if (_step < 4) {
+    final lastFieldStep = _stepLabels.length - 2; // last data-entry step, before Review
+    if (_step <= lastFieldStep && !_validateStep(_step)) return;
+
+    if (_step < _stepLabels.length - 1) {
       _autosaveDraft();
       setState(() {
         _movingForward = true;
@@ -489,6 +534,17 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _step--;
       });
     }
+  }
+
+  /// Used by the Review step's "Edit" links to jump straight back to a
+  /// specific earlier step, rather than only being able to go back one
+  /// step at a time.
+  void _jumpToStep(int step) {
+    if (_busy) return;
+    setState(() {
+      _movingForward = false;
+      _step = step;
+    });
   }
 
   /// Saves whatever's been filled in so far as a DRAFT and exits the
@@ -544,7 +600,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               Align(
                 alignment: Alignment.centerLeft,
                 child: Text(
-                  'STEP ${_step + 1} OF 5 · ${_stepLabels[_step].toUpperCase()}',
+                  'STEP ${_step + 1} OF ${_stepLabels.length} · ${_stepLabels[_step].toUpperCase()}',
                   style: TextStyle(
                     color: Colors.grey[500],
                     fontSize: 11,
@@ -560,7 +616,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               // snap, matching the rest of the wizard's transitions.
               Row(
                 children: List.generate(
-                  5,
+                  _stepLabels.length,
                   (idx) => Expanded(
                     child: AnimatedContainer(
                       duration: const Duration(milliseconds: 300),
@@ -641,7 +697,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                               child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
                             )
                           : Text(
-                              _step == 4 ? (_isEditing ? 'Save Changes' : 'Publish Listing') : 'Next Step',
+                              _step == _stepLabels.length - 1 ? (_isEditing ? 'Save Changes' : 'Publish Listing') : 'Next Step',
                               style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                             ),
                     ),
@@ -934,7 +990,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             TextField(
               controller: _titleCtrl,
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Listing Title (e.g. Modern 2BR Kilimani)'),
+              decoration: _inputDecoration('Listing Title (e.g. Modern 2BR Kilimani)', errorText: _errors['title']),
+              onChanged: (_) => _clearError('title'),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -955,13 +1012,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             ),
             const SizedBox(height: 16),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: TextField(
                     controller: _priceCtrl,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Monthly Rent (${CountryService.config.currencyCode})'),
+                    decoration: _inputDecoration('Monthly Rent (${CountryService.config.currencyCode})', errorText: _errors['price']),
+                    onChanged: (_) => _clearError('price'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -969,20 +1028,22 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   child: TextField(
                     controller: _depositCtrl,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Deposit Terms'),
+                    decoration: _inputDecoration('Deposit Terms (optional)'),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 16),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
                   child: TextField(
                     controller: _bedroomsCtrl,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Bedrooms'),
+                    decoration: _inputDecoration('Bedrooms', errorText: _errors['bedrooms']),
+                    onChanged: (_) => _clearError('bedrooms'),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -991,7 +1052,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     controller: _bathroomsCtrl,
                     keyboardType: TextInputType.number,
                     style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Bathrooms'),
+                    decoration: _inputDecoration('Bathrooms', errorText: _errors['bathrooms']),
+                    onChanged: (_) => _clearError('bathrooms'),
                   ),
                 ),
               ],
@@ -1010,7 +1072,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             TextField(
               controller: _locationCtrl,
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Location (e.g. Kilimani, Chania Avenue)'),
+              decoration: _inputDecoration('Location (e.g. Kilimani, Chania Avenue)', errorText: _errors['locationText']),
+              onChanged: (_) => _clearError('locationText'),
             ),
             const SizedBox(height: 20),
             if (!_locationConfirmed)
@@ -1020,11 +1083,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C1C1E),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
+                  border: Border.all(
+                    color: _errors.containsKey('gps')
+                        ? Colors.redAccent.withValues(alpha: 0.7)
+                        : Colors.amber.withValues(alpha: 0.5),
+                  ),
                 ),
                 child: Column(
                   children: [
-                    const Icon(Icons.my_location, color: Colors.amber, size: 28),
+                    Icon(
+                      Icons.my_location,
+                      color: _errors.containsKey('gps') ? Colors.redAccent : Colors.amber,
+                      size: 28,
+                    ),
                     const SizedBox(height: 12),
                     const Text(
                       "We'll use your device's GPS to pin this property",
@@ -1037,6 +1108,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       textAlign: TextAlign.center,
                       style: TextStyle(color: Colors.grey[500], fontSize: 12.5, height: 1.4),
                     ),
+                    if (_errors.containsKey('gps')) ...[
+                      const SizedBox(height: 10),
+                      const Text(
+                        'Required to continue',
+                        style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                    ],
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
@@ -1171,7 +1249,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         );
 
       case 4:
-      default:
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1183,7 +1260,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               controller: _phoneCtrl,
               keyboardType: TextInputType.phone,
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Contact Phone (e.g. +254 712 345 678)'),
+              decoration: _inputDecoration('Contact Phone (e.g. +254 712 345 678)', errorText: _errors['phone']),
+              onChanged: (_) => _clearError('phone'),
             ),
             const SizedBox(height: 16),
             TextField(
@@ -1191,20 +1269,182 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               maxLines: 4,
               maxLength: 500,
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Description (max 500 chars)'),
+              decoration: _inputDecoration('Description (optional, max 500 chars)'),
+            ),
+          ],
+        );
+
+      case 5:
+      default:
+        final amenityLabels = <String>[
+          if (_furnished) 'Furnished',
+          if (_parking) 'Parking',
+          if (_wifi) 'WiFi',
+          if (_water) '24hr Water',
+          if (_security) 'Security',
+          if (_balcony) 'Balcony',
+          if (_petFriendly) 'Pet Friendly',
+        ];
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('Review Your Listing', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text('Check everything looks right before you publish', style: TextStyle(color: Colors.grey[500])),
+            const SizedBox(height: 20),
+            if (_imageUrls.isNotEmpty)
+              ClipRRect(
+                borderRadius: BorderRadius.circular(14),
+                child: Image.network(
+                  _imageUrls.first,
+                  height: 160,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, _, _) => Container(
+                    height: 160,
+                    color: const Color(0xFF1C1C1E),
+                    child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 20),
+            _ReviewSection(
+              title: 'Photos',
+              onEdit: () => _jumpToStep(0),
+              lines: ['${_imageUrls.length} photo${_imageUrls.length == 1 ? '' : 's'} added'],
+            ),
+            _ReviewSection(
+              title: 'Basics',
+              onEdit: () => _jumpToStep(1),
+              lines: [
+                _titleCtrl.text.trim().isEmpty ? '(no title)' : _titleCtrl.text.trim(),
+                '$_houseType · ${CountryService.pricePerMonth(double.tryParse(_priceCtrl.text.trim()) ?? 0)}',
+                '${_bedroomsCtrl.text.trim()} bed · ${_bathroomsCtrl.text.trim()} bath'
+                    '${_depositCtrl.text.trim().isEmpty ? '' : ' · Deposit: ${_depositCtrl.text.trim()}'}',
+              ],
+            ),
+            _ReviewSection(
+              title: 'Location',
+              onEdit: () => _jumpToStep(2),
+              lines: [
+                _locationCtrl.text.trim().isEmpty ? '(no location)' : _locationCtrl.text.trim(),
+              ],
+              trailingIcon: _gpsVerified ? Icons.verified : Icons.info_outline,
+              trailingIconColor: _gpsVerified ? Colors.greenAccent : Colors.amber,
+              trailingLabel: _gpsVerified ? 'GPS-confirmed' : 'Not GPS-confirmed yet',
+            ),
+            _ReviewSection(
+              title: 'Amenities',
+              onEdit: () => _jumpToStep(3),
+              lines: [amenityLabels.isEmpty ? 'None selected' : amenityLabels.join(' · ')],
+            ),
+            _ReviewSection(
+              title: 'Contact',
+              onEdit: () => _jumpToStep(4),
+              lines: [
+                _phoneCtrl.text.trim().isEmpty ? '(no phone)' : _phoneCtrl.text.trim(),
+                if (_descriptionCtrl.text.trim().isNotEmpty)
+                  _descriptionCtrl.text.trim().length > 80
+                      ? '${_descriptionCtrl.text.trim().substring(0, 80)}...'
+                      : _descriptionCtrl.text.trim(),
+              ],
             ),
           ],
         );
     }
   }
 
-  InputDecoration _inputDecoration(String label) {
+  InputDecoration _inputDecoration(String label, {String? errorText}) {
     return InputDecoration(
       labelText: label,
       labelStyle: TextStyle(color: Colors.grey[500]),
       filled: true,
       fillColor: const Color(0xFF1C1C1E),
       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      errorText: errorText,
+      errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
+      errorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+      ),
+      focusedErrorBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.redAccent, width: 1.6),
+      ),
+    );
+  }
+}
+
+/// A single editable summary card on the Review step -- a title, an
+/// "Edit" link that jumps back to the step it summarizes, and a few
+/// lines of plain-text content. Used identically for every section so
+/// Review reads as one consistent list, not five differently-styled
+/// blocks.
+class _ReviewSection extends StatelessWidget {
+  const _ReviewSection({
+    required this.title,
+    required this.onEdit,
+    required this.lines,
+    this.trailingIcon,
+    this.trailingIconColor,
+    this.trailingLabel,
+  });
+
+  final String title;
+  final VoidCallback onEdit;
+  final List<String> lines;
+  final IconData? trailingIcon;
+  final Color? trailingIconColor;
+  final String? trailingLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF2C2C2E)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  title,
+                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
+                ),
+              ),
+              GestureDetector(
+                onTap: onEdit,
+                child: const Text(
+                  'Edit',
+                  style: TextStyle(color: Colors.white70, fontSize: 12, decoration: TextDecoration.underline),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          for (final line in lines)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 2),
+              child: Text(line, style: TextStyle(color: Colors.grey[300], fontSize: 13, height: 1.4)),
+            ),
+          if (trailingIcon != null) ...[
+            const SizedBox(height: 6),
+            Row(
+              children: [
+                Icon(trailingIcon, size: 14, color: trailingIconColor),
+                const SizedBox(width: 6),
+                Text(trailingLabel ?? '', style: TextStyle(color: trailingIconColor, fontSize: 12, fontWeight: FontWeight.w600)),
+              ],
+            ),
+          ],
+        ],
+      ),
     );
   }
 }
