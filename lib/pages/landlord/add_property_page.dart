@@ -1,12 +1,11 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
-import 'package:roost_app/pages/search/location_picker_page.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/location_service.dart';
 
 import 'package:roost_app/services/country_service.dart';
 
@@ -47,6 +46,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   double? _latitude;
   double? _longitude;
   bool _locationConfirmed = false;
+
+  // True once the server has recorded this location as GPS-confirmed
+  // on-site (via /verify-gps). Separate from _locationConfirmed, which
+  // only means "we captured coordinates" -- this tracks whether that
+  // capture was successfully recorded server-side toward the badge.
+  bool _gpsVerified = false;
+  bool _checkingGps = false;
 
   bool _furnished = false;
   bool _parking = false;
@@ -112,6 +118,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       _longitude = p.longitude;
       _locationConfirmed = true;
     }
+    _gpsVerified = p.gpsVerified;
 
     _furnished = p.furnished;
     _parking = p.parking;
@@ -139,17 +146,53 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     super.dispose();
   }
 
-  Future<void> _pickLocation() async {
-    final latlng = await Navigator.push<LatLng>(
-      context,
-      MaterialPageRoute(builder: (_) => const LocationPickerPage()),
-    );
-    if (latlng != null) {
+  /// Captures the property's location directly from the device's live
+  /// GPS -- there is no manual pin-dropping anywhere in this flow, so the
+  /// coordinates saved here are, by construction, wherever the landlord
+  /// is actually standing. That's also what /verify-gps is checking, so
+  /// this immediately records server-side GPS verification too, rather
+  /// than treating capture and verification as two separate steps.
+  Future<void> _captureLocation() async {
+    if (_checkingGps) return;
+    setState(() => _checkingGps = true);
+    try {
+      final position = await LocationService.getCurrentPosition();
+      if (position == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text("Couldn't get your location. Make sure location access is allowed for Roost, then try again.")),
+        );
+        return;
+      }
+      if (!mounted) return;
       setState(() {
-        _latitude = latlng.latitude;
-        _longitude = latlng.longitude;
+        _latitude = position.latitude;
+        _longitude = position.longitude;
         _locationConfirmed = true;
+        // Reset first -- if this capture's server verification below
+        // fails, we must not keep showing "verified" from a previous,
+        // now-superseded capture.
+        _gpsVerified = false;
       });
+
+      // Best-effort: coordinates are already captured and usable even if
+      // this part fails (flaky network, etc). The Verified badge just
+      // won't show until it succeeds -- retryable via "Update Location".
+      try {
+        final status = _isEditing ? widget.editingProperty!.status : 'DRAFT';
+        final id = await _persist(_buildPayload(status: status));
+        if (id != null) {
+          await ApiService.post('/api/properties/$id/verify-gps', {
+            'latitude': position.latitude,
+            'longitude': position.longitude,
+          });
+          if (mounted) setState(() => _gpsVerified = true);
+        }
+      } catch (_) {
+        // Swallowed -- see doc comment above.
+      }
+    } finally {
+      if (mounted) setState(() => _checkingGps = false);
     }
   }
 
@@ -962,7 +1005,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           children: [
             const Text('Location', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text('Specify district & precise GPS location', style: TextStyle(color: Colors.grey[500])),
+            Text('Specify district & confirm your exact GPS location', style: TextStyle(color: Colors.grey[500])),
             const SizedBox(height: 20),
             TextField(
               controller: _locationCtrl,
@@ -970,34 +1013,107 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               decoration: _inputDecoration('Location (e.g. Kilimani, Chania Avenue)'),
             ),
             const SizedBox(height: 20),
-            GestureDetector(
-              onTap: _pickLocation,
-              child: Container(
-                padding: const EdgeInsets.all(16),
+            if (!_locationConfirmed)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C1C1E),
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _locationConfirmed ? const Color(0xFF2C2C2E) : Colors.amber.withValues(alpha: 0.6),
-                  ),
+                  border: Border.all(color: Colors.amber.withValues(alpha: 0.5)),
                 ),
-                child: Row(
+                child: Column(
                   children: [
-                    Icon(Icons.my_location, color: _locationConfirmed ? Colors.white : Colors.amber),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Text(
-                        _locationConfirmed
-                            ? 'Coordinates: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}'
-                            : 'Required -- tap to pin the exact location on the map',
-                        style: TextStyle(color: _locationConfirmed ? Colors.white : Colors.amber, fontSize: 14),
+                    const Icon(Icons.my_location, color: Colors.amber, size: 28),
+                    const SizedBox(height: 12),
+                    const Text(
+                      "We'll use your device's GPS to pin this property",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "You'll need to be standing at the property -- this is what earns the Verified badge, so listings can't fake a location.",
+                      textAlign: TextAlign.center,
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12.5, height: 1.4),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: _checkingGps ? null : _captureLocation,
+                        icon: _checkingGps
+                            ? const SizedBox(
+                                width: 14, height: 14,
+                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
+                              )
+                            : const Icon(Icons.my_location, size: 16),
+                        label: Text(_checkingGps ? 'Getting your location...' : 'Use My Current Location'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.white,
+                          foregroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                        ),
                       ),
                     ),
-                    const Icon(Icons.chevron_right, color: Colors.grey),
+                  ],
+                ),
+              )
+            else
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: (_gpsVerified ? Colors.greenAccent : Colors.white).withValues(alpha: 0.08),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: _gpsVerified ? Colors.greenAccent.withValues(alpha: 0.4) : Colors.white24),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Icon(
+                          _gpsVerified ? Icons.verified : Icons.location_on,
+                          color: _gpsVerified ? Colors.greenAccent : Colors.white,
+                          size: 20,
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            _gpsVerified ? "Confirmed -- you're at this location" : 'Location captured',
+                            style: TextStyle(
+                              color: _gpsVerified ? Colors.greenAccent : Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                    ),
+                    if (_gpsVerified) ...[
+                      const SizedBox(height: 2),
+                      Text(
+                        'This counts toward your Verified badge',
+                        style: TextStyle(color: Colors.greenAccent.withValues(alpha: 0.7), fontSize: 12),
+                      ),
+                    ],
+                    const SizedBox(height: 10),
+                    GestureDetector(
+                      onTap: _checkingGps ? null : _captureLocation,
+                      child: Text(
+                        _checkingGps ? 'Updating...' : 'Update Location',
+                        style: const TextStyle(color: Colors.white70, fontSize: 12, decoration: TextDecoration.underline),
+                      ),
+                    ),
                   ],
                 ),
               ),
-            ),
           ],
         );
 

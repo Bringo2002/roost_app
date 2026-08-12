@@ -18,8 +18,8 @@ class ListingIntroPage extends StatelessWidget {
     ),
     (
       icon: Icons.my_location,
-      title: 'The exact location',
-      subtitle: 'Pinned on the map, not just typed -- this is what earns the Verified badge',
+      title: 'Your exact location',
+      subtitle: "Captured automatically from your GPS while you're at the property -- this earns the Verified badge",
     ),
     (
       icon: Icons.sell_outlined,
