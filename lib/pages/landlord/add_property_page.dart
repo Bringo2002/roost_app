@@ -6,6 +6,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/widgets/property/property_card.dart';
 
 import 'package:roost_app/services/country_service.dart';
 
@@ -409,6 +410,44 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       'country': CountryService.config.code,
       'status': status,
     };
+  }
+
+  /// Builds an in-memory Property from the wizard's current field values,
+  /// purely for rendering the real PropertyCard on the Review step --
+  /// never sent anywhere. Field mapping deliberately mirrors
+  /// _buildPayload exactly, so what's previewed matches what actually
+  /// gets saved.
+  Property _buildPreviewProperty() {
+    return Property(
+      title: _titleCtrl.text.trim(),
+      buildingName: _buildingNameCtrl.text.trim().isEmpty ? null : _buildingNameCtrl.text.trim(),
+      description: _descriptionCtrl.text.trim(),
+      location: _locationCtrl.text.trim(),
+      price: double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      bedrooms: int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
+      bathrooms: int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
+      type: 'RENTAL',
+      houseType: _houseType,
+      landlordPhone: _phoneCtrl.text.trim(),
+      available: _isEditing ? widget.editingProperty!.available : true,
+      verified: _isEditing ? widget.editingProperty!.verified : false,
+      gpsVerified: _gpsVerified,
+      imageUrl: _imageUrls.isNotEmpty ? _imageUrls.first : null,
+      imageUrls: _imageUrls,
+      videoUrl: _videoUrl,
+      latitude: _latitude,
+      longitude: _longitude,
+      furnished: _furnished,
+      parking: _parking,
+      water: _water,
+      wifi: _wifi,
+      security: _security,
+      balcony: _balcony,
+      petFriendly: _petFriendly,
+      deposit: _depositCtrl.text.trim().isEmpty ? null : _depositCtrl.text.trim(),
+      moveInDate: _moveInDate,
+      country: CountryService.config.code,
+    );
   }
 
   /// Creates the listing on first save, updates it on every save after
@@ -1291,23 +1330,25 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             const Text('Review Your Listing', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
             Text('Check everything looks right before you publish', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 20),
-            if (_imageUrls.isNotEmpty)
-              ClipRRect(
-                borderRadius: BorderRadius.circular(14),
-                child: Image.network(
-                  _imageUrls.first,
-                  height: 160,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => Container(
-                    height: 160,
-                    color: const Color(0xFF1C1C1E),
-                    child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-                  ),
-                ),
+            const SizedBox(height: 16),
+            Text(
+              'PREVIEW -- THIS IS HOW YOUR LISTING WILL LOOK',
+              style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
+            ),
+            const SizedBox(height: 10),
+            // Renders the actual card widget used everywhere else in the
+            // app, fed with the wizard's current values -- so this is a
+            // real preview, not a text description of one. Wrapped in
+            // IgnorePointer because the real card has live Call/Chat/
+            // Navigate actions that assume a saved listing with a real
+            // owner attached; this one doesn't have either yet.
+            IgnorePointer(
+              child: PropertyCard(
+                property: _buildPreviewProperty(),
+                margin: EdgeInsets.zero,
               ),
-            const SizedBox(height: 20),
+            ),
+            const SizedBox(height: 24),
             _ReviewSection(
               title: 'Photos',
               onEdit: () => _jumpToStep(0),
