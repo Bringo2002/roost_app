@@ -32,6 +32,11 @@ class _SearchPageState extends State<SearchPage> {
   List<Property> _results = [];
   bool _loading = true;
   bool _loadError = false;
+  bool _loadingMore = false;
+  bool _hasMore = true;
+  int _nextPage = 0;
+  static const int _pageSize = 20;
+  final _scrollController = ScrollController();
 
   final _searchCtrl = TextEditingController();
 
@@ -61,14 +66,29 @@ class _SearchPageState extends State<SearchPage> {
     _loadProperties();
     _loadUserLocation();
     _searchCtrl.addListener(_onSearchChanged);
+    _scrollController.addListener(_onScroll);
   }
 
   @override
   void dispose() {
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
+    _scrollController.removeListener(_onScroll);
+    _scrollController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  /// Fires a page fetch once the user scrolls near the bottom of the
+  /// list. Guards on _hasMore/_loadingMore/_loading so a fast scroll
+  /// can't queue up duplicate requests.
+  void _onScroll() {
+    if (!_hasMore || _loadingMore || _loading) return;
+    if (!_scrollController.hasClients) return;
+    final pos = _scrollController.position;
+    if (pos.pixels >= pos.maxScrollExtent - 400) {
+      _fetchFiltered(loadMore: true);
+    }
   }
 
   void _onSearchChanged() {
@@ -82,7 +102,17 @@ class _SearchPageState extends State<SearchPage> {
     setState(() {
       _userPosition = position;
     });
-    _applyClientSideFilters();
+    // Distance-sorted paging depends on the server having lat/lng, which
+    // it didn't for whatever's already loaded -- refetch from page 0
+    // rather than just re-sorting client-side, so page boundaries match
+    // the newly-correct distance order. If the user has "newest first"
+    // on, server order doesn't depend on location, so a client re-sort
+    // (for the distance labels) is enough.
+    if (_sortNewestFirst) {
+      _applyClientSideFilters();
+    } else {
+      _fetchFiltered();
+    }
   }
 
   /// Distance from the user to [p] in km, or null if either the user's
@@ -102,12 +132,12 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   /// Builds the query string for GET /api/properties/filter from the
-  /// filter sheet's own state. Deliberately does NOT include anything
-  /// parsed from free-text search (_parseSearchIntent) -- the backend has
-  /// no NLP matching, so that stays a client-side pass over whatever this
-  /// returns, exactly as before. This still captures the common case
-  /// (narrowing via the filter sheet) without the full table download.
-  String _buildFilterQuery() {
+  /// filter sheet's own state, plus pagination and (when relevant)
+  /// device location. Deliberately does NOT include anything parsed
+  /// from free-text search (_parseSearchIntent) -- the backend has no
+  /// NLP matching, so that stays a client-side pass over whatever this
+  /// returns, exactly as before.
+  String _buildFilterQuery(int page) {
     final params = <String, String>{};
 
     // '3BR+' isn't a literal value in the houseType column -- it means
@@ -134,30 +164,62 @@ class _SearchPageState extends State<SearchPage> {
     if (_security) params['security'] = 'true';
     if (_verifiedOnly) params['verified'] = 'true';
 
+    params['page'] = '$page';
+    params['size'] = '$_pageSize';
+
+    // Only ask the server to sort by distance when that's actually the
+    // active display order -- if "newest first" is on, sending lat/lng
+    // would make page boundaries fall along distance order while the
+    // client displays newest-first, silently decoupling "next page" from
+    // "next chunk of what's on screen."
+    final pos = _userPosition;
+    if (!_sortNewestFirst && pos != null) {
+      params['lat'] = '${pos.latitude}';
+      params['lng'] = '${pos.longitude}';
+    }
+
     return params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
   }
 
   /// Fetches from the server with the filter sheet's constraints already
   /// applied, then runs the remaining client-only pass (free-text NLP
-  /// matching, balcony/petFriendly, sorting) on the smaller result set.
-  Future<void> _fetchFiltered() async {
-    setState(() => _loadError = false);
+  /// matching, balcony/petFriendly, sorting) on the accumulated results.
+  ///
+  /// [loadMore] fetches the next page and appends; otherwise this is a
+  /// fresh search (filters changed, pull-to-refresh, retry, location
+  /// resolved) that replaces page 0 outright.
+  Future<void> _fetchFiltered({bool loadMore = false}) async {
+    if (loadMore) {
+      if (!_hasMore || _loadingMore) return;
+      setState(() => _loadingMore = true);
+    } else {
+      setState(() => _loadError = false);
+    }
+
+    final pageToFetch = loadMore ? _nextPage : 0;
+
     try {
-      final query = _buildFilterQuery();
-      final path = query.isEmpty ? '/api/properties/filter' : '/api/properties/filter?$query';
-      final jsonList = await ApiService.get(path);
+      final query = _buildFilterQuery(pageToFetch);
+      final jsonList = await ApiService.get('/api/properties/filter?$query');
       final props = (jsonList as List).map((j) => Property.fromJson(j)).toList();
 
       if (!mounted) return;
       setState(() {
-        _allProperties = props;
+        _allProperties = loadMore ? [..._allProperties, ...props] : props;
+        _hasMore = props.length == _pageSize;
+        _nextPage = pageToFetch + 1;
         _loading = false;
+        _loadingMore = false;
       });
       _applyClientSideFilters();
     } catch (_) {
-      if (mounted) setState(() {
+      if (!mounted) return;
+      setState(() {
         _loading = false;
-        _loadError = true;
+        _loadingMore = false;
+        // A failed "load more" leaves existing results on screen; only
+        // a failed initial load shows the full-page error state.
+        if (!loadMore) _loadError = true;
       });
     }
   }
@@ -261,6 +323,16 @@ class _SearchPageState extends State<SearchPage> {
 
       _sortResults();
     });
+
+    // Balcony/petFriendly/free-text are client-only filters (the backend
+    // doesn't know about them), so a narrow match can leave too little on
+    // screen to ever trigger _onScroll's pixel-based check -- there's
+    // nothing to scroll if the filtered list doesn't fill the viewport.
+    // Keep pulling pages until either the screen has enough to scroll or
+    // the server runs out of results.
+    if (_results.length < _pageSize && _hasMore && !_loadingMore && !_loading) {
+      _fetchFiltered(loadMore: true);
+    }
   }
 
   void _sortResults() {
@@ -704,9 +776,24 @@ class _SearchPageState extends State<SearchPage> {
                             ],
                           )
                         : ListView.builder(
+                            controller: _scrollController,
                             physics: const AlwaysScrollableScrollPhysics(),
-                            itemCount: _results.length,
+                            itemCount: _results.length + (_hasMore ? 1 : 0),
                             itemBuilder: (context, index) {
+                              if (index >= _results.length) {
+                                return Padding(
+                                  padding: const EdgeInsets.symmetric(vertical: 24),
+                                  child: Center(
+                                    child: _loadingMore
+                                        ? const SizedBox(
+                                            width: 24,
+                                            height: 24,
+                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                );
+                              }
                               final property = _results[index];
                               final km = _distanceKmTo(property);
                               return PropertyCard(
