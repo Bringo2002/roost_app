@@ -6,6 +6,11 @@ class User {
   final String email;
   final String role;
 
+  /// Contact number, shown in the chat contact-info sheet. Null for
+  /// contexts that don't send it (e.g. a property listing's owner
+  /// summary uses its own separate landlordPhone field instead).
+  final String? phone;
+
   /// Last time this user made an authenticated request, refreshed
   /// automatically server-side. Used to derive online / last-seen status;
   /// null if the user has never made an authenticated request yet.
@@ -16,6 +21,7 @@ class User {
     required this.name,
     required this.email,
     required this.role,
+    this.phone,
     this.lastActiveAt,
   });
 
@@ -31,6 +37,7 @@ class User {
       name: json['name']?.toString() ?? '',
       email: json['email']?.toString() ?? '',
       role: json['role']?.toString() ?? '',
+      phone: json['phone']?.toString(),
       lastActiveAt: parseServerDateTime(json['lastActiveAt']?.toString()),
     );
   }

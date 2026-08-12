@@ -812,37 +812,100 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     }
 
     final online = _livePartner.isOnline;
-    return Row(
-      children: [
-        _HeaderAvatar(name: _livePartner.name, online: online),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                _livePartner.name,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: AppTextStyles.title.copyWith(fontSize: 16),
-              ),
-              Text(
-                _partnerIsTyping
-                    ? 'typing...'
-                    : (online ? 'Online' : formatLastSeen(_livePartner.lastActiveAt)),
-                style: AppTextStyles.meta.copyWith(
-                  fontSize: 11,
-                  color: _partnerIsTyping
-                      ? AppColors.white
-                      : (online ? AppColors.onlineAccent : AppColors.textTertiary),
-                  fontWeight: (_partnerIsTyping || online) ? FontWeight.w600 : FontWeight.w400,
+    return InkWell(
+      onTap: _showContactInfo,
+      child: Row(
+        children: [
+          _HeaderAvatar(name: _livePartner.name, online: online),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  _livePartner.name,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.title.copyWith(fontSize: 16),
                 ),
-              ),
-            ],
+                Text(
+                  _partnerIsTyping
+                      ? 'typing...'
+                      : (online ? 'Online' : formatLastSeen(_livePartner.lastActiveAt)),
+                  style: AppTextStyles.meta.copyWith(
+                    fontSize: 11,
+                    color: _partnerIsTyping
+                        ? AppColors.white
+                        : (online ? AppColors.onlineAccent : AppColors.textTertiary),
+                    fontWeight: (_partnerIsTyping || online) ? FontWeight.w600 : FontWeight.w400,
+                  ),
+                ),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
+    );
+  }
+
+  /// Tapping the chat header opens contact info -- name, phone, and
+  /// online/last-seen -- the same pattern as WhatsApp/Telegram/iMessage,
+  /// rather than crowding the header itself with anything beyond name
+  /// and status.
+  void _showContactInfo() {
+    final online = _livePartner.isOnline;
+    final phone = _livePartner.phone;
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(20, 24, 20, 20),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    _HeaderAvatar(name: _livePartner.name, online: online),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            _livePartner.name,
+                            style: AppTextStyles.title.copyWith(fontSize: 18),
+                          ),
+                          Text(
+                            online ? 'Online' : formatLastSeen(_livePartner.lastActiveAt),
+                            style: AppTextStyles.meta.copyWith(
+                              fontSize: 12,
+                              color: online ? AppColors.onlineAccent : AppColors.textTertiary,
+                              fontWeight: online ? FontWeight.w600 : FontWeight.w400,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                if (phone != null && phone.isNotEmpty)
+                  _ContactInfoRow(icon: Icons.phone_outlined, label: phone)
+                else
+                  _ContactInfoRow(icon: Icons.phone_outlined, label: 'No phone number on file'),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -1243,6 +1306,29 @@ class _FlashingDotState extends State<_FlashingDot> with SingleTickerProviderSta
           shape: BoxShape.circle,
         ),
       ),
+    );
+  }
+}
+
+class _ContactInfoRow extends StatelessWidget {
+  const _ContactInfoRow({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.textTertiary),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: AppTextStyles.body.copyWith(fontSize: 15),
+          ),
+        ),
+      ],
     );
   }
 }
