@@ -1,4 +1,37 @@
+import 'dart:convert';
+
 import 'package:roost_app/models/user.dart';
+
+/// A nearby point of interest (closest mall, hospital, or major road),
+/// computed once server-side when a listing's GPS location is verified.
+/// Pure data -- category-to-icon mapping lives in the UI layer, not here.
+class NearbyFacility {
+  final String name;
+  final String category; // 'mall' | 'hospital' | 'road'
+  final double distanceMeters;
+
+  const NearbyFacility({
+    required this.name,
+    required this.category,
+    required this.distanceMeters,
+  });
+
+  factory NearbyFacility.fromJson(Map<String, dynamic> json) {
+    return NearbyFacility(
+      name: json['name']?.toString() ?? '',
+      category: json['category']?.toString() ?? '',
+      distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0.0,
+    );
+  }
+
+  /// e.g. "600m from TRM Mall" or "1.2km from Thika Superhighway".
+  String get label {
+    final dist = distanceMeters < 1000
+        ? '${distanceMeters.round()}m'
+        : '${(distanceMeters / 1000).toStringAsFixed(1)}km';
+    return '$dist from $name';
+  }
+}
 
 class Property {
   final int? id;
@@ -43,6 +76,7 @@ class Property {
   final String? listedAt;
   final String? lastConfirmedAt;
   final String country;
+  final List<NearbyFacility> nearbyFacilities;
 
   Property({
     this.id,
@@ -86,6 +120,7 @@ class Property {
     this.listedAt,
     this.lastConfirmedAt,
     this.country = 'KE',
+    this.nearbyFacilities = const [],
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -131,7 +166,27 @@ class Property {
       listedAt: json['listedAt']?.toString(),
       lastConfirmedAt: json['lastConfirmedAt']?.toString(),
       country: json['country']?.toString() ?? 'KE',
+      nearbyFacilities: _parseNearbyFacilities(json['nearbyFacilities']),
     );
+  }
+
+  /// The backend stores/returns this as a raw JSON *string* (see
+  /// Property.java's nearbyFacilities doc comment), not a nested array,
+  /// so it needs an explicit decode here rather than a direct cast.
+  /// Never throws -- malformed or missing data just means no facilities
+  /// show, not a crash parsing the whole listing.
+  static List<NearbyFacility> _parseNearbyFacilities(dynamic raw) {
+    if (raw is! String || raw.isEmpty) return [];
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! List) return [];
+      return decoded
+          .whereType<Map<String, dynamic>>()
+          .map(NearbyFacility.fromJson)
+          .toList();
+    } catch (_) {
+      return [];
+    }
   }
 
   Map<String, dynamic> toJson() {

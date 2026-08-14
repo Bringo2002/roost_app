@@ -732,6 +732,31 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                     ),
                   ),
 
+                  if (widget.property.nearbyFacilities.isNotEmpty) ...[
+                    const SizedBox(height: 16),
+                    const Text('Nearby', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        for (final facility in widget.property.nearbyFacilities)
+                          Padding(
+                            padding: const EdgeInsets.only(bottom: 8),
+                            child: Row(
+                              children: [
+                                Icon(_nearbyFacilityIcon(facility.category), color: Colors.grey[400], size: 16),
+                                const SizedBox(width: 8),
+                                Text(
+                                  facility.label,
+                                  style: TextStyle(color: Colors.grey[300], fontSize: 13),
+                                ),
+                              ],
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
+
                   const SizedBox(height: 20),
                   const Divider(color: Color(0xFF2C2C2E)),
                   const SizedBox(height: 16),
@@ -931,6 +956,19 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
         ],
       ),
     );
+  }
+
+  IconData _nearbyFacilityIcon(String category) {
+    switch (category) {
+      case 'mall':
+        return Icons.shopping_bag_outlined;
+      case 'hospital':
+        return Icons.local_hospital_outlined;
+      case 'road':
+        return Icons.add_road_outlined;
+      default:
+        return Icons.place_outlined;
+    }
   }
 }
 
