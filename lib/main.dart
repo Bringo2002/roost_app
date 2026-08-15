@@ -167,6 +167,7 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
+    final showFab = _currentIndex == 0 && _userRole == 'LANDLORD';
     return Scaffold(
       appBar: _currentIndex == 0
           ? null
@@ -176,7 +177,12 @@ class _HomePageState extends State<HomePage> {
         bottom: false,
         child: IndexedStack(index: _currentIndex, children: _pages),
       ),
-      floatingActionButton: (_currentIndex == 0 && _userRole == 'LANDLORD')
+      // Center-docked, TikTok/Instagram-style create button -- only
+      // when there's actually something to dock (landlord, on Home).
+      // Falls back to a plain bottom bar otherwise so there's never an
+      // empty notch with nothing in it, which would look broken.
+      floatingActionButtonLocation: showFab ? FloatingActionButtonLocation.centerDocked : null,
+      floatingActionButton: showFab
           ? FloatingActionButton(
               backgroundColor: Colors.white,
               foregroundColor: Colors.black,
@@ -195,55 +201,147 @@ class _HomePageState extends State<HomePage> {
               child: const Icon(Icons.add),
             )
           : null,
-      bottomNavigationBar: Container(
+      bottomNavigationBar: showFab ? _buildNotchedBar() : _buildPlainBar(),
+    );
+  }
+
+  Widget _buildPlainBar() {
+    return Container(
+      decoration: BoxDecoration(
+        border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
+      ),
+      child: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (i) => setState(() => _currentIndex = i),
+        type: BottomNavigationBarType.fixed,
+        backgroundColor: Colors.black,
+        selectedItemColor: Colors.white,
+        unselectedItemColor: Colors.grey[700],
+        selectedFontSize: 11,
+        unselectedFontSize: 11,
+        selectedLabelStyle: const TextStyle(
+          fontWeight: FontWeight.w700,
+          letterSpacing: 0.5,
+        ),
+        items: [
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.home_outlined),
+            activeIcon: Icon(Icons.home),
+            label: 'Home',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.search),
+            activeIcon: Icon(Icons.search),
+            label: 'Search',
+          ),
+          BottomNavigationBarItem(
+            icon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.message_outlined),
+                if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
+              ],
+            ),
+            activeIcon: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                const Icon(Icons.message),
+                if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
+              ],
+            ),
+            label: 'Messages',
+          ),
+          const BottomNavigationBarItem(
+            icon: Icon(Icons.person_outline),
+            activeIcon: Icon(Icons.person),
+            label: 'Profile',
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Same four destinations as _buildPlainBar, laid out manually in a
+  /// BottomAppBar with a notch cut around the center-docked FAB --
+  /// BottomNavigationBar can't have a notch shape, so this mirrors its
+  /// styling by hand rather than reusing it directly.
+  Widget _buildNotchedBar() {
+    return BottomAppBar(
+      color: Colors.black,
+      shape: const CircularNotchedRectangle(),
+      notchMargin: 8,
+      child: Container(
         decoration: BoxDecoration(
           border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
         ),
-        child: BottomNavigationBar(
-          currentIndex: _currentIndex,
-          onTap: (i) => setState(() => _currentIndex = i),
-          type: BottomNavigationBarType.fixed,
-          backgroundColor: Colors.black,
-          selectedItemColor: Colors.white,
-          unselectedItemColor: Colors.grey[700],
-          selectedFontSize: 11,
-          unselectedFontSize: 11,
-          selectedLabelStyle: const TextStyle(
-            fontWeight: FontWeight.w700,
-            letterSpacing: 0.5,
-          ),
-          items: [
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.home_outlined),
-              activeIcon: Icon(Icons.home),
+        height: 56,
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _navBarItem(
+              index: 0,
+              icon: Icons.home_outlined,
+              activeIcon: Icons.home,
               label: 'Home',
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.search),
-              activeIcon: Icon(Icons.search),
+            _navBarItem(
+              index: 1,
+              icon: Icons.search,
+              activeIcon: Icons.search,
               label: 'Search',
             ),
-            BottomNavigationBarItem(
-              icon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.message_outlined),
-                  if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
-                ],
-              ),
-              activeIcon: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  const Icon(Icons.message),
-                  if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
-                ],
-              ),
+            const SizedBox(width: 48), // space for the notch/FAB
+            _navBarItem(
+              index: 2,
+              icon: Icons.message_outlined,
+              activeIcon: Icons.message,
               label: 'Messages',
+              badgeCount: _unreadCount,
             ),
-            const BottomNavigationBarItem(
-              icon: Icon(Icons.person_outline),
-              activeIcon: Icon(Icons.person),
+            _navBarItem(
+              index: 3,
+              icon: Icons.person_outline,
+              activeIcon: Icons.person,
               label: 'Profile',
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _navBarItem({
+    required int index,
+    required IconData icon,
+    required IconData activeIcon,
+    required String label,
+    int badgeCount = 0,
+  }) {
+    final selected = _currentIndex == index;
+    final color = selected ? Colors.white : Colors.grey[700];
+    return Expanded(
+      child: InkWell(
+        onTap: () => setState(() => _currentIndex = index),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Icon(selected ? activeIcon : icon, color: color, size: 24),
+                if (badgeCount > 0) _buildUnreadBadge(badgeCount),
+              ],
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: TextStyle(
+                color: color,
+                fontSize: 11,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
+                letterSpacing: selected ? 0.5 : 0,
+              ),
             ),
           ],
         ),
