@@ -269,38 +269,74 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       );
       return;
     }
-    // Compress/downscale at pick time rather than adding a separate
-    // image-processing dependency -- keeps uploads fast on mobile data.
-    final files = await _picker.pickMultiImage(imageQuality: 75, maxWidth: 1600);
-    if (files.isEmpty) return;
+    // Set busy BEFORE opening the picker, not after it returns -- the
+    // picker UI itself is a window where a second tap on "Take Photo"
+    // could otherwise race this call.
+    setState(() => _uploadingPhotos = true);
+    try {
+      // Compress/downscale at pick time rather than adding a separate
+      // image-processing dependency -- keeps uploads fast on mobile data.
+      final files = await _picker.pickMultiImage(imageQuality: 75, maxWidth: 1600);
+      if (files.isEmpty) return;
 
-    final toUpload = files.take(remaining).toList();
-    if (files.length > remaining && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Only added $remaining -- maximum $_maxPhotos photos per listing')),
-      );
+      final toUpload = files.take(remaining).toList();
+      if (files.length > remaining && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Only added $remaining -- maximum $_maxPhotos photos per listing')),
+        );
+      }
+      await _uploadPhotos(toUpload);
+    } finally {
+      if (mounted) setState(() => _uploadingPhotos = false);
     }
-    await _uploadPhotos(toUpload);
   }
 
+  /// Keeps relaunching the camera after each shot instead of returning
+  /// to the wizard and making the landlord tap "Take Photo" again for
+  /// every single photo -- that per-photo round trip (open camera, shoot,
+  /// confirm, back to the app, tap the button again...) is the opposite
+  /// of a fast continuous-capture feel. This loops naturally: it stops
+  /// on its own the moment the landlord backs out of the camera instead
+  /// of taking another shot, or once the photo cap is hit.
+  ///
+  /// _uploadingPhotos is held true for the WHOLE loop (set once here,
+  /// not per-iteration inside _uploadPhotos) so the capture buttons and
+  /// the wizard's _busy guard stay correctly locked for the entire
+  /// session -- a per-shot toggle would leave a gap between camera
+  /// relaunches where a second tap or a wizard-navigation action could
+  /// race an in-progress multi-shot session.
   Future<void> _takePhoto() async {
-    if (_imageUrls.length >= _maxPhotos) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Maximum $_maxPhotos photos per listing')),
-      );
-      return;
+    setState(() => _uploadingPhotos = true);
+    try {
+      while (_imageUrls.length < _maxPhotos) {
+        final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 1600);
+        if (file == null) return; // landlord backed out -- done shooting
+        await _uploadPhotos([file]);
+        if (!mounted) return;
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Maximum $_maxPhotos photos per listing')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploadingPhotos = false);
     }
-    final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 1600);
-    if (file == null) return;
-    await _uploadPhotos([file]);
   }
 
   /// Uploads sequentially rather than in parallel -- simpler progress
   /// tracking and more reliable on the mobile data connections most
   /// landlords will actually be using.
+  ///
+  /// Deliberately does NOT own _uploadingPhotos itself -- callers that
+  /// invoke this multiple times in a row (see _takePhoto's capture loop)
+  /// need the busy flag held for the whole session, not toggled true/
+  /// false between each individual call, or there's a window where the
+  /// capture buttons re-enable and the wizard's _busy guard drops mid-
+  /// session, letting a second concurrent capture or navigation race
+  /// against this one.
   Future<void> _uploadPhotos(List<XFile> files) async {
     setState(() {
-      _uploadingPhotos = true;
       _uploadDone = 0;
       _uploadTotal = files.length;
     });
@@ -324,8 +360,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       }
       if (mounted) setState(() => _uploadDone++);
     }
-
-    if (mounted) setState(() => _uploadingPhotos = false);
   }
 
   /// A single optional walkthrough video per listing -- picked from the
