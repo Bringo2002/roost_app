@@ -20,12 +20,19 @@ class _LoginPageState extends State<LoginPage> {
 
   static const _goldAccent = Colors.white;
 
+  @override
+  void dispose() {
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
   void _signInWithGoogle() async {
     setState(() => _isLoading = true);
     final result = await AuthService.signInWithGoogle();
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (!mounted) return;
     if (result.success) {
       Navigator.pushAndRemoveUntil(
         context,
@@ -49,17 +56,16 @@ class _LoginPageState extends State<LoginPage> {
 
     setState(() => _isLoading = true);
     final result = await AuthService.login(_emailCtrl.text.trim(), _passwordCtrl.text);
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result.success) {
-      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const HomePage()),
         (route) => false,
       );
     } else {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.error ?? 'Login failed. Please check your credentials.'),

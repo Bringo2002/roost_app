@@ -53,11 +53,11 @@ class _SavedPageState extends State<SavedPage> {
     final int index = _savedProperties.indexOf(property);
 
     await FavoritesService.remove(propId);
+    if (!mounted) return;
     setState(() {
       _savedProperties.removeWhere((p) => p.id == propId);
     });
 
-    if (!mounted) return;
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -70,6 +70,7 @@ class _SavedPageState extends State<SavedPage> {
           textColor: Colors.white,
           onPressed: () async {
             await FavoritesService.add(propId);
+            if (!mounted) return;
             setState(() {
               if (index >= 0 && index <= _savedProperties.length) {
                 _savedProperties.insert(index, property);

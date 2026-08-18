@@ -21,6 +21,14 @@ class _SignupPageState extends State<SignupPage> {
 
   static const _goldAccent = Colors.white;
 
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
+  }
+
   void _signup() async {
     if (_nameCtrl.text.trim().isEmpty || _emailCtrl.text.trim().isEmpty || _passwordCtrl.text.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -35,17 +43,16 @@ class _SignupPageState extends State<SignupPage> {
       _emailCtrl.text.trim(),
       _passwordCtrl.text,
     );
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result.success) {
-      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
         MaterialPageRoute(builder: (_) => const OnboardingPage()),
         (route) => false,
       );
     } else {
-      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(result.error ?? 'Signup failed. Please try again.'),
@@ -58,9 +65,9 @@ class _SignupPageState extends State<SignupPage> {
   void _signUpWithGoogle() async {
     setState(() => _isLoading = true);
     final result = await AuthService.signInWithGoogle();
+    if (!mounted) return;
     setState(() => _isLoading = false);
 
-    if (!mounted) return;
     if (result.success) {
       Navigator.pushAndRemoveUntil(
         context,

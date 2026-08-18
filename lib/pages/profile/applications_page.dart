@@ -31,11 +31,13 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
     });
     try {
       final list = await ApiService.get('/api/applications/my');
+      if (!mounted) return;
       setState(() {
         _applications = list as List;
         _loading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = e.toString();
         _loading = false;

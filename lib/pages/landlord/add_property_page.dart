@@ -369,14 +369,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   /// previously attached video rather than allowing multiple, since the
   /// gallery/detail view is built around exactly one.
   Future<void> _pickVideo(ImageSource source) async {
-    final file = await _picker.pickVideo(
-      source: source,
-      maxDuration: const Duration(seconds: 60),
-    );
-    if (file == null) return;
-
+    // Set busy BEFORE opening the picker, not after it returns -- same
+    // reasoning as _pickFromGallery/_takePhoto: closes the (small, but
+    // real) window between the tap and the native picker actually
+    // covering the screen.
     setState(() => _uploadingVideo = true);
     try {
+      final file = await _picker.pickVideo(
+        source: source,
+        maxDuration: const Duration(seconds: 60),
+      );
+      if (file == null) return;
+
       final bytes = await file.readAsBytes();
       final result = await ApiService.post('/api/properties/upload-video', {
         'data': base64Encode(bytes),

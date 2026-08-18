@@ -181,25 +181,26 @@ class _HomePageState extends State<HomePage> {
       // when there's actually something to dock (landlord, on Home).
       // Falls back to a plain bottom bar otherwise so there's never an
       // empty notch with nothing in it, which would look broken.
-      floatingActionButtonLocation: showFab ? FloatingActionButtonLocation.centerDocked : null,
+      floatingActionButtonLocation: showFab ? FloatingActionButtonLocation
+          .centerDocked : null,
       floatingActionButton: showFab
           ? FloatingActionButton(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ListingIntroPage()),
-                );
-                if (result == true) {
-                  setState(() {
-                    _feedKey = UniqueKey();
-                    _pages[0] = _PropertyFeedPage(key: _feedKey);
-                  });
-                }
-              },
-              child: const Icon(Icons.add),
-            )
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        onPressed: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ListingIntroPage()),
+          );
+          if (result == true) {
+            setState(() {
+              _feedKey = UniqueKey();
+              _pages[0] = _PropertyFeedPage(key: _feedKey);
+            });
+          }
+        },
+        child: const Icon(Icons.add),
+      )
           : null,
       bottomNavigationBar: showFab ? _buildNotchedBar() : _buildPlainBar(),
     );
@@ -432,7 +433,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
 
   void _onSearchChanged() {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), _filterProperties);
+    _debounceTimer =
+        Timer(const Duration(milliseconds: 300), _filterProperties);
   }
 
   Future<void> _loadData() async {
@@ -446,6 +448,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   Future<void> _loadOnboardingPrefs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (!mounted) return;
       setState(() {
         _prefHouseType = prefs.getString('pref_house_type');
         _prefBudget = prefs.getString('pref_budget');
@@ -547,8 +550,10 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     if (_prefBudget != null) {
       final b = _prefBudget!;
       if (b.contains('Under 15') && p.price < 15000) score += 10;
-      if (b.contains('15k – 30k') && p.price >= 15000 && p.price <= 30000) score += 10;
-      if (b.contains('30k – 60k') && p.price >= 30000 && p.price <= 60000) score += 10;
+      if (b.contains('15k – 30k') && p.price >= 15000 && p.price <= 30000)
+        score += 10;
+      if (b.contains('30k – 60k') && p.price >= 30000 && p.price <= 60000)
+        score += 10;
       if (b.contains('60,000+') && p.price >= 60000) score += 10;
     }
 
@@ -570,10 +575,10 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
       filtered = properties.where((p) {
         final matchesQuery =
             p.location.toLowerCase().contains(query) ||
-            p.title.toLowerCase().contains(query);
+                p.title.toLowerCase().contains(query);
         final matchesType =
             selectedType == 'all' ||
-            p.type.toLowerCase() == selectedType.toLowerCase();
+                p.type.toLowerCase() == selectedType.toLowerCase();
         return matchesQuery && matchesType;
       }).toList()
         ..sort((a, b) {
@@ -608,152 +613,151 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
               border: Border.all(color: Colors.grey[800]!, width: 0.5),
             ),
             child: Row(
-              children: [
+                children: [
                 const SizedBox(width: 16),
-                Icon(Icons.search, color: Colors.grey[500], size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: searchController,
-                    focusNode: _searchFocus,
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: 'Search location or title...',
-                      hintStyle: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 15,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      isDense: true,
-                    ),
-                  ),
-                ),
-                if (searchController.text.isNotEmpty)
-                  GestureDetector(
-                    onTap: searchController.clear,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.grey[500],
-                        size: 18,
-                      ),
-                    ),
-                  )
-                else
-                  const SizedBox(width: 16),
-              ],
+            Icon(Icons.search, color: Colors.grey[500], size: 20),
+            const ller
+            :
+            searchController,
+            focusNode: _searchFocus,
+            style: const TextStyle(color: Colors.white, fontSize: 15),
+            decoration: InputDecoration(
+              hintText: 'Search location or title...',
+              hintStyle: TextStyle(
+                color: Colors.grey[600],
+                fontSize: 15,
+              ),
+              border: InputBorder.none,
+              contentPadding: EdgeInsets.zero,
+              isDense: true,
             ),
           ),
         ),
-
-        // Property list with pull-to-refresh
-        Expanded(
-          child: Stack(
-            children: [
-              filtered.isEmpty
-                  ? Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(
-                            _error != null
-                                ? Icons.error_outline
-                                : Icons.search_off,
-                            color: Colors.grey[700],
-                            size: 64,
-                          ),
-                          const SizedBox(height: 16),
-                          Text(
-                            _error ?? 'No properties found',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
-                            ),
-                          ),
-                        ],
-                      ),
-                    )
-                  : RefreshIndicator(
-                      color: Colors.white,
-                      backgroundColor: Colors.grey[900],
-                      onRefresh: _loadData,
-                      child: ListView.builder(
-                        controller: _scrollController,
-                        itemCount: filtered.length,
-                        padding: const EdgeInsets.only(bottom: 80),
-                        itemBuilder: (context, index) {
-                          final property = filtered[index];
-                          final km = _distanceKmTo(property);
-                          return PropertyCard(
-                            property: property,
-                            heroTag: 'property-image-${property.id}',
-                            distanceLabel: km != null ? LocationService.formatDistance(km) : null,
-                            isFavorite:
-                                property.id != null &&
-                                favoriteIds.contains(property.id),
-                            onFavoriteTap: property.id == null
-                                ? null
-                                : () => _toggleFavorite(property.id!),
-                            onTap: () async {
-                              await Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (context) =>
-                                      PropertyDetailPage(property: property),
-                                ),
-                              );
-                              _loadFavorites();
-                            },
-                          );
-                        },
-                      ),
-                    ),
-
-              // Scroll-to-top button
-              if (_showScrollToTop)
-                Positioned(
-                  bottom: 16,
-                  right: 16,
-                  child: AnimatedOpacity(
-                    opacity: _showScrollToTop ? 1.0 : 0.0,
-                    duration: const Duration(milliseconds: 200),
-                    child: GestureDetector(
-                      onTap: () {
-                        _scrollController.animateTo(
-                          0,
-                          duration: const Duration(milliseconds: 400),
-                          curve: Curves.easeOutCubic,
-                        );
-                      },
-                      child: Container(
-                        width: 44,
-                        height: 44,
-                        decoration: const BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Color(0x40000000),
-                              blurRadius: 8,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.arrow_upward_rounded,
-                          color: Colors.black,
-                          size: 22,
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-        ),
+        if (searchController.text.isNotEmpty)
+          GestureDetector(
+            onTap: searchController.clear,
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              child: Icon(
+                Icons.close,
+                color: Colors.grey[500],
+                size: 18,
+              ),
+            ),
+          )
+        else
+          const SizedBox(width: 16),
       ],
+    ),
+    ),
+    ),
+
+    // Property list with pull-to-refresh
+    Expanded(
+    child: Stack(
+    children: [
+    filtered.isEmpty
+    ? Center(
+    child: Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+    Icon(
+    _error != null
+    ? Icons.error_outline
+        : Icons.search_off,
+    color: Colors.grey[700],
+    size: 64,
+    ),
+    const SizedBox(height: 16),
+    Text(
+    _error ?? 'No properties found',
+    style: TextStyle(
+    color: Colors.grey[600],
+    fontSize: 16,
+    ),
+    ),
+    ],
+    ),
+    )
+        : RefreshIndicator(
+    color: Colors.white,
+    backgroundColor: Colors.grey[900],
+    onRefresh: _loadData,
+    child: ListView.builder(
+    controller: _scrollController,
+    itemCount: filtered.length,
+    padding: const EdgeInsets.only(bottom: 80),
+    itemBuilder: (context, index) {
+    final property = filtered[index];
+    final km = _distanceKmTo(property);
+    return PropertyCard(
+    property: property,
+    heroTag: 'property-image-${property.id}',
+    distanceLabel: km != null ? LocationService.formatDistance(km) : null,
+    isFavorite:
+    property.id != null &&
+    favoriteIds.contains(property.id),
+    onFavoriteTap: property.id == null
+    ? null
+        : () => _toggleFavorite(property.id!),
+    onTap: () async {
+    await Navigator.push(
+    context,
+    MaterialPageRoute(
+    builder: (context) =>
+    PropertyDetailPage(property: property),
+    ),
+    );
+    _loadFavorites();
+    },
+    );
+    },
+    ),
+    ),
+
+    // Scroll-to-top button
+    if (_showScrollToTop)
+    Positioned(
+    bottom: 16,
+    right: 16,
+    child: AnimatedOpacity(
+    opacity: _showScrollToTop ? 1.0 : 0.0,
+    duration: const Duration(milliseconds: 200),
+    child: GestureDetector(
+    onTap: () {
+    _scrollController.animateTo(
+    0,
+    duration: const Duration(milliseconds: 400),
+    curve: Curves.easeOutCubic,
+    );
+    },
+    child: Container(
+    width: 44,
+    height: 44,
+    decoration: const BoxDecoration(
+    color: Colors.white,
+    shape: BoxShape.circle,
+    boxShadow: [
+    BoxShadow(
+    color: Color(0x40000000),
+    blurRadius: 8,
+    offset: Offset(0, 2),
+    ),
+    ],
+    ),
+    child: const Icon(
+    Icons.arrow_upward_rounded,
+    color: Colors.black,
+    size: 22,
+    ),
+    ),
+    ),
+    ),
+    ),
+    ],
+    ),
+    ),
+    ],
     );
   }
 }
@@ -788,7 +792,8 @@ class _MapViewPageState extends State<MapViewPage> {
     final position = await LocationService.getCurrentPosition();
     if (position == null || !mounted) return;
     _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(LatLng(position.latitude, position.longitude), 13),
+      CameraUpdate.newLatLngZoom(
+          LatLng(position.latitude, position.longitude), 13),
     );
   }
 
@@ -807,47 +812,48 @@ class _MapViewPageState extends State<MapViewPage> {
       ),
       body: geoProperties.isEmpty
           ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.map_outlined, color: Colors.grey[700], size: 64),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No properties have\nlocation coordinates yet',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[500], fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(geoProperties.first.latitude!, geoProperties.first.longitude!),
-                zoom: 12,
-              ),
-              style: AppMapStyle.darkMapStyle,
-              onMapCreated: (controller) {
-                _mapController = controller;
-                _centerOnUserLocation();
-              },
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              markers: geoProperties.map((p) {
-                return Marker(
-                  markerId: MarkerId('property-${p.id}'),
-                  position: LatLng(p.latitude!, p.longitude!),
-                  infoWindow: InfoWindow(title: p.title, snippet: p.location),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PropertyDetailPage(property: p),
-                      ),
-                    );
-                  },
-                );
-              }).toSet(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.map_outlined, color: Colors.grey[700], size: 64),
+            const SizedBox(height: 16),
+            Text(
+              'No properties have\nlocation coordinates yet',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[500], fontSize: 16),
             ),
+          ],
+        ),
+      )
+          : GoogleMap(
+        initialCameraPosition: CameraPosition(
+          target: LatLng(
+              geoProperties.first.latitude!, geoProperties.first.longitude!),
+          zoom: 12,
+        ),
+        style: AppMapStyle.darkMapStyle,
+        onMapCreated: (controller) {
+          _mapController = controller;
+          _centerOnUserLocation();
+        },
+        myLocationEnabled: true,
+        myLocationButtonEnabled: true,
+        markers: geoProperties.map((p) {
+          return Marker(
+            markerId: MarkerId('property-${p.id}'),
+            position: LatLng(p.latitude!, p.longitude!),
+            infoWindow: InfoWindow(title: p.title, snippet: p.location),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PropertyDetailPage(property: p),
+                ),
+              );
+            },
+          );
+        }).toSet(),
+      ),
     );
   }
 }

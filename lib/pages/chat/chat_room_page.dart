@@ -697,6 +697,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
     try {
       final path = await _audioRecorder.stop();
+      if (!mounted) return;
       setState(() {
         _isRecording = false;
       });
@@ -712,6 +713,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
       final file = File(path);
       final bytes = await file.readAsBytes();
+      if (!mounted) return;
 
       if (bytes.isNotEmpty) {
         setState(() => _sending = true);

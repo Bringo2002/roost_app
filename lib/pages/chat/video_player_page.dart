@@ -39,11 +39,18 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
       _controller = VideoPlayerController.file(_tempFile!);
       await _controller!.initialize();
+      // Widget could have been disposed while awaiting initialize() --
+      // dispose() would have already disposed _controller by now, so
+      // calling setState or .play() on it here would be a real crash,
+      // not just a stray-setState warning, since VideoPlayerController
+      // holds native platform resources.
+      if (!mounted) return;
       setState(() {
         _initialized = true;
       });
       _controller!.play();
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _error = 'Failed to load video: $e';
       });
