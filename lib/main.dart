@@ -192,6 +192,7 @@ class _HomePageState extends State<HomePage> {
             context,
             MaterialPageRoute(builder: (_) => const ListingIntroPage()),
           );
+          if (!mounted) return;
           if (result == true) {
             setState(() {
               _feedKey = UniqueKey();

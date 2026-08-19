@@ -566,6 +566,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
 
     if (!await _ensurePhoneVerified()) return;
+    if (!mounted) return;
 
     setState(() => _isLoading = true);
 

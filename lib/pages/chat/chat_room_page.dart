@@ -353,6 +353,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           widget.partner.id,
           text,
         );
+        if (!mounted) return;
         if (updated != null) {
           setState(() {
             final idx = _messages.indexWhere((m) => m.id == editMsg.id);
@@ -380,6 +381,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           );
         }
 
+        if (!mounted) return;
         if (newMessage != null) {
           setState(() {
             _messages.add(newMessage!);
@@ -440,6 +442,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   Future<void> _deleteMessage(Message message) async {
     try {
       final success = await ChatService.deleteMessage(message.id);
+      if (!mounted) return;
       if (success) {
         setState(() {
           _messages.removeWhere((m) => m.id == message.id);
