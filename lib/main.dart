@@ -169,7 +169,6 @@ class _HomePageState extends State<HomePage> {
 
   @override
   Widget build(BuildContext context) {
-    final showFab = _currentIndex == 0 && _userRole == 'LANDLORD';
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: _currentIndex == 2
@@ -184,28 +183,7 @@ class _HomePageState extends State<HomePage> {
         bottom: false,
         child: IndexedStack(index: _currentIndex, children: _pages),
       ),
-      floatingActionButtonLocation: showFab ? FloatingActionButtonLocation.centerDocked : null,
-      floatingActionButton: showFab
-          ? FloatingActionButton(
-              backgroundColor: Colors.white,
-              foregroundColor: Colors.black,
-              onPressed: () async {
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(builder: (_) => const ListingIntroPage()),
-                );
-                if (!mounted) return;
-                if (result == true) {
-                  setState(() {
-                    _feedKey = UniqueKey();
-                    _pages[0] = _PropertyFeedPage(key: _feedKey);
-                  });
-                }
-              },
-              child: const Icon(Icons.add),
-            )
-          : null,
-      bottomNavigationBar: showFab ? _buildNotchedBar() : _buildPlainBar(),
+      bottomNavigationBar: _buildPlainBar(),
     );
   }
 
@@ -222,121 +200,9 @@ class _HomePageState extends State<HomePage> {
           height: 60,
           child: Row(
             children: [
-              _animatedNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-              _animatedNavItem(1, Icons.search, Icons.search, 'Search'),
-              _animatedNavItem(
-                2,
-                Icons.message_outlined,
-                Icons.message,
-                'Messages',
-                badge: _unreadCount,
-              ),
-              _animatedNavItem(3, Icons.person_outline, Icons.person, 'Profile'),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Animated bottom nav tab used by [_buildPlainBar].
-  /// Shows a 2px white top-border indicator on selection,
-  /// scales the icon with a springy bounce, and smoothly
-  /// transitions the label colour and weight.
-  Widget _animatedNavItem(
-    int index,
-    IconData icon,
-    IconData activeIcon,
-    String label, {
-    int badge = 0,
-  }) {
-    final selected = _currentIndex == index;
-    return Expanded(
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() => _currentIndex = index),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOutCubic,
-          decoration: BoxDecoration(
-            border: Border(
-              top: BorderSide(
-                color: selected ? Colors.white : Colors.transparent,
-                width: 2,
-              ),
-            ),
-          ),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              AnimatedScale(
-                scale: selected ? 1.1 : 1.0,
-                duration: const Duration(milliseconds: 250),
-                curve: Curves.easeOutBack,
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    Icon(
-                      selected ? activeIcon : icon,
-                      color: selected ? Colors.white : Colors.grey[700],
-                      size: 24,
-                    ),
-                    if (badge > 0) _buildUnreadBadge(badge),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 2),
-              AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 250),
-                style: TextStyle(
-                  color: selected ? Colors.white : Colors.grey[700]!,
-                  fontSize: 11,
-                  fontWeight:
-                      selected ? FontWeight.w700 : FontWeight.normal,
-                  letterSpacing: selected ? 0.5 : 0,
-                ),
-                child: Text(label),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  /// Same four destinations as _buildPlainBar, laid out manually in a
-  /// BottomAppBar with a notch cut around the center-docked FAB --
-  /// BottomNavigationBar can't have a notch shape, so this mirrors its
-  /// styling by hand rather than reusing it directly.
-  Widget _buildNotchedBar() {
-    return BottomAppBar(
-      color: Colors.black,
-      shape: const CircularNotchedRectangle(),
-      notchMargin: 8,
-      child: SafeArea(
-        top: false,
-        bottom: true,
-        child: Container(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
-          ),
-          height: 56,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              _navBarItem(
-                index: 0,
-                icon: Icons.home_outlined,
-                activeIcon: Icons.home,
-                label: 'Home',
-              ),
-              _navBarItem(
-                index: 1,
-                icon: Icons.search,
-                activeIcon: Icons.search,
-                label: 'Search',
-              ),
-              const SizedBox(width: 48), // space for the notch/FAB
+              _navBarItem(index: 0, icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Home'),
+              _navBarItem(index: 1, icon: Icons.search, activeIcon: Icons.search, label: 'Search'),
+              if (_userRole == 'LANDLORD') _centerCreateNavItem(),
               _navBarItem(
                 index: 2,
                 icon: Icons.message_outlined,
@@ -344,13 +210,51 @@ class _HomePageState extends State<HomePage> {
                 label: 'Messages',
                 badgeCount: _unreadCount,
               ),
-              _navBarItem(
-                index: 3,
-                icon: Icons.person_outline,
-                activeIcon: Icons.person,
-                label: 'Profile',
-              ),
+              _navBarItem(index: 3, icon: Icons.person_outline, activeIcon: Icons.person, label: 'Profile'),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _centerCreateNavItem() {
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () async {
+          final result = await Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ListingIntroPage()),
+          );
+          if (!mounted) return;
+          if (result == true) {
+            setState(() {
+              _feedKey = UniqueKey();
+              _pages[0] = _PropertyFeedPage(key: _feedKey);
+            });
+          }
+        },
+        child: Center(
+          child: Container(
+            width: 44,
+            height: 32,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(10),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.white.withValues(alpha: 0.15),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: const Icon(
+              Icons.add_rounded,
+              color: Colors.black,
+              size: 22,
+            ),
           ),
         ),
       ),
