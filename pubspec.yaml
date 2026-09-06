@@ -35,6 +35,7 @@ dependencies:
   record: ^7.1.1
   just_audio: ^0.9.36
   flutter_native_splash: ^2.4.6
+  shimmer: ^3.0.0
 
 
 dev_dependencies:

@@ -15,8 +15,8 @@ class WelcomePage extends StatefulWidget {
 class _WelcomePageState extends State<WelcomePage>
     with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
-  late final Animation<double> _logoScale;
   late final Animation<double> _logoOpacity;
+  late final Animation<double> _logoScale;
   late final Animation<double> _titleOpacity;
   late final Animation<Offset> _titleSlide;
   late final Animation<double> _taglineOpacity;
@@ -31,17 +31,17 @@ class _WelcomePageState extends State<WelcomePage>
       duration: const Duration(milliseconds: 1000),
     );
 
-    // Logo: scale in + fade (0–50%)
-    _logoScale = Tween<double>(begin: 0.7, end: 1.0).animate(
-      CurvedAnimation(
-        parent: _controller,
-        curve: const Interval(0.0, 0.5, curve: Curves.easeOutBack),
-      ),
-    );
+    // Logo: scale up + fade (0–30%)
     _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(
         parent: _controller,
-        curve: const Interval(0.0, 0.35, curve: Curves.easeOut),
+        curve: const Interval(0.0, 0.3, curve: Curves.easeOut),
+      ),
+    );
+    _logoScale = Tween<double>(begin: 0.75, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _controller,
+        curve: const Interval(0.0, 0.4, curve: Curves.easeOutBack),
       ),
     );
 
@@ -109,7 +109,7 @@ class _WelcomePageState extends State<WelcomePage>
               children: [
                 const Spacer(flex: 2),
 
-                // Logo — scale in + fade
+                // Logo — scale up + fade in
                 Opacity(
                   opacity: _logoOpacity.value,
                   child: Transform.scale(

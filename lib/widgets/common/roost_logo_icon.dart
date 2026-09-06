@@ -19,6 +19,9 @@ class RoostLogoIcon extends StatelessWidget {
       width: size,
       height: size,
       fit: BoxFit.contain,
+      // Bicubic sampling — keeps the logo crisp at any scale (Hero
+      // animations, Transform.scale, high-density displays, etc.)
+      filterQuality: FilterQuality.high,
     );
   }
 }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -22,9 +23,12 @@ import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/theme/app_map_style.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 
+import 'package:roost_app/pages/profile/notifications_page.dart';
 import 'package:roost_app/pages/splash/splash_page.dart';
 import 'package:roost_app/services/push_notification_service.dart';
 import 'package:roost_app/services/navigator_key.dart';
+import 'package:roost_app/widgets/common/property_card_skeleton.dart';
+import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -210,55 +214,88 @@ class _HomePageState extends State<HomePage> {
   Widget _buildPlainBar() {
     return Container(
       decoration: BoxDecoration(
+        color: Colors.black,
         border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
       ),
-      child: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (i) => setState(() => _currentIndex = i),
-        type: BottomNavigationBarType.fixed,
-        backgroundColor: Colors.black,
-        selectedItemColor: Colors.white,
-        unselectedItemColor: Colors.grey[700],
-        selectedFontSize: 11,
-        unselectedFontSize: 11,
-        selectedLabelStyle: const TextStyle(
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.5,
-        ),
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.home_outlined),
-            activeIcon: Icon(Icons.home),
-            label: 'Home',
+      height: 64,
+      child: Row(
+        children: [
+          _animatedNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
+          _animatedNavItem(1, Icons.search, Icons.search, 'Search'),
+          _animatedNavItem(
+            2,
+            Icons.message_outlined,
+            Icons.message,
+            'Messages',
+            badge: _unreadCount,
           ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            activeIcon: Icon(Icons.search),
-            label: 'Search',
-          ),
-          BottomNavigationBarItem(
-            icon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.message_outlined),
-                if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
-              ],
-            ),
-            activeIcon: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                const Icon(Icons.message),
-                if (_unreadCount > 0) _buildUnreadBadge(_unreadCount),
-              ],
-            ),
-            label: 'Messages',
-          ),
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.person_outline),
-            activeIcon: Icon(Icons.person),
-            label: 'Profile',
-          ),
+          _animatedNavItem(3, Icons.person_outline, Icons.person, 'Profile'),
         ],
+      ),
+    );
+  }
+
+  /// Animated bottom nav tab used by [_buildPlainBar].
+  /// Shows a 2px white top-border indicator on selection,
+  /// scales the icon with a springy bounce, and smoothly
+  /// transitions the label colour and weight.
+  Widget _animatedNavItem(
+    int index,
+    IconData icon,
+    IconData activeIcon,
+    String label, {
+    int badge = 0,
+  }) {
+    final selected = _currentIndex == index;
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() => _currentIndex = index),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOutCubic,
+          decoration: BoxDecoration(
+            border: Border(
+              top: BorderSide(
+                color: selected ? Colors.white : Colors.transparent,
+                width: 2,
+              ),
+            ),
+          ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              AnimatedScale(
+                scale: selected ? 1.1 : 1.0,
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutBack,
+                child: Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Icon(
+                      selected ? activeIcon : icon,
+                      color: selected ? Colors.white : Colors.grey[700],
+                      size: 24,
+                    ),
+                    if (badge > 0) _buildUnreadBadge(badge),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 2),
+              AnimatedDefaultTextStyle(
+                duration: const Duration(milliseconds: 250),
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.grey[700]!,
+                  fontSize: 11,
+                  fontWeight:
+                      selected ? FontWeight.w700 : FontWeight.normal,
+                  letterSpacing: selected ? 0.5 : 0,
+                ),
+                child: Text(label),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -398,6 +435,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   String selectedType = 'all';
   String? _error;
   bool _showScrollToTop = false;
+  bool _isSearchFocused = false;
   Timer? _debounceTimer;
 
   String? _prefHouseType;
@@ -413,12 +451,14 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     _loadUserPosition();
     searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
+    _searchFocus.addListener(_onFocusChanged);
   }
 
   @override
   void dispose() {
     searchController.removeListener(_onSearchChanged);
     searchController.dispose();
+    _searchFocus.removeListener(_onFocusChanged);
     _searchFocus.dispose();
     _scrollController.dispose();
     _debounceTimer?.cancel();
@@ -436,6 +476,10 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     _debounceTimer?.cancel();
     _debounceTimer =
         Timer(const Duration(milliseconds: 300), _filterProperties);
+  }
+
+  void _onFocusChanged() {
+    setState(() => _isSearchFocused = _searchFocus.hasFocus);
   }
 
   Future<void> _loadData() async {
@@ -593,64 +637,158 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     });
   }
 
+  // ── Premium loading state — shimmer skeleton + header ──────────────────
+
+  Widget _buildBrandedHeader() {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 14, 8, 0),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          const RoostLogoIcon(size: 26),
+          const SizedBox(width: 10),
+          const Text(
+            'ROOST',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 19,
+              fontWeight: FontWeight.w900,
+              letterSpacing: 4,
+            ),
+          ),
+          const Spacer(),
+          ValueListenableBuilder<int>(
+            valueListenable: PushNotificationService.unreadCountNotifier,
+            builder: (context, unreadCount, child) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_outlined,
+                      color: Colors.white,
+                      size: 24,
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const NotificationsPage(),
+                        ),
+                      );
+                    },
+                    tooltip: 'Notifications',
+                  ),
+                  if (unreadCount > 0)
+                    Positioned(
+                      top: 8,
+                      right: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.redAccent,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          unreadCount > 9 ? '9+' : '$unreadCount',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 9,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSkeletonFeed() {
+    return ListView.builder(
+      itemCount: 5,
+      padding: const EdgeInsets.only(top: 8, bottom: 80),
+      itemBuilder: (_, _) => const PropertyCardSkeleton(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(
-        child: CircularProgressIndicator(color: Colors.white),
+      return Column(
+        children: [
+          _buildBrandedHeader(),
+          Expanded(child: _buildSkeletonFeed()),
+        ],
       );
     }
 
     return Column(
       children: [
-        // ── Search bar (always visible) ──
-        Padding(
-          padding: const EdgeInsets.fromLTRB(16, 16, 16, 10),
-          child: Container(
-            height: 48,
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(24),
-              border: Border.all(color: Colors.grey[800]!, width: 0.5),
+        // ── Branded header ──────────────────────────────────────────
+        _buildBrandedHeader(),
+
+        // ── Search bar (animated focus glow) ───────────────────────
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+          height: 48,
+          decoration: BoxDecoration(
+            color: Colors.grey[900],
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(
+              color: _isSearchFocused
+                  ? Colors.white.withValues(alpha: 0.5)
+                  : Colors.grey[800]!,
+              width: _isSearchFocused ? 1.5 : 0.5,
             ),
-            child: Row(
-              children: [
-                const SizedBox(width: 16),
-                Icon(Icons.search, color: Colors.grey[500], size: 20),
-                const SizedBox(width: 10),
-                Expanded(
-                  child: TextField(
-                    controller: searchController,
-                    focusNode: _searchFocus,
-                    style: const TextStyle(color: Colors.white, fontSize: 15),
-                    decoration: InputDecoration(
-                      hintText: 'Search location or title...',
-                      hintStyle: TextStyle(
-                        color: Colors.grey[600],
-                        fontSize: 15,
-                      ),
-                      border: InputBorder.none,
-                      contentPadding: EdgeInsets.zero,
-                      isDense: true,
+          ),
+          child: Row(
+            children: [
+              const SizedBox(width: 16),
+              Icon(Icons.search, color: Colors.grey[500], size: 20),
+              const SizedBox(width: 10),
+              Expanded(
+                child: TextField(
+                  controller: searchController,
+                  focusNode: _searchFocus,
+                  style: const TextStyle(color: Colors.white, fontSize: 15),
+                  decoration: InputDecoration(
+                    hintText: 'Search location or title...',
+                    hintStyle: TextStyle(
+                      color: Colors.grey[600],
+                      fontSize: 15,
                     ),
+                    border: InputBorder.none,
+                    contentPadding: EdgeInsets.zero,
+                    isDense: true,
                   ),
                 ),
-                if (searchController.text.isNotEmpty)
-                  GestureDetector(
-                    onTap: searchController.clear,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.grey[500],
-                        size: 18,
-                      ),
+              ),
+              if (searchController.text.isNotEmpty)
+                GestureDetector(
+                  onTap: searchController.clear,
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                    child: Icon(
+                      Icons.close,
+                      color: Colors.grey[500],
+                      size: 18,
                     ),
-                  )
-                else
-                  const SizedBox(width: 16),
-              ],
-            ),
+                  ),
+                )
+              else
+                const SizedBox(width: 16),
+            ],
           ),
         ),
 
@@ -692,7 +830,9 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     itemBuilder: (context, index) {
     final property = filtered[index];
     final km = _distanceKmTo(property);
-    return PropertyCard(
+    return _StaggeredListItem(
+    index: index,
+    child: PropertyCard(
     property: property,
     heroTag: 'property-image-${property.id}',
     distanceLabel: km != null ? LocationService.formatDistance(km) : null,
@@ -712,6 +852,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     );
     _loadFavorites();
     },
+    ),
     );
     },
     ),
@@ -764,7 +905,65 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   }
 }
 
-// ─── Map View Page ───────────────────────────────────────────────────────────
+/// Animates each feed card in with a staggered fade + upward slide.
+/// Only the first 6 items animate — cards below the fold load instantly
+/// since the user would never see them animating anyway.
+class _StaggeredListItem extends StatefulWidget {
+  const _StaggeredListItem({
+    required this.index,
+    required this.child,
+  });
+
+  final int index;
+  final Widget child;
+
+  @override
+  State<_StaggeredListItem> createState() => _StaggeredListItemState();
+}
+
+class _StaggeredListItemState extends State<_StaggeredListItem>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _opacity;
+  late final Animation<Offset> _slide;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 450),
+    );
+    _opacity = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+    _slide = Tween<Offset>(
+      begin: const Offset(0, 0.06),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeOutCubic));
+
+    // Stagger: 70ms per card, capped at the 6th card so offscreen
+    // items don't delay their load unnecessarily.
+    Future.delayed(
+      Duration(milliseconds: min(widget.index, 5) * 70),
+      () { if (mounted) _ctrl.forward(); },
+    );
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _opacity,
+      child: SlideTransition(position: _slide, child: widget.child),
+    );
+  }
+}
+
+// ─── Map View Page ────────────────────────────────────────────────────────────────────────────────
 
 class MapViewPage extends StatefulWidget {
   final List<Property> properties;
