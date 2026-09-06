@@ -614,44 +614,45 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
               border: Border.all(color: Colors.grey[800]!, width: 0.5),
             ),
             child: Row(
-                children: [
+              children: [
                 const SizedBox(width: 16),
-            Icon(Icons.search, color: Colors.grey[500], size: 20),
-            const ller
-            :
-            searchController,
-            focusNode: _searchFocus,
-            style: const TextStyle(color: Colors.white, fontSize: 15),
-            decoration: InputDecoration(
-              hintText: 'Search location or title...',
-              hintStyle: TextStyle(
-                color: Colors.grey[600],
-                fontSize: 15,
-              ),
-              border: InputBorder.none,
-              contentPadding: EdgeInsets.zero,
-              isDense: true,
+                Icon(Icons.search, color: Colors.grey[500], size: 20),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: TextField(
+                    controller: searchController,
+                    focusNode: _searchFocus,
+                    style: const TextStyle(color: Colors.white, fontSize: 15),
+                    decoration: InputDecoration(
+                      hintText: 'Search location or title...',
+                      hintStyle: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 15,
+                      ),
+                      border: InputBorder.none,
+                      contentPadding: EdgeInsets.zero,
+                      isDense: true,
+                    ),
+                  ),
+                ),
+                if (searchController.text.isNotEmpty)
+                  GestureDetector(
+                    onTap: searchController.clear,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.grey[500],
+                        size: 18,
+                      ),
+                    ),
+                  )
+                else
+                  const SizedBox(width: 16),
+              ],
             ),
           ),
         ),
-        if (searchController.text.isNotEmpty)
-          GestureDetector(
-            onTap: searchController.clear,
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12),
-              child: Icon(
-                Icons.close,
-                color: Colors.grey[500],
-                size: 18,
-              ),
-            ),
-          )
-        else
-          const SizedBox(width: 16),
-      ],
-    ),
-    ),
-    ),
 
     // Property list with pull-to-refresh
     Expanded(
