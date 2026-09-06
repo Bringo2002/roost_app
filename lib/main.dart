@@ -120,8 +120,6 @@ class _HomePageState extends State<HomePage> {
 
   late final List<Widget> _pages;
 
-  final List<String> _titles = const ['ROOST', 'Search', 'Messages', 'Profile'];
-
   @override
   void initState() {
     super.initState();
@@ -173,39 +171,39 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     final showFab = _currentIndex == 0 && _userRole == 'LANDLORD';
     return Scaffold(
-      appBar: _currentIndex == 0
-          ? null
-          : AppBar(title: Text(_titles[_currentIndex])),
+      backgroundColor: Colors.black,
+      appBar: _currentIndex == 2
+          ? AppBar(
+              title: const Text('Messages'),
+              backgroundColor: Colors.black,
+              elevation: 0,
+            )
+          : null,
       body: SafeArea(
-        top: _currentIndex == 0,
+        top: _currentIndex == 0 || _currentIndex == 2,
         bottom: false,
         child: IndexedStack(index: _currentIndex, children: _pages),
       ),
-      // Center-docked, TikTok/Instagram-style create button -- only
-      // when there's actually something to dock (landlord, on Home).
-      // Falls back to a plain bottom bar otherwise so there's never an
-      // empty notch with nothing in it, which would look broken.
-      floatingActionButtonLocation: showFab ? FloatingActionButtonLocation
-          .centerDocked : null,
+      floatingActionButtonLocation: showFab ? FloatingActionButtonLocation.centerDocked : null,
       floatingActionButton: showFab
           ? FloatingActionButton(
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => const ListingIntroPage()),
-          );
-          if (!mounted) return;
-          if (result == true) {
-            setState(() {
-              _feedKey = UniqueKey();
-              _pages[0] = _PropertyFeedPage(key: _feedKey);
-            });
-          }
-        },
-        child: const Icon(Icons.add),
-      )
+              backgroundColor: Colors.white,
+              foregroundColor: Colors.black,
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => const ListingIntroPage()),
+                );
+                if (!mounted) return;
+                if (result == true) {
+                  setState(() {
+                    _feedKey = UniqueKey();
+                    _pages[0] = _PropertyFeedPage(key: _feedKey);
+                  });
+                }
+              },
+              child: const Icon(Icons.add),
+            )
           : null,
       bottomNavigationBar: showFab ? _buildNotchedBar() : _buildPlainBar(),
     );
@@ -213,24 +211,30 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildPlainBar() {
     return Container(
-      decoration: BoxDecoration(
-        color: Colors.black,
-        border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
-      ),
-      height: 64,
-      child: Row(
-        children: [
-          _animatedNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
-          _animatedNavItem(1, Icons.search, Icons.search, 'Search'),
-          _animatedNavItem(
-            2,
-            Icons.message_outlined,
-            Icons.message,
-            'Messages',
-            badge: _unreadCount,
+      color: Colors.black,
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
           ),
-          _animatedNavItem(3, Icons.person_outline, Icons.person, 'Profile'),
-        ],
+          height: 60,
+          child: Row(
+            children: [
+              _animatedNavItem(0, Icons.home_outlined, Icons.home, 'Home'),
+              _animatedNavItem(1, Icons.search, Icons.search, 'Search'),
+              _animatedNavItem(
+                2,
+                Icons.message_outlined,
+                Icons.message,
+                'Messages',
+                badge: _unreadCount,
+              ),
+              _animatedNavItem(3, Icons.person_outline, Icons.person, 'Profile'),
+            ],
+          ),
+        ),
       ),
     );
   }
@@ -309,41 +313,45 @@ class _HomePageState extends State<HomePage> {
       color: Colors.black,
       shape: const CircularNotchedRectangle(),
       notchMargin: 8,
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
-        ),
-        height: 56,
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            _navBarItem(
-              index: 0,
-              icon: Icons.home_outlined,
-              activeIcon: Icons.home,
-              label: 'Home',
-            ),
-            _navBarItem(
-              index: 1,
-              icon: Icons.search,
-              activeIcon: Icons.search,
-              label: 'Search',
-            ),
-            const SizedBox(width: 48), // space for the notch/FAB
-            _navBarItem(
-              index: 2,
-              icon: Icons.message_outlined,
-              activeIcon: Icons.message,
-              label: 'Messages',
-              badgeCount: _unreadCount,
-            ),
-            _navBarItem(
-              index: 3,
-              icon: Icons.person_outline,
-              activeIcon: Icons.person,
-              label: 'Profile',
-            ),
-          ],
+      child: SafeArea(
+        top: false,
+        bottom: true,
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
+          ),
+          height: 56,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _navBarItem(
+                index: 0,
+                icon: Icons.home_outlined,
+                activeIcon: Icons.home,
+                label: 'Home',
+              ),
+              _navBarItem(
+                index: 1,
+                icon: Icons.search,
+                activeIcon: Icons.search,
+                label: 'Search',
+              ),
+              const SizedBox(width: 48), // space for the notch/FAB
+              _navBarItem(
+                index: 2,
+                icon: Icons.message_outlined,
+                activeIcon: Icons.message,
+                label: 'Messages',
+                badgeCount: _unreadCount,
+              ),
+              _navBarItem(
+                index: 3,
+                icon: Icons.person_outline,
+                activeIcon: Icons.person,
+                label: 'Profile',
+              ),
+            ],
+          ),
         ),
       ),
     );
