@@ -1,19 +1,62 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
-
 import 'package:roost_app/services/country_service.dart';
+
+// ─── Amenity descriptor ────────────────────────────────────────────────────
+
+class _Amenity {
+  const _Amenity({
+    required this.key,
+    required this.label,
+    required this.icon,
+    required this.color,
+  });
+  final String key;
+  final String label;
+  final IconData icon;
+  final Color color;
+}
+
+const _amenities = <_Amenity>[
+  _Amenity(key: 'furnished',  label: 'Furnished',    icon: Icons.chair_outlined,         color: Color(0xFF6C63FF)),
+  _Amenity(key: 'parking',    label: 'Parking',      icon: Icons.local_parking_outlined, color: Color(0xFF4FC3F7)),
+  _Amenity(key: 'wifi',       label: 'WiFi',         icon: Icons.wifi,                   color: Color(0xFF00C896)),
+  _Amenity(key: 'water',      label: '24hr Water',   icon: Icons.water_drop_outlined,    color: Color(0xFF29B6F6)),
+  _Amenity(key: 'security',   label: 'Security',     icon: Icons.security,               color: Color(0xFFFF9F43)),
+  _Amenity(key: 'balcony',    label: 'Balcony',      icon: Icons.deck_outlined,          color: Color(0xFFA5D6A7)),
+  _Amenity(key: 'petFriendly',label: 'Pet Friendly', icon: Icons.pets,                   color: Color(0xFFEF9A9A)),
+];
+
+// ─── House type options ────────────────────────────────────────────────────
+
+const _houseTypes = ['BEDSITTER', 'STUDIO', '1BR', '2BR', '3BR+'];
+
+const _houseTypeLabels = {
+  'BEDSITTER': 'Bedsitter',
+  'STUDIO': 'Studio',
+  '1BR': '1 Bed',
+  '2BR': '2 Bed',
+  '3BR+': '3 Bed+',
+};
+
+// ─── Step labels ──────────────────────────────────────────────────────────
+
+const _stepLabels = ['Photos', 'Basics', 'Location', 'Amenities', 'Contact', 'Review'];
+
+// ─── Main widget ──────────────────────────────────────────────────────────
 
 class AddPropertyPage extends StatefulWidget {
   const AddPropertyPage({super.key, this.editingProperty});
 
-  /// When set, the page opens pre-filled with this listing's data and
+  /// When set, the page opens pre-filled with this listing\'s data and
   /// submits as an update (PUT) instead of creating a new listing.
   final Property? editingProperty;
 
@@ -24,61 +67,113 @@ class AddPropertyPage extends StatefulWidget {
 class _AddPropertyPageState extends State<AddPropertyPage> {
   int _step = 0;
   bool _isLoading = false;
-
-  /// Tracks whether the last step change was forward (Next) or backward
-  /// (Back), so the step transition animation can slide the right way --
-  /// content entering from the right when advancing, from the left when
-  /// going back, matching how directional wizards like this are
-  /// conventionally expected to feel rather than a generic cross-fade.
   bool _movingForward = true;
 
-  final _titleCtrl = TextEditingController();
-  final _buildingNameCtrl = TextEditingController();
-  final _locationCtrl = TextEditingController();
-  final _priceCtrl = TextEditingController();
-  final _depositCtrl = TextEditingController();
-  final _bedroomsCtrl = TextEditingController(text: '1');
-  final _bathroomsCtrl = TextEditingController(text: '1');
+  final _titleCtrl       = TextEditingController();
+  final _buildingNameCtrl= TextEditingController();
+  final _locationCtrl    = TextEditingController();
+  final _priceCtrl       = TextEditingController();
+  final _depositCtrl     = TextEditingController();
   final _descriptionCtrl = TextEditingController();
-  final _phoneCtrl = TextEditingController();
+  final _phoneCtrl       = TextEditingController();
+
+  // Stepper-based instead of raw text fields
+  int _bedrooms  = 1;
+  int _bathrooms = 1;
 
   String _houseType = '1BR';
-  final String _moveInDate = 'Immediate';
   double? _latitude;
   double? _longitude;
   bool _locationConfirmed = false;
+  bool _gpsVerified   = false;
+  bool _checkingGps   = false;
 
-  // True once the server has recorded this location as GPS-confirmed
-  // on-site (via /verify-gps). Separate from _locationConfirmed, which
-  // only means "we captured coordinates" -- this tracks whether that
-  // capture was successfully recorded server-side toward the badge.
-  bool _gpsVerified = false;
-  bool _checkingGps = false;
-
-  bool _furnished = false;
-  bool _parking = false;
-  bool _wifi = false;
-  bool _water = true;
-  bool _security = true;
-  bool _balcony = false;
-  bool _petFriendly = false;
+  // Amenity toggles — keyed by _Amenity.key
+  final Map<String, bool> _amenityState = {
+    'furnished':   false,
+    'parking':     false,
+    'wifi':        false,
+    'water':       true,
+    'security':    true,
+    'balcony':     false,
+    'petFriendly': false,
+  };
 
   static const int _minPhotos = 3;
-  static const List<String> _stepLabels = ['Photos', 'Basics', 'Location', 'Amenities', 'Contact', 'Review'];
+  static const int _maxPhotos = 10;
+  final List<String> _imageUrls = [];
+  String? _videoUrl;
+  final ImagePicker _picker = ImagePicker();
+  bool _uploadingPhotos = false;
+  int  _uploadDone  = 0;
+  int  _uploadTotal = 0;
+  bool _uploadingVideo = false;
+  bool _autosaving = false;
+  int? _draftId;
 
-  /// Field-level validation errors for the *current* step, keyed by field
-  /// name. Populated by _validateStep when advancing fails, and cleared
-  /// per-field as the user edits it -- shown inline under the offending
-  /// field instead of a SnackBar the user has to remember and go hunting
-  /// for the cause of.
   final Map<String, String> _errors = {};
 
   void _clearError(String key) {
     if (_errors.containsKey(key)) setState(() => _errors.remove(key));
   }
 
-  /// Validates only the fields belonging to [step], populating _errors
-  /// with anything wrong. Returns true if that step is complete.
+  bool get _busy => _isLoading || _uploadingPhotos || _uploadingVideo || _autosaving;
+  bool get _isEditing => widget.editingProperty != null;
+
+  // ── Lifecycle ──────────────────────────────────────────────────────────
+
+  @override
+  void initState() {
+    super.initState();
+    _draftId = widget.editingProperty?.id;
+    final p = widget.editingProperty;
+    if (p == null) return;
+
+    _titleCtrl.text        = p.title;
+    _buildingNameCtrl.text = p.buildingName ?? '';
+    _locationCtrl.text     = p.location;
+    _priceCtrl.text = p.price == p.price.roundToDouble()
+        ? p.price.toInt().toString()
+        : p.price.toString();
+    _depositCtrl.text     = p.deposit ?? '';
+    _bedrooms             = p.bedrooms;
+    _bathrooms            = p.bathrooms;
+    _descriptionCtrl.text = p.description;
+    _phoneCtrl.text       = p.landlordPhone;
+    _houseType            = p.houseType;
+
+    if (p.latitude != null && p.longitude != null) {
+      _latitude          = p.latitude;
+      _longitude         = p.longitude;
+      _locationConfirmed = true;
+    }
+    _gpsVerified = p.gpsVerified;
+    _amenityState['furnished']   = p.furnished;
+    _amenityState['parking']     = p.parking;
+    _amenityState['wifi']        = p.wifi;
+    _amenityState['water']       = p.water;
+    _amenityState['security']    = p.security;
+    _amenityState['balcony']     = p.balcony;
+    _amenityState['petFriendly'] = p.petFriendly;
+
+    _imageUrls.addAll(p.imageUrls);
+    _videoUrl = p.videoUrl;
+  }
+
+  @override
+  void dispose() {
+    _titleCtrl.dispose();
+    _buildingNameCtrl.dispose();
+    _locationCtrl.dispose();
+    _priceCtrl.dispose();
+    _depositCtrl.dispose();
+    _descriptionCtrl.dispose();
+    _phoneCtrl.dispose();
+    super.dispose();
+  }
+
+  // ── Validation ─────────────────────────────────────────────────────────
+
   bool _validateStep(int step) {
     final errors = <String, String>{};
     switch (step) {
@@ -97,25 +192,17 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         } else if (price == null || price <= 0) {
           errors['price'] = 'Enter a valid amount';
         }
-        final bedrooms = int.tryParse(_bedroomsCtrl.text.trim());
-        if (_bedroomsCtrl.text.trim().isEmpty || bedrooms == null || bedrooms < 0) {
-          errors['bedrooms'] = 'Enter a valid number';
-        }
-        final bathrooms = int.tryParse(_bathroomsCtrl.text.trim());
-        if (_bathroomsCtrl.text.trim().isEmpty || bathrooms == null || bathrooms < 0) {
-          errors['bathrooms'] = 'Enter a valid number';
-        }
         break;
       case 2:
         if (_locationCtrl.text.trim().isEmpty) {
           errors['locationText'] = 'Add a neighborhood or street';
         }
         if (!_locationConfirmed) {
-          errors['gps'] = "Use your current location to continue -- see above";
+          errors['gps'] = 'Use your current location to continue';
         }
         break;
       case 3:
-        break; // Amenities are all optional toggles.
+        break;
       case 4:
         if (_phoneCtrl.text.trim().isEmpty) {
           errors['phone'] = 'Add a contact phone number';
@@ -123,100 +210,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         break;
     }
     setState(() {
-      _errors
-        ..clear()
-        ..addAll(errors);
+      _errors..clear()..addAll(errors);
     });
     return errors.isEmpty;
   }
-  static const int _maxPhotos = 10;
-  final List<String> _imageUrls = [];
-  String? _videoUrl;
-  final ImagePicker _picker = ImagePicker();
-  bool _uploadingPhotos = false;
-  int _uploadDone = 0;
-  int _uploadTotal = 0;
-  bool _uploadingVideo = false;
 
-  bool get _isEditing => widget.editingProperty != null;
+  // ── Location ──────────────────────────────────────────────────────────
 
-  /// Guards against a second autosave firing (and racing to POST a
-  /// duplicate draft) while the first is still in flight -- see
-  /// _autosaveDraft.
-  bool _autosaving = false;
-
-  /// Single source of truth for "don't let the user move on right now" --
-  /// covers final submit/save-draft AND active photo/video uploads AND
-  /// an in-flight autosave, so Next/Back/Save Draft can't be tapped into
-  /// an inconsistent mid-upload or mid-save state.
-  bool get _busy => _isLoading || _uploadingPhotos || _uploadingVideo || _autosaving;
-
-  /// Tracks the id of whatever draft this wizard session is building,
-  /// whether that's an existing listing passed in via editingProperty
-  /// or one silently created by autosave partway through a fresh
-  /// session. Once set, every subsequent save (autosave, explicit Save
-  /// Draft, or final Publish) becomes a PUT against this id instead of
-  /// a new POST -- otherwise autosaving on every step would create a
-  /// new orphaned draft every time instead of updating the same one.
-  int? _draftId;
-
-  @override
-  void initState() {
-    super.initState();
-    _draftId = widget.editingProperty?.id;
-    final p = widget.editingProperty;
-    if (p == null) return;
-
-    _titleCtrl.text = p.title;
-    _buildingNameCtrl.text = p.buildingName ?? '';
-    _locationCtrl.text = p.location;
-    _priceCtrl.text = p.price == p.price.roundToDouble() ? p.price.toInt().toString() : p.price.toString();
-    _depositCtrl.text = p.deposit ?? '';
-    _bedroomsCtrl.text = p.bedrooms.toString();
-    _bathroomsCtrl.text = p.bathrooms.toString();
-    _descriptionCtrl.text = p.description;
-    _phoneCtrl.text = p.landlordPhone;
-
-    _houseType = p.houseType;
-    if (p.latitude != null && p.longitude != null) {
-      _latitude = p.latitude;
-      _longitude = p.longitude;
-      _locationConfirmed = true;
-    }
-    _gpsVerified = p.gpsVerified;
-
-    _furnished = p.furnished;
-    _parking = p.parking;
-    _wifi = p.wifi;
-    _water = p.water;
-    _security = p.security;
-    _balcony = p.balcony;
-    _petFriendly = p.petFriendly;
-
-    _imageUrls.addAll(p.imageUrls);
-    _videoUrl = p.videoUrl;
-  }
-
-  @override
-  void dispose() {
-    _titleCtrl.dispose();
-    _buildingNameCtrl.dispose();
-    _locationCtrl.dispose();
-    _priceCtrl.dispose();
-    _depositCtrl.dispose();
-    _bedroomsCtrl.dispose();
-    _bathroomsCtrl.dispose();
-    _descriptionCtrl.dispose();
-    _phoneCtrl.dispose();
-    super.dispose();
-  }
-
-  /// Captures the property's location directly from the device's live
-  /// GPS -- there is no manual pin-dropping anywhere in this flow, so the
-  /// coordinates saved here are, by construction, wherever the landlord
-  /// is actually standing. That's also what /verify-gps is checking, so
-  /// this immediately records server-side GPS verification too, rather
-  /// than treating capture and verification as two separate steps.
   Future<void> _captureLocation() async {
     if (_checkingGps) return;
     setState(() => _checkingGps = true);
@@ -225,41 +225,34 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       if (position == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn't get your location. Make sure location access is allowed for Roost, then try again.")),
+          const SnackBar(content: Text("Couldn\'t get your location. Make sure location access is allowed for Roost, then try again.")),
         );
         return;
       }
       if (!mounted) return;
       setState(() {
-        _latitude = position.latitude;
-        _longitude = position.longitude;
+        _latitude          = position.latitude;
+        _longitude         = position.longitude;
         _locationConfirmed = true;
-        // Reset first -- if this capture's server verification below
-        // fails, we must not keep showing "verified" from a previous,
-        // now-superseded capture.
-        _gpsVerified = false;
+        _gpsVerified       = false;
       });
-
-      // Best-effort: coordinates are already captured and usable even if
-      // this part fails (flaky network, etc). The Verified badge just
-      // won't show until it succeeds -- retryable via "Update Location".
       try {
         final status = _isEditing ? widget.editingProperty!.status : 'DRAFT';
         final id = await _persist(_buildPayload(status: status));
         if (id != null) {
           await ApiService.post('/api/properties/$id/verify-gps', {
-            'latitude': position.latitude,
+            'latitude':  position.latitude,
             'longitude': position.longitude,
           });
           if (mounted) setState(() => _gpsVerified = true);
         }
-      } catch (_) {
-        // Swallowed -- see doc comment above.
-      }
+      } catch (_) {}
     } finally {
       if (mounted) setState(() => _checkingGps = false);
     }
   }
+
+  // ── Photos / Video ────────────────────────────────────────────────────
 
   Future<void> _pickFromGallery() async {
     final remaining = _maxPhotos - _imageUrls.length;
@@ -269,20 +262,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       );
       return;
     }
-    // Set busy BEFORE opening the picker, not after it returns -- the
-    // picker UI itself is a window where a second tap on "Take Photo"
-    // could otherwise race this call.
     setState(() => _uploadingPhotos = true);
     try {
-      // Compress/downscale at pick time rather than adding a separate
-      // image-processing dependency -- keeps uploads fast on mobile data.
       final files = await _picker.pickMultiImage(imageQuality: 75, maxWidth: 1600);
       if (files.isEmpty) return;
-
       final toUpload = files.take(remaining).toList();
       if (files.length > remaining && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Only added $remaining -- maximum $_maxPhotos photos per listing')),
+          SnackBar(content: Text('Only added $remaining — maximum $_maxPhotos photos')),
         );
       }
       await _uploadPhotos(toUpload);
@@ -291,26 +278,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
-  /// Keeps relaunching the camera after each shot instead of returning
-  /// to the wizard and making the landlord tap "Take Photo" again for
-  /// every single photo -- that per-photo round trip (open camera, shoot,
-  /// confirm, back to the app, tap the button again...) is the opposite
-  /// of a fast continuous-capture feel. This loops naturally: it stops
-  /// on its own the moment the landlord backs out of the camera instead
-  /// of taking another shot, or once the photo cap is hit.
-  ///
-  /// _uploadingPhotos is held true for the WHOLE loop (set once here,
-  /// not per-iteration inside _uploadPhotos) so the capture buttons and
-  /// the wizard's _busy guard stay correctly locked for the entire
-  /// session -- a per-shot toggle would leave a gap between camera
-  /// relaunches where a second tap or a wizard-navigation action could
-  /// race an in-progress multi-shot session.
   Future<void> _takePhoto() async {
     setState(() => _uploadingPhotos = true);
     try {
       while (_imageUrls.length < _maxPhotos) {
-        final file = await _picker.pickImage(source: ImageSource.camera, imageQuality: 75, maxWidth: 1600);
-        if (file == null) return; // landlord backed out -- done shooting
+        final file = await _picker.pickImage(
+            source: ImageSource.camera, imageQuality: 75, maxWidth: 1600);
+        if (file == null) return;
         await _uploadPhotos([file]);
         if (!mounted) return;
       }
@@ -324,33 +298,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
-  /// Uploads sequentially rather than in parallel -- simpler progress
-  /// tracking and more reliable on the mobile data connections most
-  /// landlords will actually be using.
-  ///
-  /// Deliberately does NOT own _uploadingPhotos itself -- callers that
-  /// invoke this multiple times in a row (see _takePhoto's capture loop)
-  /// need the busy flag held for the whole session, not toggled true/
-  /// false between each individual call, or there's a window where the
-  /// capture buttons re-enable and the wizard's _busy guard drops mid-
-  /// session, letting a second concurrent capture or navigation race
-  /// against this one.
   Future<void> _uploadPhotos(List<XFile> files) async {
     setState(() {
-      _uploadDone = 0;
+      _uploadDone  = 0;
       _uploadTotal = files.length;
     });
-
     for (final file in files) {
       try {
-        final bytes = await file.readAsBytes();
+        final bytes  = await file.readAsBytes();
         final result = await ApiService.post('/api/properties/upload-photo', {
           'data': base64Encode(bytes),
         });
         final url = result is Map ? result['url'] as String? : null;
-        if (url != null && mounted) {
-          setState(() => _imageUrls.add(url));
-        }
+        if (url != null && mounted) setState(() => _imageUrls.add(url));
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -362,33 +322,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
-  /// A single optional walkthrough video per listing -- picked from the
-  /// gallery or recorded fresh, capped at 60s to keep uploads reasonable
-  /// on mobile data (the backend independently caps by file size too;
-  /// this is just a friendlier first line of defense). Replaces any
-  /// previously attached video rather than allowing multiple, since the
-  /// gallery/detail view is built around exactly one.
   Future<void> _pickVideo(ImageSource source) async {
-    // Set busy BEFORE opening the picker, not after it returns -- same
-    // reasoning as _pickFromGallery/_takePhoto: closes the (small, but
-    // real) window between the tap and the native picker actually
-    // covering the screen.
     setState(() => _uploadingVideo = true);
     try {
       final file = await _picker.pickVideo(
-        source: source,
-        maxDuration: const Duration(seconds: 60),
-      );
+          source: source, maxDuration: const Duration(seconds: 60));
       if (file == null) return;
-
-      final bytes = await file.readAsBytes();
+      final bytes  = await file.readAsBytes();
       final result = await ApiService.post('/api/properties/upload-video', {
         'data': base64Encode(bytes),
       });
       final url = result is Map ? result['url'] as String? : null;
-      if (url != null && mounted) {
-        setState(() => _videoUrl = url);
-      }
+      if (url != null && mounted) setState(() => _videoUrl = url);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -400,151 +345,104 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
-  void _removeVideo() {
-    setState(() => _videoUrl = null);
-  }
+  void _removeVideo()           => setState(() => _videoUrl = null);
+  void _removePhoto(String url) => setState(() => _imageUrls.remove(url));
 
-  void _removePhoto(String url) {
-    setState(() => _imageUrls.remove(url));
-  }
+  // ── Persistence ────────────────────────────────────────────────────────
 
-  /// Shared payload builder for every save path (autosave, explicit
-  /// Save Draft, and final Publish) -- only the status differs between
-  /// them, so this is the single place field mapping lives instead of
-  /// three copies drifting apart over time.
-  Map<String, dynamic> _buildPayload({required String status}) {
-    return {
-      'title': _titleCtrl.text.trim(),
-      'buildingName': _buildingNameCtrl.text.trim().isEmpty ? null : _buildingNameCtrl.text.trim(),
-      'location': _locationCtrl.text.trim(),
-      'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-      'deposit': _depositCtrl.text.trim(),
-      'bedrooms': int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
-      'bathrooms': int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
-      'houseType': _houseType,
-      'type': 'RENTAL',
-      // Preserves whatever the ORIGINAL listing's available/verified
-      // status already was, if one was passed in -- an edit (or an
-      // autosave of a listing that started life as one) shouldn't
-      // silently re-publish something marked rented, or un-verify one
-      // that passed verification, just because a field changed.
-      'available': _isEditing ? widget.editingProperty!.available : true,
-      'verified': _isEditing ? widget.editingProperty!.verified : false,
-      'landlordPhone': _phoneCtrl.text.trim(),
-      'description': _descriptionCtrl.text.trim(),
-      if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
-      'imageUrls': _imageUrls,
-      'videoUrl': _videoUrl,
-      'latitude': _latitude,
-      'longitude': _longitude,
-      'furnished': _furnished,
-      'parking': _parking,
-      'wifi': _wifi,
-      'water': _water,
-      'security': _security,
-      'balcony': _balcony,
-      'petFriendly': _petFriendly,
-      'moveInDate': _moveInDate,
-      'country': CountryService.config.code,
-      'status': status,
-    };
-  }
+  Map<String, dynamic> _buildPayload({required String status}) => {
+        'title':       _titleCtrl.text.trim(),
+        'buildingName': _buildingNameCtrl.text.trim().isEmpty
+            ? null
+            : _buildingNameCtrl.text.trim(),
+        'location':    _locationCtrl.text.trim(),
+        'price':       double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+        'deposit':     _depositCtrl.text.trim(),
+        'bedrooms':    _bedrooms,
+        'bathrooms':   _bathrooms,
+        'houseType':   _houseType,
+        'type':        'RENTAL',
+        'available':   _isEditing ? widget.editingProperty!.available : true,
+        'verified':    _isEditing ? widget.editingProperty!.verified  : false,
+        'landlordPhone': _phoneCtrl.text.trim(),
+        'description': _descriptionCtrl.text.trim(),
+        if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
+        'imageUrls':   _imageUrls,
+        'videoUrl':    _videoUrl,
+        'latitude':    _latitude,
+        'longitude':   _longitude,
+        'furnished':   _amenityState['furnished']   ?? false,
+        'parking':     _amenityState['parking']     ?? false,
+        'wifi':        _amenityState['wifi']        ?? false,
+        'water':       _amenityState['water']       ?? true,
+        'security':    _amenityState['security']    ?? true,
+        'balcony':     _amenityState['balcony']     ?? false,
+        'petFriendly': _amenityState['petFriendly'] ?? false,
+        'moveInDate':  'Immediate',
+        'country':     CountryService.config.code,
+        'status':      status,
+      };
 
-  /// Builds an in-memory Property from the wizard's current field values,
-  /// purely for rendering the real PropertyCard on the Review step --
-  /// never sent anywhere. Field mapping deliberately mirrors
-  /// _buildPayload exactly, so what's previewed matches what actually
-  /// gets saved.
-  Property _buildPreviewProperty() {
-    return Property(
-      title: _titleCtrl.text.trim(),
-      buildingName: _buildingNameCtrl.text.trim().isEmpty ? null : _buildingNameCtrl.text.trim(),
-      description: _descriptionCtrl.text.trim(),
-      location: _locationCtrl.text.trim(),
-      price: double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-      bedrooms: int.tryParse(_bedroomsCtrl.text.trim()) ?? 1,
-      bathrooms: int.tryParse(_bathroomsCtrl.text.trim()) ?? 1,
-      type: 'RENTAL',
-      houseType: _houseType,
-      landlordPhone: _phoneCtrl.text.trim(),
-      available: _isEditing ? widget.editingProperty!.available : true,
-      verified: _isEditing ? widget.editingProperty!.verified : false,
-      gpsVerified: _gpsVerified,
-      imageUrl: _imageUrls.isNotEmpty ? _imageUrls.first : null,
-      imageUrls: _imageUrls,
-      videoUrl: _videoUrl,
-      latitude: _latitude,
-      longitude: _longitude,
-      furnished: _furnished,
-      parking: _parking,
-      water: _water,
-      wifi: _wifi,
-      security: _security,
-      balcony: _balcony,
-      petFriendly: _petFriendly,
-      deposit: _depositCtrl.text.trim().isEmpty ? null : _depositCtrl.text.trim(),
-      moveInDate: _moveInDate,
-      country: CountryService.config.code,
-    );
-  }
+  Property _buildPreviewProperty() => Property(
+        title:        _titleCtrl.text.trim(),
+        buildingName: _buildingNameCtrl.text.trim().isEmpty
+            ? null
+            : _buildingNameCtrl.text.trim(),
+        description:  _descriptionCtrl.text.trim(),
+        location:     _locationCtrl.text.trim(),
+        price:        double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+        bedrooms:     _bedrooms,
+        bathrooms:    _bathrooms,
+        type:         'RENTAL',
+        houseType:    _houseType,
+        landlordPhone: _phoneCtrl.text.trim(),
+        available:    _isEditing ? widget.editingProperty!.available : true,
+        verified:     _isEditing ? widget.editingProperty!.verified  : false,
+        gpsVerified:  _gpsVerified,
+        imageUrl:     _imageUrls.isNotEmpty ? _imageUrls.first : null,
+        imageUrls:    _imageUrls,
+        videoUrl:     _videoUrl,
+        latitude:     _latitude,
+        longitude:    _longitude,
+        furnished:    _amenityState['furnished']   ?? false,
+        parking:      _amenityState['parking']     ?? false,
+        water:        _amenityState['water']       ?? true,
+        wifi:         _amenityState['wifi']        ?? false,
+        security:     _amenityState['security']    ?? true,
+        balcony:      _amenityState['balcony']     ?? false,
+        petFriendly:  _amenityState['petFriendly'] ?? false,
+        deposit:      _depositCtrl.text.trim().isEmpty ? null : _depositCtrl.text.trim(),
+        moveInDate:   'Immediate',
+        country:      CountryService.config.code,
+      );
 
-  /// Creates the listing on first save, updates it on every save after
-  /// that -- `_draftId` is how every other method knows which case it
-  /// is. Returns the saved property's id (updating `_draftId` as a
-  /// side effect) so callers don't have to duplicate that bookkeeping.
   Future<int?> _persist(Map<String, dynamic> payload) async {
     if (_draftId != null) {
       await ApiService.put('/api/properties/$_draftId', payload);
       return _draftId;
     }
     final result = await ApiService.post('/api/properties', payload);
-    final newId = result is Map ? result['id'] as int? : null;
+    final newId  = result is Map ? result['id'] as int? : null;
     if (newId != null) _draftId = newId;
     return _draftId;
   }
 
-  /// Fires on every step advance so a listing exists as a draft on the
-  /// server from partway through the wizard onward, not just when the
-  /// user explicitly taps Save Draft or reaches the final Publish step.
-  /// Deliberately silent and non-blocking: it must never interrupt or
-  /// delay navigation between steps, and a failure here isn't the
-  /// user's problem to see -- Save Draft and Publish still report
-  /// their own errors normally, and either will simply retry the save
-  /// next time it's called.
   void _autosaveDraft() async {
-    // Nothing worth persisting yet on a completely untouched first step.
     if (_titleCtrl.text.trim().isEmpty && _imageUrls.isEmpty && !_isEditing) return;
-    // Already saving -- skip rather than fire a second concurrent POST,
-    // which would race the first and create a duplicate draft before
-    // _draftId gets set (see _persist).
     if (_autosaving) return;
     if (mounted) setState(() => _autosaving = true);
     try {
       await _persist(_buildPayload(status: 'DRAFT'));
-    } catch (_) {
-      // Swallow silently -- see method doc. Explicit saves still surface
-      // their own errors to the user.
-    } finally {
+    } catch (_) {} finally {
       if (mounted) setState(() => _autosaving = false);
     }
   }
 
-  /// Landlords must have a verified phone before their first listing can
-  /// go live -- checked here rather than earlier in the wizard so
-  /// browsing/drafting the listing itself stays frictionless, matching
-  /// the deferred-verification model already used for becoming a
-  /// landlord in the first place. Returns false if the user backs out
-  /// of verification, in which case publish should not proceed.
   Future<bool> _ensurePhoneVerified() async {
     try {
       final me = await ApiService.get('/api/users/me');
       if (me['phoneVerified'] == true) return true;
-    } catch (_) {
-      // If the check itself fails (network hiccup), fall through to the
-      // verification screen rather than silently allowing an unverified
-      // publish.
-    }
-
+    } catch (_) {}
     if (!mounted) return false;
     final verified = await Navigator.push<bool>(
       context,
@@ -554,9 +452,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   Future<void> _submitProperty() async {
-    // Defense in depth: every step's fields were already validated on the
-    // way through to reach Review, but re-check here too in case this
-    // gets reached via some other path in the future.
     for (var s = 0; s <= 4; s++) {
       if (!_validateStep(s)) {
         if (!mounted) return;
@@ -564,20 +459,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         return;
       }
     }
-
     if (!await _ensurePhoneVerified()) return;
     if (!mounted) return;
-
     setState(() => _isLoading = true);
-
     try {
       await _persist(_buildPayload(status: 'PUBLISHED'));
-
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(_isEditing ? 'Listing updated' : 'Property listed successfully!')),
-      );
-      Navigator.pop(context, true);
+      await _showSuccessDialog();
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -589,11 +477,20 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
+  Future<void> _showSuccessDialog() async {
+    await showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => _SuccessDialog(isEditing: _isEditing),
+    );
+    if (mounted) Navigator.pop(context, true);
+  }
+
   void _nextStep() {
     if (_busy) return;
-    final lastFieldStep = _stepLabels.length - 2; // last data-entry step, before Review
+    final lastFieldStep = _stepLabels.length - 2;
     if (_step <= lastFieldStep && !_validateStep(_step)) return;
-
+    HapticFeedback.lightImpact();
     if (_step < _stepLabels.length - 1) {
       _autosaveDraft();
       setState(() {
@@ -607,6 +504,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   void _prevStep() {
     if (_step > 0 && !_busy) {
+      HapticFeedback.selectionClick();
       setState(() {
         _movingForward = false;
         _step--;
@@ -614,9 +512,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
-  /// Used by the Review step's "Edit" links to jump straight back to a
-  /// specific earlier step, rather than only being able to go back one
-  /// step at a time.
   void _jumpToStep(int step) {
     if (_busy) return;
     setState(() {
@@ -625,19 +520,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     });
   }
 
-  /// Saves whatever's been filled in so far as a DRAFT and exits the
-  /// wizard, without the phone-verification gate or required-field
-  /// checks that publishing enforces -- a draft is allowed to be
-  /// incomplete by definition. Available from any step, not just the
-  /// final review screen, so closing the wizard early doesn't lose
-  /// everything typed so far. Unlike _autosaveDraft, this is a visible,
-  /// user-triggered action, so it does show success/failure feedback.
   Future<void> _saveDraft() async {
     setState(() => _isLoading = true);
-
     try {
       await _persist(_buildPayload(status: 'DRAFT'));
-
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Draft saved. Resume it anytime from your listings.')),
@@ -652,6 +538,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
+  // ── Build ──────────────────────────────────────────────────────────────
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -659,76 +547,41 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       appBar: AppBar(
         backgroundColor: Colors.black,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: Text(_isEditing ? 'Edit Listing' : 'List a Property', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: Text(
+          _isEditing ? 'Edit Listing' : 'List a Property',
+          style: const TextStyle(
+              color: Colors.white, fontWeight: FontWeight.bold, fontSize: 17),
+        ),
         actions: [
           TextButton(
             onPressed: _busy ? null : _saveDraft,
-            child: Text('Save Draft', style: TextStyle(color: _busy ? Colors.white24 : Colors.white70)),
+            child: Text('Save Draft',
+                style: TextStyle(
+                    color: _busy ? Colors.white24 : Colors.white60,
+                    fontSize: 14)),
           ),
         ],
       ),
       body: SafeArea(
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
           child: Column(
             children: [
-              // Tells the user where they are in the journey by name, not
-              // just an abstract fraction -- "Step 3 of 5 · Location"
-              // instead of five unlabeled bars they have to decode.
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Text(
-                  'STEP ${_step + 1} OF ${_stepLabels.length} · ${_stepLabels[_step].toUpperCase()}',
-                  style: TextStyle(
-                    color: Colors.grey[500],
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-
-              // Step Progress Indicator -- animates its fill so advancing
-              // a step reads as forward motion rather than an instant
-              // snap, matching the rest of the wizard's transitions.
-              Row(
-                children: List.generate(
-                  _stepLabels.length,
-                  (idx) => Expanded(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      curve: Curves.easeOut,
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(horizontal: 2),
-                      decoration: BoxDecoration(
-                        color: idx <= _step ? Colors.white : const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(2),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-
-              const SizedBox(height: 24),
-
-              // Step content slides in the direction of travel (right-to-
-              // left advancing, left-to-right going back) with a fade,
-              // instead of jump-cutting straight to the next step's
-              // content -- this is the main thing that made the wizard
-              // feel choppy rather than like a single guided flow.
+              _buildProgressSection(),
+              const SizedBox(height: 20),
               Expanded(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 280),
+                  duration: const Duration(milliseconds: 300),
                   transitionBuilder: (child, animation) {
                     final offsetTween = Tween<Offset>(
-                      begin: Offset(_movingForward ? 0.08 : -0.08, 0),
+                      begin: Offset(_movingForward ? 0.20 : -0.20, 0),
                       end: Offset.zero,
                     );
                     return FadeTransition(
                       opacity: animation,
                       child: SlideTransition(
-                        position: animation.drive(offsetTween),
+                        position: animation.drive(
+                            offsetTween.chain(CurveTween(curve: Curves.easeOutCubic))),
                         child: child,
                       ),
                     );
@@ -739,49 +592,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   ),
                 ),
               ),
-
-              const SizedBox(height: 16),
-
-              Row(
-                children: [
-                  if (_step > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _busy ? null : _prevStep,
-                        style: OutlinedButton.styleFrom(
-                          foregroundColor: Colors.white,
-                          side: const BorderSide(color: Color(0xFF2C2C2E)),
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: const Text('Back'),
-                      ),
-                    ),
-                  if (_step > 0) const SizedBox(width: 12),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _busy ? null : _nextStep,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        disabledBackgroundColor: Colors.white54,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                      child: _busy
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
-                            )
-                          : Text(
-                              _step == _stepLabels.length - 1 ? (_isEditing ? 'Save Changes' : 'Publish Listing') : 'Next Step',
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                    ),
-                  ),
-                ],
-              ),
+              const SizedBox(height: 12),
+              _buildNavButtons(),
+              const SizedBox(height: 20),
             ],
           ),
         ),
@@ -789,658 +602,945 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     );
   }
 
-  Widget _buildStepContent() {
-    switch (_step) {
-      case 0:
-        final hasMinPhotos = _imageUrls.length >= _minPhotos;
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Property Photos', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Add high quality photos to attract renters', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 12),
+  // ── Progress bar + step label ─────────────────────────────────────────
 
-            // Status as a pill, not bare colored text -- scannable at a
-            // glance, and the icon reinforces the color for anyone who
-            // can't easily distinguish amber from green.
+  Widget _buildProgressSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: List.generate(_stepLabels.length, (idx) {
+            final active   = idx == _step;
+            final complete = idx < _step;
+            return Expanded(
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 350),
+                curve: Curves.easeOutCubic,
+                height: 5,
+                margin: const EdgeInsets.symmetric(horizontal: 2),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(99),
+                  color: complete
+                      ? Colors.white
+                      : active
+                          ? Colors.white
+                          : const Color(0xFF2C2C2E),
+                  boxShadow: active
+                      ? [
+                          BoxShadow(
+                            color: Colors.white.withValues(alpha: 0.3),
+                            blurRadius: 6,
+                          )
+                        ]
+                      : null,
+                ),
+              ),
+            );
+          }),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Text(
+              'Step ${_step + 1} of ${_stepLabels.length}',
+              style: TextStyle(
+                  color: Colors.grey[600],
+                  fontSize: 11,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 0.2),
+            ),
+            const SizedBox(width: 8),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              width: 3,
+              height: 3,
               decoration: BoxDecoration(
-                color: (hasMinPhotos ? Colors.greenAccent : Colors.amber).withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(999),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    hasMinPhotos ? Icons.check_circle : Icons.info_outline,
-                    size: 14,
-                    color: hasMinPhotos ? Colors.greenAccent : Colors.amber,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    hasMinPhotos
-                        ? '${_imageUrls.length} of $_minPhotos minimum photos added'
-                        : '${_imageUrls.length} of $_minPhotos minimum photos added -- add ${_minPhotos - _imageUrls.length} more',
-                    style: TextStyle(
-                      color: hasMinPhotos ? Colors.greenAccent : Colors.amber,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
+                  color: Colors.grey[700], shape: BoxShape.circle),
             ),
-            const SizedBox(height: 8),
-            // Explains the "Cover" badge *before* it appears, rather than
-            // leaving the user to notice and infer it after the fact.
-            Row(
-              children: [
-                Icon(Icons.info_outline, size: 13, color: Colors.grey[600]),
-                const SizedBox(width: 5),
-                Text(
-                  'Your first photo becomes the cover image',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _uploadingPhotos ? null : _takePhoto,
-                    icon: const Icon(Icons.camera_alt_outlined, size: 18),
-                    label: const Text('Take Photo'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF3A3A3C)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _uploadingPhotos ? null : _pickFromGallery,
-                    icon: const Icon(Icons.photo_library_outlined, size: 18),
-                    label: const Text('Gallery'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: Colors.white,
-                      side: const BorderSide(color: Color(0xFF3A3A3C)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            if (_uploadingPhotos) ...[
-              const SizedBox(height: 16),
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 16, height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  ),
-                  const SizedBox(width: 10),
-                  Text('Uploading $_uploadDone of $_uploadTotal...', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
-                ],
-              ),
-            ],
-            if (_imageUrls.isEmpty && !_uploadingPhotos) ...[
-              const SizedBox(height: 20),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF2C2C2E), width: 1.2),
-                ),
-                child: Column(
-                  children: [
-                    Icon(Icons.add_a_photo_outlined, color: Colors.grey[600], size: 28),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'No photos yet',
-                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Natural light and landscape shots of each room\nusually get the most views',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12, height: 1.4),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-            if (_imageUrls.isNotEmpty) ...[
-              const SizedBox(height: 20),
-              GridView.builder(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 3,
-                  crossAxisSpacing: 8,
-                  mainAxisSpacing: 8,
-                ),
-                itemCount: _imageUrls.length,
-                itemBuilder: (context, index) {
-                  final url = _imageUrls[index];
-                  return TweenAnimationBuilder<double>(
-                    tween: Tween(begin: 0, end: 1),
-                    duration: const Duration(milliseconds: 250),
-                    curve: Curves.easeOut,
-                    builder: (context, value, child) => Opacity(
-                      opacity: value,
-                      child: Transform.scale(scale: 0.85 + (0.15 * value), child: child),
-                    ),
-                    child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ClipRRect(
-                        borderRadius: BorderRadius.circular(10),
-                        child: Image.network(
-                          url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                            color: const Color(0xFF1C1C1E),
-                            child: const Icon(Icons.broken_image_outlined, color: Colors.grey),
-                          ),
-                        ),
-                      ),
-                      if (index == 0)
-                        Positioned(
-                          left: 4,
-                          top: 4,
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(color: Colors.black87, borderRadius: BorderRadius.circular(6)),
-                            child: const Text('Cover', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
-                          ),
-                        ),
-                      Positioned(
-                        right: 4,
-                        top: 4,
-                        child: GestureDetector(
-                          onTap: () => _removePhoto(url),
-                          child: Container(
-                            padding: const EdgeInsets.all(3),
-                            decoration: const BoxDecoration(color: Colors.black87, shape: BoxShape.circle),
-                            child: const Icon(Icons.close, color: Colors.white, size: 14),
-                          ),
-                        ),
-                      ),
-                    ],
-                    ),
-                  );
-                },
-              ),
-            ],
-
-            const SizedBox(height: 28),
-            const Divider(color: Colors.white12),
-            const SizedBox(height: 12),
-            const Text('Walkthrough Video (optional)', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 4),
-            Text('A short vertical walkthrough helps renters picture the space', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
-            const SizedBox(height: 16),
-
-            if (_uploadingVideo)
-              Row(
-                children: [
-                  const SizedBox(
-                    width: 16, height: 16,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                  ),
-                  const SizedBox(width: 10),
-                  Text('Uploading video...', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
-                ],
-              )
-            else if (_videoUrl != null)
-              Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: const Color(0xFF2C2C2E)),
-                ),
-                child: Row(
-                  children: [
-                    const Icon(Icons.videocam, color: Colors.white70),
-                    const SizedBox(width: 12),
-                    const Expanded(
-                      child: Text('Video attached', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-                    ),
-                    GestureDetector(
-                      onTap: _removeVideo,
-                      child: const Icon(Icons.close, color: Colors.grey, size: 20),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Row(
-                children: [
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _pickVideo(ImageSource.camera),
-                      icon: const Icon(Icons.videocam_outlined, size: 18),
-                      label: const Text('Record Video'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFF3A3A3C)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: OutlinedButton.icon(
-                      onPressed: () => _pickVideo(ImageSource.gallery),
-                      icon: const Icon(Icons.video_library_outlined, size: 18),
-                      label: const Text('From Gallery'),
-                      style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.white,
-                        side: const BorderSide(color: Color(0xFF3A3A3C)),
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-          ],
-        );
-
-      case 1:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Basic Information', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Title, house type, rent, and bedrooms', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _titleCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Listing Title (e.g. Modern 2BR Kilimani)', errorText: _errors['title']),
-              onChanged: (_) => _clearError('title'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _buildingNameCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Apartment / Building Name (optional)'),
-            ),
-            const SizedBox(height: 16),
-            DropdownButtonFormField<String>(
-              initialValue: _houseType,
-              dropdownColor: const Color(0xFF1C1C1E),
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('House Type'),
-              items: ['BEDSITTER', 'STUDIO', '1BR', '2BR', '3BR+'].map((t) {
-                return DropdownMenuItem(value: t, child: Text(t));
-              }).toList(),
-              onChanged: (val) => setState(() => _houseType = val!),
-            ),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _priceCtrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Monthly Rent (${CountryService.config.currencyCode})', errorText: _errors['price']),
-                    onChanged: (_) => _clearError('price'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _depositCtrl,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Deposit Terms (optional)'),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 16),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: TextField(
-                    controller: _bedroomsCtrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Bedrooms', errorText: _errors['bedrooms']),
-                    onChanged: (_) => _clearError('bedrooms'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextField(
-                    controller: _bathroomsCtrl,
-                    keyboardType: TextInputType.number,
-                    style: const TextStyle(color: Colors.white),
-                    decoration: _inputDecoration('Bathrooms', errorText: _errors['bathrooms']),
-                    onChanged: (_) => _clearError('bathrooms'),
-                  ),
-                ),
-              ],
+            const SizedBox(width: 8),
+            Text(
+              _stepLabels[_step],
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5),
             ),
           ],
-        );
+        ),
+      ],
+    );
+  }
 
-      case 2:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Location', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Specify district & confirm your exact GPS location', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _locationCtrl,
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Location (e.g. Kilimani, Chania Avenue)', errorText: _errors['locationText']),
-              onChanged: (_) => _clearError('locationText'),
+  // ── Navigation buttons ────────────────────────────────────────────────
+
+  Widget _buildNavButtons() {
+    final isLastStep = _step == _stepLabels.length - 1;
+    final nextLabel  = isLastStep
+        ? (_isEditing ? 'Save Changes' : 'Publish Listing')
+        : 'Continue';
+
+    return Row(
+      children: [
+        if (_step > 0) ...[
+          SizedBox(
+            width: 80,
+            child: GestureDetector(
+              onTap: _busy ? null : _prevStep,
+              child: Container(
+                height: 52,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(14),
+                  border:
+                      Border.all(color: const Color(0xFF2C2C2E), width: 1.2),
+                ),
+                child: Center(
+                  child: Icon(Icons.arrow_back_rounded,
+                      color: _busy ? Colors.white24 : Colors.white, size: 20),
+                ),
+              ),
             ),
-            const SizedBox(height: 20),
-            if (!_locationConfirmed)
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(
-                    color: _errors.containsKey('gps')
-                        ? Colors.redAccent.withValues(alpha: 0.7)
-                        : Colors.amber.withValues(alpha: 0.5),
-                  ),
-                ),
-                child: Column(
-                  children: [
-                    Icon(
-                      Icons.my_location,
-                      color: _errors.containsKey('gps') ? Colors.redAccent : Colors.amber,
-                      size: 28,
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      "We'll use your device's GPS to pin this property",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      "You'll need to be standing at the property -- this is what earns the Verified badge, so listings can't fake a location.",
-                      textAlign: TextAlign.center,
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12.5, height: 1.4),
-                    ),
-                    if (_errors.containsKey('gps')) ...[
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Required to continue',
-                        style: TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w600),
-                      ),
-                    ],
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      child: ElevatedButton.icon(
-                        onPressed: _checkingGps ? null : _captureLocation,
-                        icon: _checkingGps
-                            ? const SizedBox(
-                                width: 14, height: 14,
-                                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black54),
-                              )
-                            : const Icon(Icons.my_location, size: 16),
-                        label: Text(_checkingGps ? 'Getting your location...' : 'Use My Current Location'),
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          padding: const EdgeInsets.symmetric(vertical: 14),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              )
-            else
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: (_gpsVerified ? Colors.greenAccent : Colors.white).withValues(alpha: 0.08),
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _gpsVerified ? Colors.greenAccent.withValues(alpha: 0.4) : Colors.white24),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          _gpsVerified ? Icons.verified : Icons.location_on,
-                          color: _gpsVerified ? Colors.greenAccent : Colors.white,
-                          size: 20,
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: Text(
-                            _gpsVerified ? "Confirmed -- you're at this location" : 'Location captured',
-                            style: TextStyle(
-                              color: _gpsVerified ? Colors.greenAccent : Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+          ),
+          const SizedBox(width: 12),
+        ],
+        Expanded(
+          child: GestureDetector(
+            onTap: _busy ? null : _nextStep,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              height: 52,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(14),
+                color: _busy ? Colors.white54 : Colors.white,
+              ),
+              child: Center(
+                child: _busy
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5, color: Colors.black54),
+                      )
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Text(
+                            nextLabel,
+                            style: const TextStyle(
+                              color: Colors.black,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              letterSpacing: -0.2,
                             ),
                           ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      '${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                    ),
-                    if (_gpsVerified) ...[
-                      const SizedBox(height: 2),
-                      Text(
-                        'This counts toward your Verified badge',
-                        style: TextStyle(color: Colors.greenAccent.withValues(alpha: 0.7), fontSize: 12),
+                          if (!isLastStep) ...[
+                            const SizedBox(width: 6),
+                            const Icon(Icons.arrow_forward_rounded,
+                                color: Colors.black, size: 18),
+                          ],
+                        ],
                       ),
-                    ],
-                    const SizedBox(height: 10),
-                    GestureDetector(
-                      onTap: _checkingGps ? null : _captureLocation,
-                      child: Text(
-                        _checkingGps ? 'Updating...' : 'Update Location',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12, decoration: TextDecoration.underline),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        );
-
-      case 3:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Amenities & Features', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Select features available at this property', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 20),
-            CheckboxListTile(
-              title: const Text('Furnished', style: TextStyle(color: Colors.white)),
-              value: _furnished,
-              activeColor: Colors.white,
-              onChanged: (val) => setState(() => _furnished = val!),
-            ),
-            CheckboxListTile(
-              title: const Text('Parking Available', style: TextStyle(color: Colors.white)),
-              value: _parking,
-              activeColor: Colors.white,
-              onChanged: (val) => setState(() => _parking = val!),
-            ),
-            CheckboxListTile(
-              title: const Text('WiFi Internet', style: TextStyle(color: Colors.white)),
-              value: _wifi,
-              activeColor: Colors.white,
-              onChanged: (val) => setState(() => _wifi = val!),
-            ),
-            CheckboxListTile(
-              title: const Text('24hr Water Supply', style: TextStyle(color: Colors.white)),
-              value: _water,
-              activeColor: Colors.white,
-              onChanged: (val) => setState(() => _water = val!),
-            ),
-            CheckboxListTile(
-              title: const Text('Security Guard / CCTV', style: TextStyle(color: Colors.white)),
-              value: _security,
-              activeColor: Colors.white,
-              onChanged: (val) => setState(() => _security = val!),
-            ),
-            CheckboxListTile(
-              title: const Text('Balcony View', style: TextStyle(color: Colors.white)),
-              value: _balcony,
-              activeColor: Colors.white,
-              onChanged: (val) => setState(() => _balcony = val!),
-            ),
-            CheckboxListTile(
-              title: const Text('Pet Friendly', style: TextStyle(color: Colors.white)),
-              value: _petFriendly,
-              activeColor: Colors.white,
-              onChanged: (val) => setState(() => _petFriendly = val!),
-            ),
-          ],
-        );
-
-      case 4:
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Description & Contact', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Add property details and direct contact phone', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 20),
-            TextField(
-              controller: _phoneCtrl,
-              keyboardType: TextInputType.phone,
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Contact Phone (e.g. +254 712 345 678)', errorText: _errors['phone']),
-              onChanged: (_) => _clearError('phone'),
-            ),
-            const SizedBox(height: 16),
-            TextField(
-              controller: _descriptionCtrl,
-              maxLines: 4,
-              maxLength: 500,
-              style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Description (optional, max 500 chars)'),
-            ),
-          ],
-        );
-
-      case 5:
-      default:
-        final amenityLabels = <String>[
-          if (_furnished) 'Furnished',
-          if (_parking) 'Parking',
-          if (_wifi) 'WiFi',
-          if (_water) '24hr Water',
-          if (_security) 'Security',
-          if (_balcony) 'Balcony',
-          if (_petFriendly) 'Pet Friendly',
-        ];
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Review Your Listing', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('Check everything looks right before you publish', style: TextStyle(color: Colors.grey[500])),
-            const SizedBox(height: 16),
-            Text(
-              'PREVIEW -- THIS IS HOW YOUR LISTING WILL LOOK',
-              style: TextStyle(color: Colors.grey[600], fontSize: 11, fontWeight: FontWeight.w700, letterSpacing: 0.5),
-            ),
-            const SizedBox(height: 10),
-            // Renders the actual card widget used everywhere else in the
-            // app, fed with the wizard's current values -- so this is a
-            // real preview, not a text description of one. Wrapped in
-            // IgnorePointer because the real card has live Call/Chat/
-            // Navigate actions that assume a saved listing with a real
-            // owner attached; this one doesn't have either yet.
-            IgnorePointer(
-              child: PropertyCard(
-                property: _buildPreviewProperty(),
-                margin: EdgeInsets.zero,
               ),
             ),
-            const SizedBox(height: 24),
-            _ReviewSection(
-              title: 'Photos',
-              onEdit: () => _jumpToStep(0),
-              lines: ['${_imageUrls.length} photo${_imageUrls.length == 1 ? '' : 's'} added'],
-            ),
-            _ReviewSection(
-              title: 'Basics',
-              onEdit: () => _jumpToStep(1),
-              lines: [
-                _titleCtrl.text.trim().isEmpty ? '(no title)' : _titleCtrl.text.trim(),
-                '$_houseType · ${CountryService.pricePerMonth(double.tryParse(_priceCtrl.text.trim()) ?? 0)}',
-                '${_bedroomsCtrl.text.trim()} bed · ${_bathroomsCtrl.text.trim()} bath'
-                    '${_depositCtrl.text.trim().isEmpty ? '' : ' · Deposit: ${_depositCtrl.text.trim()}'}',
-              ],
-            ),
-            _ReviewSection(
-              title: 'Location',
-              onEdit: () => _jumpToStep(2),
-              lines: [
-                _locationCtrl.text.trim().isEmpty ? '(no location)' : _locationCtrl.text.trim(),
-              ],
-              trailingIcon: _gpsVerified ? Icons.verified : Icons.info_outline,
-              trailingIconColor: _gpsVerified ? Colors.greenAccent : Colors.amber,
-              trailingLabel: _gpsVerified ? 'GPS-confirmed' : 'Not GPS-confirmed yet',
-            ),
-            _ReviewSection(
-              title: 'Amenities',
-              onEdit: () => _jumpToStep(3),
-              lines: [amenityLabels.isEmpty ? 'None selected' : amenityLabels.join(' · ')],
-            ),
-            _ReviewSection(
-              title: 'Contact',
-              onEdit: () => _jumpToStep(4),
-              lines: [
-                _phoneCtrl.text.trim().isEmpty ? '(no phone)' : _phoneCtrl.text.trim(),
-                if (_descriptionCtrl.text.trim().isNotEmpty)
-                  _descriptionCtrl.text.trim().length > 80
-                      ? '${_descriptionCtrl.text.trim().substring(0, 80)}...'
-                      : _descriptionCtrl.text.trim(),
-              ],
-            ),
-          ],
-        );
+          ),
+        ),
+      ],
+    );
+  }
+
+  // ── Step content dispatcher ──────────────────────────────────────────
+
+  Widget _buildStepContent() {
+    switch (_step) {
+      case 0:  return _buildPhotosStep();
+      case 1:  return _buildBasicsStep();
+      case 2:  return _buildLocationStep();
+      case 3:  return _buildAmenitiesStep();
+      case 4:  return _buildContactStep();
+      default: return _buildReviewStep();
     }
   }
 
-  InputDecoration _inputDecoration(String label, {String? errorText}) {
+  // ─────────────────────────────────────────────────────────────────────
+  // STEP 0 — Photos
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildPhotosStep() {
+    final hasMin = _imageUrls.length >= _minPhotos;
+    final progress = _uploadTotal > 0 ? _uploadDone / _uploadTotal : 0.0;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StepHeader(
+          stepNumber: 1,
+          title: 'Property Photos',
+          subtitle: 'Clear, bright shots get 3× more inquiries',
+        ),
+        const SizedBox(height: 20),
+
+        // Status pill
+        AnimatedContainer(
+          duration: const Duration(milliseconds: 400),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+          decoration: BoxDecoration(
+            color: (hasMin ? const Color(0xFF00C896) : Colors.amber)
+                .withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(
+              color: (hasMin ? const Color(0xFF00C896) : Colors.amber)
+                  .withValues(alpha: 0.3),
+            ),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                hasMin ? Icons.check_circle_outline : Icons.photo_camera_outlined,
+                size: 14,
+                color: hasMin ? const Color(0xFF00C896) : Colors.amber,
+              ),
+              const SizedBox(width: 7),
+              Text(
+                hasMin
+                    ? '${_imageUrls.length} photos added ✓'
+                    : '${_imageUrls.length}/$_minPhotos photos — add ${_minPhotos - _imageUrls.length} more',
+                style: TextStyle(
+                  color: hasMin ? const Color(0xFF00C896) : Colors.amber,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 16),
+
+        // Upload action tiles
+        if (!_uploadingPhotos)
+          Row(
+            children: [
+              Expanded(
+                child: _ActionTile(
+                  icon: Icons.camera_alt_outlined,
+                  label: 'Camera',
+                  onTap: _takePhoto,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: _ActionTile(
+                  icon: Icons.photo_library_outlined,
+                  label: 'Gallery',
+                  onTap: _pickFromGallery,
+                ),
+              ),
+            ],
+          ),
+
+        // Upload progress
+        if (_uploadingPhotos) ...[
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.white70),
+                    ),
+                    const SizedBox(width: 10),
+                    Text(
+                      'Uploading $_uploadDone of $_uploadTotal…',
+                      style:
+                          TextStyle(color: Colors.grey[300], fontSize: 13),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    backgroundColor: const Color(0xFF2C2C2E),
+                    valueColor:
+                        const AlwaysStoppedAnimation<Color>(Colors.white),
+                    minHeight: 4,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        // Empty drop-zone
+        if (_imageUrls.isEmpty && !_uploadingPhotos) ...[
+          const SizedBox(height: 16),
+          Container(
+            width: double.infinity,
+            padding:
+                const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: _errors.containsKey('photos')
+                    ? Colors.redAccent.withValues(alpha: 0.6)
+                    : const Color(0xFF2C2C2E),
+                width: 1.5,
+                strokeAlign: BorderSide.strokeAlignInside,
+              ),
+            ),
+            child: Column(
+              children: [
+                Icon(Icons.add_a_photo_outlined,
+                    color: Colors.grey[600], size: 32),
+                const SizedBox(height: 14),
+                const Text(
+                  'No photos yet',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15,
+                      fontWeight: FontWeight.w600),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Natural light & landscape shots of\neach room get the most views',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      color: Colors.grey[600], fontSize: 12.5, height: 1.4),
+                ),
+                if (_errors.containsKey('photos')) ...[
+                  const SizedBox(height: 10),
+                  Text(
+                    _errors['photos']!,
+                    style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+
+        // Photo grid
+        if (_imageUrls.isNotEmpty) ...[
+          const SizedBox(height: 16),
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: 8,
+              mainAxisSpacing: 8,
+            ),
+            itemCount: _imageUrls.length,
+            itemBuilder: (context, index) {
+              final url = _imageUrls[index];
+              return TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: const Duration(milliseconds: 250),
+                curve: Curves.easeOutBack,
+                builder: (context, value, child) => Opacity(
+                  opacity: value.clamp(0.0, 1.0),
+                  child: Transform.scale(
+                      scale: 0.8 + (0.2 * value), child: child),
+                ),
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    ClipRRect(
+                      borderRadius: BorderRadius.circular(10),
+                      child: Image.network(url,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                                color: const Color(0xFF1C1C1E),
+                                child: const Icon(
+                                    Icons.broken_image_outlined,
+                                    color: Colors.grey),
+                              )),
+                    ),
+                    if (index == 0)
+                      Positioned(
+                        left: 4,
+                        top: 4,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                              color: Colors.black87,
+                              borderRadius: BorderRadius.circular(6)),
+                          child: const Text('Cover',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    Positioned(
+                      right: 4,
+                      top: 4,
+                      child: GestureDetector(
+                        onTap: () => _removePhoto(url),
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                              color: Colors.black87,
+                              shape: BoxShape.circle),
+                          child: const Icon(Icons.close,
+                              color: Colors.white, size: 13),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
+
+        // Divider + video section
+        const SizedBox(height: 28),
+        const Divider(color: Colors.white12),
+        const SizedBox(height: 16),
+        Row(
+          children: [
+            const Icon(Icons.videocam_outlined,
+                color: Colors.white54, size: 18),
+            const SizedBox(width: 8),
+            const Text('Walkthrough Video',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600)),
+            const SizedBox(width: 8),
+            Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              decoration: BoxDecoration(
+                  color: Colors.white12,
+                  borderRadius: BorderRadius.circular(4)),
+              child: const Text('Optional',
+                  style: TextStyle(
+                      color: Colors.white54,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          'A short walkthrough helps renters picture the space',
+          style: TextStyle(color: Colors.grey[600], fontSize: 12.5),
+        ),
+        const SizedBox(height: 14),
+        if (_uploadingVideo)
+          Row(children: [
+            const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white)),
+            const SizedBox(width: 10),
+            Text('Uploading video…',
+                style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+          ])
+        else if (_videoUrl != null)
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF2C2C2E)),
+            ),
+            child: Row(children: [
+              const Icon(Icons.videocam, color: Colors.white70),
+              const SizedBox(width: 12),
+              const Expanded(
+                  child: Text('Video attached',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600))),
+              GestureDetector(
+                  onTap: _removeVideo,
+                  child: const Icon(Icons.close,
+                      color: Colors.grey, size: 20)),
+            ]),
+          )
+        else
+          Row(children: [
+            Expanded(
+                child: _ActionTile(
+                    icon: Icons.videocam_outlined,
+                    label: 'Record',
+                    onTap: () => _pickVideo(ImageSource.camera))),
+            const SizedBox(width: 12),
+            Expanded(
+                child: _ActionTile(
+                    icon: Icons.video_library_outlined,
+                    label: 'Gallery',
+                    onTap: () => _pickVideo(ImageSource.gallery))),
+          ]),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STEP 1 — Basics
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildBasicsStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StepHeader(
+          stepNumber: 2,
+          title: 'Basic Information',
+          subtitle: 'Title, type, rent, and rooms',
+        ),
+        const SizedBox(height: 24),
+
+        TextField(
+          controller: _titleCtrl,
+          style: const TextStyle(color: Colors.white),
+          decoration: _inputDecoration('Listing title (e.g. Modern 2BR in Kilimani)',
+              errorText: _errors['title']),
+          onChanged: (_) => _clearError('title'),
+        ),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _buildingNameCtrl,
+          style: const TextStyle(color: Colors.white),
+          decoration: _inputDecoration('Building / apartment name (optional)'),
+        ),
+        const SizedBox(height: 20),
+
+        // House type chip selector
+        Text('House Type',
+            style:
+                TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 10),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: _houseTypes.map((type) {
+              final selected = _houseType == type;
+              return GestureDetector(
+                onTap: () => setState(() => _houseType = type),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: selected
+                        ? Colors.white
+                        : const Color(0xFF1C1C1E),
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFF3A3A3C)),
+                  ),
+                  child: Text(
+                    _houseTypeLabels[type] ?? type,
+                    style: TextStyle(
+                      color: selected ? Colors.black : Colors.white,
+                      fontWeight: FontWeight.w600,
+                      fontSize: 13,
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // Price + deposit
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _priceCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration(
+                    'Monthly rent (${CountryService.config.currencyCode})',
+                    errorText: _errors['price'],
+                    prefixIcon: const Icon(Icons.attach_money,
+                        color: Colors.white38, size: 18)),
+                onChanged: (_) => _clearError('price'),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: TextField(
+                controller: _depositCtrl,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('Deposit terms (optional)'),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 20),
+
+        // Beds / Baths steppers
+        Text('Rooms',
+            style:
+                TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500)),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: _StepperField(
+                label: 'Bedrooms',
+                value: _bedrooms,
+                min: 0,
+                max: 20,
+                onChanged: (v) => setState(() => _bedrooms = v),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: _StepperField(
+                label: 'Bathrooms',
+                value: _bathrooms,
+                min: 0,
+                max: 10,
+                onChanged: (v) => setState(() => _bathrooms = v),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STEP 2 — Location
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildLocationStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StepHeader(
+          stepNumber: 3,
+          title: 'Location',
+          subtitle: 'Neighbourhood + GPS confirmation earns your Verified badge',
+        ),
+        const SizedBox(height: 24),
+        TextField(
+          controller: _locationCtrl,
+          style: const TextStyle(color: Colors.white),
+          decoration: _inputDecoration(
+              'Neighbourhood / street (e.g. Kilimani, Chania Ave)',
+              errorText: _errors['locationText'],
+              prefixIcon:
+                  const Icon(Icons.location_on_outlined, color: Colors.white38, size: 18)),
+          onChanged: (_) => _clearError('locationText'),
+        ),
+        const SizedBox(height: 20),
+        if (!_locationConfirmed)
+          _GpsPromptCard(
+            hasError: _errors.containsKey('gps'),
+            isChecking: _checkingGps,
+            onTap: _captureLocation,
+          )
+        else
+          _GpsConfirmedCard(
+            latitude: _latitude!,
+            longitude: _longitude!,
+            verified: _gpsVerified,
+            isChecking: _checkingGps,
+            onUpdate: _captureLocation,
+          ),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STEP 3 — Amenities
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildAmenitiesStep() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StepHeader(
+          stepNumber: 4,
+          title: 'Amenities & Features',
+          subtitle: 'Tap to toggle what is available at this property',
+        ),
+        const SizedBox(height: 24),
+        Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: _amenities.map((a) {
+            final on = _amenityState[a.key] ?? false;
+            return GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                setState(() => _amenityState[a.key] = !on);
+              },
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: (MediaQuery.of(context).size.width - 40 - 12) / 2,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                decoration: BoxDecoration(
+                  color: on
+                      ? a.color.withValues(alpha: 0.12)
+                      : const Color(0xFF1C1C1E),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                    color: on
+                        ? a.color.withValues(alpha: 0.5)
+                        : const Color(0xFF2C2C2E),
+                    width: 1.4,
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    Icon(a.icon,
+                        size: 20,
+                        color: on ? a.color : Colors.grey[600]),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        a.label,
+                        style: TextStyle(
+                          color: on ? Colors.white : Colors.grey[400],
+                          fontSize: 13,
+                          fontWeight:
+                              on ? FontWeight.w600 : FontWeight.normal,
+                        ),
+                      ),
+                    ),
+                    if (on)
+                      Icon(Icons.check_circle_rounded,
+                          size: 16, color: a.color),
+                  ],
+                ),
+              ),
+            );
+          }).toList(),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STEP 4 — Contact + Description
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildContactStep() {
+    const maxDesc = 500;
+    final descLen = _descriptionCtrl.text.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StepHeader(
+          stepNumber: 5,
+          title: 'Description & Contact',
+          subtitle: 'How renters can reach you + a property description',
+        ),
+        const SizedBox(height: 24),
+
+        // Phone with country prefix label
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Container(
+              height: 56,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              alignment: Alignment.center,
+              child: Text(
+                '${CountryService.config.flag}  ${CountryService.config.dialCode}',
+                style: const TextStyle(
+                    color: Colors.white70,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w500),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _phoneCtrl,
+                keyboardType: TextInputType.phone,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('Phone number',
+                    errorText: _errors['phone']),
+                onChanged: (_) => _clearError('phone'),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 16),
+
+        // Description with char counter
+        Stack(
+          children: [
+            TextField(
+              controller: _descriptionCtrl,
+              maxLines: 5,
+              maxLength: maxDesc,
+              style: const TextStyle(color: Colors.white),
+              decoration:
+                  _inputDecoration('Describe the property (optional)', counterText: ''),
+              onChanged: (_) => setState(() {}),
+            ),
+            Positioned(
+              bottom: 10,
+              right: 12,
+              child: Text(
+                '$descLen / $maxDesc',
+                style: TextStyle(
+                    color: descLen > maxDesc * 0.9
+                        ? Colors.amber
+                        : Colors.grey[600],
+                    fontSize: 11),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // ─────────────────────────────────────────────────────────────────────
+  // STEP 5 — Review
+  // ─────────────────────────────────────────────────────────────────────
+
+  Widget _buildReviewStep() {
+    final selected = _amenities
+        .where((a) => _amenityState[a.key] == true)
+        .map((a) => a.label)
+        .toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _StepHeader(
+          stepNumber: 6,
+          title: 'Review Your Listing',
+          subtitle: 'Everything looks right? Hit publish!',
+        ),
+        const SizedBox(height: 16),
+
+        // Live preview card
+        IgnorePointer(
+          child: PropertyCard(
+            property: _buildPreviewProperty(),
+            margin: EdgeInsets.zero,
+          ),
+        ),
+
+        const SizedBox(height: 24),
+
+        _ReviewRow(
+          icon: Icons.photo_library_outlined,
+          title: 'Photos',
+          value: '${_imageUrls.length} photo${_imageUrls.length == 1 ? '' : 's'} added',
+          isOk: _imageUrls.length >= _minPhotos,
+          onEdit: () => _jumpToStep(0),
+        ),
+        _ReviewRow(
+          icon: Icons.home_outlined,
+          title: 'Basics',
+          value:
+              '${_houseTypeLabels[_houseType] ?? _houseType} · ${CountryService.pricePerMonth(double.tryParse(_priceCtrl.text.trim()) ?? 0)}\n$_bedrooms bed · $_bathrooms bath',
+          isOk: _titleCtrl.text.trim().isNotEmpty &&
+              (double.tryParse(_priceCtrl.text.trim()) ?? 0) > 0,
+          onEdit: () => _jumpToStep(1),
+        ),
+        _ReviewRow(
+          icon: Icons.location_on_outlined,
+          title: 'Location',
+          value: _locationCtrl.text.trim().isEmpty
+              ? '(not set)'
+              : _locationCtrl.text.trim(),
+          badge: _gpsVerified ? 'GPS verified' : null,
+          badgeColor: _gpsVerified ? const Color(0xFF00C896) : null,
+          isOk: _locationConfirmed && _locationCtrl.text.trim().isNotEmpty,
+          onEdit: () => _jumpToStep(2),
+        ),
+        _ReviewRow(
+          icon: Icons.check_circle_outline,
+          title: 'Amenities',
+          value: selected.isEmpty ? 'None selected' : selected.join(' · '),
+          isOk: true,
+          onEdit: () => _jumpToStep(3),
+        ),
+        _ReviewRow(
+          icon: Icons.phone_outlined,
+          title: 'Contact',
+          value: _phoneCtrl.text.trim().isEmpty
+              ? '(no phone)'
+              : _phoneCtrl.text.trim(),
+          isOk: _phoneCtrl.text.trim().isNotEmpty,
+          onEdit: () => _jumpToStep(4),
+        ),
+
+        const SizedBox(height: 16),
+        Center(
+          child: Text(
+            'By publishing you agree to our listing guidelines and confirm\nthis property is available for rent.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: Colors.grey[700], fontSize: 11, height: 1.5),
+          ),
+        ),
+        const SizedBox(height: 8),
+      ],
+    );
+  }
+
+  // ── Shared input decoration ──────────────────────────────────────────
+
+  InputDecoration _inputDecoration(
+    String label, {
+    String? errorText,
+    Widget? prefixIcon,
+    String? counterText,
+  }) {
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: Colors.grey[500]),
+      labelStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
       filled: true,
       fillColor: const Color(0xFF1C1C1E),
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+      prefixIcon: prefixIcon,
+      counterText: counterText,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(12),
+        borderSide: const BorderSide(color: Colors.white30, width: 1.2),
+      ),
       errorText: errorText,
       errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
       errorBorder: OutlineInputBorder(
@@ -1455,75 +1555,546 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 }
 
-/// A single editable summary card on the Review step -- a title, an
-/// "Edit" link that jumps back to the step it summarizes, and a few
-/// lines of plain-text content. Used identically for every section so
-/// Review reads as one consistent list, not five differently-styled
-/// blocks.
-class _ReviewSection extends StatelessWidget {
-  const _ReviewSection({
-    required this.title,
-    required this.onEdit,
-    required this.lines,
-    this.trailingIcon,
-    this.trailingIconColor,
-    this.trailingLabel,
-  });
+// ─────────────────────────────────────────────────────────────────────────
+// Supporting widgets
+// ─────────────────────────────────────────────────────────────────────────
 
+/// Step heading: numbered badge + title + subtitle.
+class _StepHeader extends StatelessWidget {
+  const _StepHeader({
+    required this.stepNumber,
+    required this.title,
+    required this.subtitle,
+  });
+  final int stepNumber;
   final String title;
-  final VoidCallback onEdit;
-  final List<String> lines;
-  final IconData? trailingIcon;
-  final Color? trailingIconColor;
-  final String? trailingLabel;
+  final String subtitle;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 24,
+            fontWeight: FontWeight.bold,
+            letterSpacing: -0.3,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: TextStyle(color: Colors.grey[500], fontSize: 13, height: 1.4),
+        ),
+      ],
+    );
+  }
+}
+
+/// Tap-to-upload icon tile used in Photos step.
+class _ActionTile extends StatelessWidget {
+  const _ActionTile({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: const Color(0xFF3A3A3C)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: Colors.white70, size: 26),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: const TextStyle(
+                  color: Colors.white70,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// Stepper widget for integer values (beds, baths).
+class _StepperField extends StatelessWidget {
+  const _StepperField({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+  });
+  final String label;
+  final int value;
+  final int min;
+  final int max;
+  final ValueChanged<int> onChanged;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label,
+              style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500)),
+          const SizedBox(height: 8),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: value > min ? () => onChanged(value - 1) : null,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: value > min
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: value > min
+                          ? const Color(0xFF3A3A3C)
+                          : Colors.white12,
+                    ),
+                  ),
+                  child: Icon(Icons.remove,
+                      size: 16,
+                      color: value > min ? Colors.white : Colors.white24),
+                ),
+              ),
+              Text('$value',
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold)),
+              GestureDetector(
+                onTap: value < max ? () => onChanged(value + 1) : null,
+                child: Container(
+                  width: 32,
+                  height: 32,
+                  decoration: BoxDecoration(
+                    color: value < max
+                        ? Colors.white.withValues(alpha: 0.1)
+                        : Colors.transparent,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: value < max
+                          ? const Color(0xFF3A3A3C)
+                          : Colors.white12,
+                    ),
+                  ),
+                  child: Icon(Icons.add,
+                      size: 16,
+                      color: value < max ? Colors.white : Colors.white24),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// GPS prompt card shown before location is captured.
+class _GpsPromptCard extends StatelessWidget {
+  const _GpsPromptCard({
+    required this.hasError,
+    required this.isChecking,
+    required this.onTap,
+  });
+  final bool hasError;
+  final bool isChecking;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: hasError
+              ? Colors.redAccent.withValues(alpha: 0.6)
+              : Colors.amber.withValues(alpha: 0.4),
+          width: 1.3,
+        ),
+      ),
+      child: Column(
+        children: [
+          // Animated ping icon
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0.9, end: 1.1),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeInOut,
+            builder: (_, v, child) =>
+                Transform.scale(scale: v, child: child),
+            child: Container(
+              width: 56,
+              height: 56,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.amber.withValues(alpha: 0.12),
+              ),
+              child: const Icon(Icons.my_location,
+                  color: Colors.amber, size: 28),
+            ),
+          ),
+          const SizedBox(height: 16),
+          const Text(
+            "Confirm your GPS location",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 15,
+                fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            "Stand at the property and tap below.\nThis is what earns the Verified badge.",
+            textAlign: TextAlign.center,
+            style: TextStyle(
+                color: Colors.grey[500], fontSize: 12.5, height: 1.4),
+          ),
+          if (hasError) ...[
+            const SizedBox(height: 8),
+            const Text('Required to continue',
+                style: TextStyle(
+                    color: Colors.redAccent,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+          ],
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              onPressed: isChecking ? null : onTap,
+              icon: isChecking
+                  ? const SizedBox(
+                      width: 14,
+                      height: 14,
+                      child: CircularProgressIndicator(
+                          strokeWidth: 2, color: Colors.black54))
+                  : const Icon(Icons.my_location, size: 16),
+              label: Text(
+                  isChecking ? 'Getting location…' : 'Use My Current Location'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12)),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// GPS confirmed card (green glow, lat/lng, update link).
+class _GpsConfirmedCard extends StatelessWidget {
+  const _GpsConfirmedCard({
+    required this.latitude,
+    required this.longitude,
+    required this.verified,
+    required this.isChecking,
+    required this.onUpdate,
+  });
+  final double latitude;
+  final double longitude;
+  final bool verified;
+  final bool isChecking;
+  final VoidCallback onUpdate;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = verified ? const Color(0xFF00C896) : Colors.white54;
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 400),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.07),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.4), width: 1.3),
+        boxShadow: verified
+            ? [
+                BoxShadow(
+                    color: color.withValues(alpha: 0.15),
+                    blurRadius: 16,
+                    spreadRadius: 1)
+              ]
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(children: [
+            Icon(
+              verified ? Icons.verified_rounded : Icons.location_on_rounded,
+              color: color,
+              size: 20,
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                verified ? "You're at this location — confirmed" : 'Location captured',
+                style: TextStyle(
+                    color: color, fontSize: 14, fontWeight: FontWeight.w600),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 6),
+          Text(
+            '${latitude.toStringAsFixed(5)}, ${longitude.toStringAsFixed(5)}',
+            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+          ),
+          if (verified) ...[
+            const SizedBox(height: 3),
+            Text('This counts toward your Verified badge',
+                style: TextStyle(
+                    color: color.withValues(alpha: 0.8), fontSize: 12)),
+          ],
+          const SizedBox(height: 12),
+          GestureDetector(
+            onTap: isChecking ? null : onUpdate,
+            child: Text(
+              isChecking ? 'Updating…' : 'Update location',
+              style: const TextStyle(
+                  color: Colors.white54,
+                  fontSize: 12,
+                  decoration: TextDecoration.underline),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Review step row with icon, title, value, and inline edit link.
+class _ReviewRow extends StatelessWidget {
+  const _ReviewRow({
+    required this.icon,
+    required this.title,
+    required this.value,
+    required this.isOk,
+    required this.onEdit,
+    this.badge,
+    this.badgeColor,
+  });
+  final IconData icon;
+  final String title;
+  final String value;
+  final bool isOk;
+  final VoidCallback onEdit;
+  final String? badge;
+  final Color? badgeColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: const Color(0xFF2C2C2E)),
       ),
-      child: Column(
+      child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(
-                  title,
-                  style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w700),
-                ),
-              ),
-              GestureDetector(
-                onTap: onEdit,
-                child: const Text(
-                  'Edit',
-                  style: TextStyle(color: Colors.white70, fontSize: 12, decoration: TextDecoration.underline),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          for (final line in lines)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 2),
-              child: Text(line, style: TextStyle(color: Colors.grey[300], fontSize: 13, height: 1.4)),
-            ),
-          if (trailingIcon != null) ...[
-            const SizedBox(height: 6),
-            Row(
+          Icon(icon,
+              size: 18,
+              color: isOk ? Colors.white60 : Colors.redAccent),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Icon(trailingIcon, size: 14, color: trailingIconColor),
-                const SizedBox(width: 6),
-                Text(trailingLabel ?? '', style: TextStyle(color: trailingIconColor, fontSize: 12, fontWeight: FontWeight.w600)),
+                Text(title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600)),
+                const SizedBox(height: 3),
+                Text(value,
+                    style: TextStyle(
+                        color: Colors.grey[400],
+                        fontSize: 12.5,
+                        height: 1.4)),
+                if (badge != null) ...[
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Icon(Icons.verified_rounded,
+                        size: 12, color: badgeColor ?? Colors.white54),
+                    const SizedBox(width: 4),
+                    Text(badge!,
+                        style: TextStyle(
+                            color: badgeColor ?? Colors.white54,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600)),
+                  ]),
+                ],
               ],
             ),
-          ],
+          ),
+          GestureDetector(
+            onTap: onEdit,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.07),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text('Edit',
+                  style: TextStyle(
+                      color: Colors.white60,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w500)),
+            ),
+          ),
         ],
+      ),
+    );
+  }
+}
+
+// ── Success dialog ─────────────────────────────────────────────────────────
+
+class _SuccessDialog extends StatefulWidget {
+  const _SuccessDialog({required this.isEditing});
+  final bool isEditing;
+
+  @override
+  State<_SuccessDialog> createState() => _SuccessDialogState();
+}
+
+class _SuccessDialogState extends State<_SuccessDialog>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _scale;
+  late final Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 600),
+    )..forward();
+    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
+    _fade  = CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.5));
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Animated checkmark
+            ScaleTransition(
+              scale: _scale,
+              child: Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: const Color(0xFF00C896).withValues(alpha: 0.15),
+                  border: Border.all(
+                      color: const Color(0xFF00C896).withValues(alpha: 0.4),
+                      width: 2),
+                ),
+                child: const Icon(Icons.check_rounded,
+                    color: Color(0xFF00C896), size: 40),
+              ),
+            ),
+            const SizedBox(height: 24),
+            FadeTransition(
+              opacity: _fade,
+              child: Column(
+                children: [
+                  Text(
+                    widget.isEditing ? 'Listing updated!' : 'You\'re live! 🚀',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 22,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: -0.3),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    widget.isEditing
+                        ? 'Your listing has been updated successfully.'
+                        : 'Your property is now visible to renters.\nGood luck!',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                        color: Colors.grey[400], fontSize: 14, height: 1.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 28),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () => Navigator.pop(context),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('View My Listings',
+                    style:
+                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

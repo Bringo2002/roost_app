@@ -16,6 +16,7 @@ class CountryConfig {
   final String code;           // ISO 3166-1 alpha-2: 'KE', 'IN', 'NG', etc.
   final String name;           // 'Kenya', 'India', etc.
   final String flag;           // Emoji flag: '🇰🇪', '🇮🇳'
+  final String dialCode;       // International dialing prefix: '+254', '+91'
   final String currencyCode;   // ISO 4217: 'KES', 'INR', 'NGN'
   final String currencySymbol; // Display symbol: 'KES', '₹', '₦', '$'
   final String locale;         // Dart/ICU locale for number formatting: 'en_KE', 'en_IN'
@@ -30,6 +31,7 @@ class CountryConfig {
     required this.code,
     required this.name,
     required this.flag,
+    required this.dialCode,
     required this.currencyCode,
     required this.currencySymbol,
     required this.locale,
@@ -47,6 +49,7 @@ class CountryConfig {
     code: 'KE',
     name: 'Kenya',
     flag: '🇰🇪',
+    dialCode: '+254',
     currencyCode: 'KES',
     currencySymbol: 'KES',
     locale: 'en_KE',
@@ -67,6 +70,7 @@ class CountryConfig {
     code: 'IN',
     name: 'India',
     flag: '🇮🇳',
+    dialCode: '+91',
     currencyCode: 'INR',
     currencySymbol: '₹',
     locale: 'en_IN',
@@ -87,6 +91,7 @@ class CountryConfig {
     code: 'NG',
     name: 'Nigeria',
     flag: '🇳🇬',
+    dialCode: '+234',
     currencyCode: 'NGN',
     currencySymbol: '₦',
     locale: 'en_NG',
@@ -107,6 +112,7 @@ class CountryConfig {
     code: 'US',
     name: 'United States',
     flag: '🇺🇸',
+    dialCode: '+1',
     currencyCode: 'USD',
     currencySymbol: '\$',
     locale: 'en_US',
@@ -127,6 +133,7 @@ class CountryConfig {
     code: 'GB',
     name: 'United Kingdom',
     flag: '🇬🇧',
+    dialCode: '+44',
     currencyCode: 'GBP',
     currencySymbol: '£',
     locale: 'en_GB',
@@ -147,6 +154,7 @@ class CountryConfig {
     code: 'AE',
     name: 'UAE',
     flag: '🇦🇪',
+    dialCode: '+971',
     currencyCode: 'AED',
     currencySymbol: 'AED',
     locale: 'en_AE',
