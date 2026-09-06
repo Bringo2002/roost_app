@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/main.dart';
@@ -119,20 +120,28 @@ class _SplashPageState extends State<SplashPage> with SingleTickerProviderStateM
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.black,
-      body: Center(
-        child: AnimatedBuilder(
-          animation: _zoomController,
-          builder: (context, child) {
-            return Opacity(
-              opacity: _logoOpacity.value,
-              child: Transform.scale(
-                scale: _logoScale.value,
-                child: const RoostLogoIcon(size: 96),
-              ),
-            );
-          },
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+        systemNavigationBarColor: AppColors.black,
+        statusBarIconBrightness: Brightness.light,
+        systemNavigationBarIconBrightness: Brightness.light,
+      ),
+      child: Scaffold(
+        backgroundColor: AppColors.black,
+        body: Center(
+          child: AnimatedBuilder(
+            animation: _zoomController,
+            builder: (context, child) {
+              return Opacity(
+                opacity: _logoOpacity.value,
+                child: Transform.scale(
+                  scale: _logoScale.value,
+                  child: const RoostLogoIcon(size: 88),
+                ),
+              );
+            },
+          ),
         ),
       ),
     );
