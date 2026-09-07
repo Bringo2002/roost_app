@@ -69,6 +69,28 @@ class Property {
   final bool security;
   final bool petFriendly;
   final bool balcony;
+
+  // Extended amenity fields
+  final bool ac;
+  final bool heating;
+  final bool laundry;
+  final bool dstv;
+  final bool fence;
+  final bool intercom;
+  final bool elevator;
+  final bool caretaker;
+  final bool rooftop;
+  final bool garden;
+  final bool storage;
+  final bool pool;
+  final bool gym;
+  final bool playArea;
+  final bool cleaning;
+  final bool garbage;
+  final bool wheelchair;
+  final bool solar;
+  final bool generator;
+
   final String? deposit;
   final String? moveInDate;
   final int viewCount;
@@ -114,6 +136,25 @@ class Property {
     this.security = true,
     this.petFriendly = false,
     this.balcony = false,
+    this.ac = false,
+    this.heating = false,
+    this.laundry = false,
+    this.dstv = false,
+    this.fence = false,
+    this.intercom = false,
+    this.elevator = false,
+    this.caretaker = false,
+    this.rooftop = false,
+    this.garden = false,
+    this.storage = false,
+    this.pool = false,
+    this.gym = false,
+    this.playArea = false,
+    this.cleaning = false,
+    this.garbage = false,
+    this.wheelchair = false,
+    this.solar = false,
+    this.generator = false,
     this.deposit,
     this.moveInDate,
     this.viewCount = 0,
@@ -161,6 +202,25 @@ class Property {
       security: json['security'] != false,
       petFriendly: json['petFriendly'] == true,
       balcony: json['balcony'] == true,
+      ac: json['ac'] == true,
+      heating: json['heating'] == true,
+      laundry: json['laundry'] == true,
+      dstv: json['dstv'] == true,
+      fence: json['fence'] == true,
+      intercom: json['intercom'] == true,
+      elevator: json['elevator'] == true,
+      caretaker: json['caretaker'] == true,
+      rooftop: json['rooftop'] == true,
+      garden: json['garden'] == true,
+      storage: json['storage'] == true,
+      pool: json['pool'] == true,
+      gym: json['gym'] == true,
+      playArea: json['playArea'] == true,
+      cleaning: json['cleaning'] == true,
+      garbage: json['garbage'] == true,
+      wheelchair: json['wheelchair'] == true,
+      solar: json['solar'] == true,
+      generator: json['generator'] == true,
       deposit: json['deposit']?.toString(),
       moveInDate: json['moveInDate']?.toString(),
       viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
@@ -226,6 +286,25 @@ class Property {
       'security': security,
       'petFriendly': petFriendly,
       'balcony': balcony,
+      'ac': ac,
+      'heating': heating,
+      'laundry': laundry,
+      'dstv': dstv,
+      'fence': fence,
+      'intercom': intercom,
+      'elevator': elevator,
+      'caretaker': caretaker,
+      'rooftop': rooftop,
+      'garden': garden,
+      'storage': storage,
+      'pool': pool,
+      'gym': gym,
+      'playArea': playArea,
+      'cleaning': cleaning,
+      'garbage': garbage,
+      'wheelchair': wheelchair,
+      'solar': solar,
+      'generator': generator,
       if (deposit != null) 'deposit': deposit,
       'country': country,
       'customAmenities': customAmenities,
