@@ -262,9 +262,9 @@ class _PropertyCardState extends State<PropertyCard> {
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(color: Colors.grey[800]!),
                         ),
-                        child: const Text(
-                          'RENTAL',
-                          style: TextStyle(
+                        child: Text(
+                          property.type.toUpperCase(),
+                          style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,

@@ -12,6 +12,20 @@ class ApiException implements Exception {
   String toString() => message;
 }
 
+extension ExceptionFormatting on Object {
+  String toUserMessage([String fallback = 'Something went wrong. Please try again.']) {
+    final str = toString().trim();
+    if (str.isEmpty) return fallback;
+    final cleaned = str
+        .replaceAll(RegExp(r'^(Exception|ApiException|FormatException):\s*'), '')
+        .trim();
+    if (cleaned.contains('Instance of') || cleaned.isEmpty) {
+      return fallback;
+    }
+    return cleaned;
+  }
+}
+
 class ApiService {
   static const Duration _timeoutDuration = Duration(seconds: 10);
 
@@ -26,6 +40,13 @@ class ApiService {
   static Future<dynamic> _safeRequest(Future<http.Response> Function() request) async {
     try {
       final response = await request().timeout(_timeoutDuration);
+      if (response.statusCode == 401) {
+        final refreshed = await AuthService.refreshToken();
+        if (refreshed) {
+          final retryResponse = await request().timeout(_timeoutDuration);
+          return _handleResponse(retryResponse);
+        }
+      }
       return _handleResponse(response);
     } on SocketException {
       throw ApiException('No internet connection');
@@ -93,6 +114,17 @@ class ApiService {
     } else if (response.statusCode == 401) {
       AuthService.logout();
       throw ApiException('Session expired. Please sign in again.');
+    } else if (response.statusCode == 403) {
+      String errorMessage = 'You do not have permission to perform this action.';
+      try {
+        final errorJson = jsonDecode(response.body);
+        if (errorJson['error'] != null) {
+          errorMessage = errorJson['error'];
+        } else if (errorJson['message'] != null) {
+          errorMessage = errorJson['message'];
+        }
+      } catch (_) {}
+      throw ApiException(errorMessage);
     } else {
       String errorMessage = 'Request failed with status: ${response.statusCode}';
       try {

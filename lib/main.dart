@@ -142,7 +142,7 @@ class _HomePageState extends State<HomePage> {
 
   void _startUnreadPolling() {
     _fetchUnreadCount();
-    _unreadTimer = Timer.periodic(const Duration(seconds: 10), (_) {
+    _unreadTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       _fetchUnreadCount();
     });
   }
@@ -453,11 +453,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
       if (!mounted) return;
       setState(() {
         loading = false;
-        _error = e.toString();
+        _error = e.toUserMessage('Failed to load properties. Please try again.');
       });
       ScaffoldMessenger.of(
         context,
-      ).showSnackBar(SnackBar(content: Text('Error loading properties: $e')));
+      ).showSnackBar(SnackBar(content: Text(e.toUserMessage('Failed to load properties. Please try again.'))));
     }
   }
 
@@ -686,20 +686,23 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                   ),
                 ),
               ),
-              if (searchController.text.isNotEmpty)
-                GestureDetector(
-                  onTap: searchController.clear,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Icon(
-                      Icons.close,
-                      color: Colors.grey[500],
-                      size: 18,
+              ValueListenableBuilder<TextEditingValue>(
+                valueListenable: searchController,
+                builder: (context, value, _) {
+                  if (value.text.isEmpty) return const SizedBox(width: 16);
+                  return GestureDetector(
+                    onTap: searchController.clear,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: Icon(
+                        Icons.close,
+                        color: Colors.grey[500],
+                        size: 18,
+                      ),
                     ),
-                  ),
-                )
-              else
-                const SizedBox(width: 16),
+                  );
+                },
+              ),
             ],
           ),
         ),

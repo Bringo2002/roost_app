@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:jwt_decoder/jwt_decoder.dart';
 import 'package:roost_app/config.dart';
 import 'package:roost_app/services/push_notification_service.dart';
@@ -22,8 +23,9 @@ class AuthResult {
 }
 
 class AuthService {
-  static final String baseUrl = '${AppConfig.baseurl}/api/auth';
+  static final String baseUrl = '${AppConfig.baseUrl}/api/auth';
   static const String _tokenKey = 'jwt_token';
+  static const FlutterSecureStorage _storage = FlutterSecureStorage();
 
   static Future<AuthResult> signup(
     String name,
@@ -308,14 +310,49 @@ class AuthService {
   }
 
   static Future<void> _saveToken(String token) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_tokenKey, token);
+    await _storage.write(key: _tokenKey, value: token);
     await PushNotificationService.reloadForUser();
   }
 
   static Future<String?> getToken() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString(_tokenKey);
+    String? token = await _storage.read(key: _tokenKey);
+    if (token == null || token.isEmpty) {
+      // Check SharedPreferences for legacy token and migrate to FlutterSecureStorage
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        token = prefs.getString(_tokenKey);
+        if (token != null && token.isNotEmpty) {
+          await _storage.write(key: _tokenKey, value: token);
+          await prefs.remove(_tokenKey);
+        }
+      } catch (_) {}
+    }
+    return token;
+  }
+
+  static Future<bool> refreshToken() async {
+    try {
+      final token = await getToken();
+      if (token == null) return false;
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/refresh'),
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer $token',
+            },
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['token'] != null) {
+          await _saveToken(data['token']);
+          return true;
+        }
+      }
+    } catch (_) {}
+    return false;
   }
 
   static Future<String?> getUserEmail() async {
@@ -332,8 +369,11 @@ class AuthService {
   }
 
   static Future<void> logout() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove(_tokenKey);
+    await _storage.delete(key: _tokenKey);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.remove(_tokenKey);
+    } catch (_) {}
     await PushNotificationService.reloadForUser();
 
     // Best-effort: only matters for users who signed in with Google, and
@@ -349,6 +389,8 @@ class AuthService {
     if (token == null || token.isEmpty) return false;
     try {
       if (JwtDecoder.isExpired(token)) {
+        final refreshed = await refreshToken();
+        if (refreshed) return true;
         await logout();
         return false;
       }
