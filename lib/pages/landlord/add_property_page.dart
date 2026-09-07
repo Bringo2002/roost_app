@@ -26,13 +26,39 @@ class _Amenity {
 }
 
 const _amenities = <_Amenity>[
-  _Amenity(key: 'furnished',  label: 'Furnished',    icon: Icons.chair_outlined,         color: Color(0xFF6C63FF)),
-  _Amenity(key: 'parking',    label: 'Parking',      icon: Icons.local_parking_outlined, color: Color(0xFF4FC3F7)),
-  _Amenity(key: 'wifi',       label: 'WiFi',         icon: Icons.wifi,                   color: Color(0xFF00C896)),
-  _Amenity(key: 'water',      label: '24hr Water',   icon: Icons.water_drop_outlined,    color: Color(0xFF29B6F6)),
-  _Amenity(key: 'security',   label: 'Security',     icon: Icons.security,               color: Color(0xFFFF9F43)),
-  _Amenity(key: 'balcony',    label: 'Balcony',      icon: Icons.deck_outlined,          color: Color(0xFFA5D6A7)),
-  _Amenity(key: 'petFriendly',label: 'Pet Friendly', icon: Icons.pets,                   color: Color(0xFFEF9A9A)),
+  // Comfort & Essentials
+  _Amenity(key: 'furnished',   label: 'Furnished',             icon: Icons.chair_outlined,                  color: Color(0xFF6C63FF)),
+  _Amenity(key: 'wifi',        label: 'WiFi / Fiber',           icon: Icons.wifi,                            color: Color(0xFF00C896)),
+  _Amenity(key: 'water',       label: '24hr Water / Borehole', icon: Icons.water_drop_outlined,             color: Color(0xFF29B6F6)),
+  _Amenity(key: 'generator',   label: 'Backup Generator',      icon: Icons.power_outlined,                  color: Color(0xFFFFB74D)),
+  _Amenity(key: 'solar',       label: 'Solar Water Heater',    icon: Icons.wb_sunny_outlined,               color: Color(0xFFFFD54F)),
+  _Amenity(key: 'ac',          label: 'Air Conditioning',      icon: Icons.ac_unit,                         color: Color(0xFF81D4FA)),
+  _Amenity(key: 'heating',     label: 'Heating',               icon: Icons.local_fire_department_outlined,  color: Color(0xFFFF8A65)),
+  _Amenity(key: 'laundry',     label: 'In-Unit Laundry',       icon: Icons.local_laundry_service_outlined,  color: Color(0xFF90CAF9)),
+  _Amenity(key: 'dstv',        label: 'DSTV / Cable TV',       icon: Icons.tv_outlined,                     color: Color(0xFFAB47BC)),
+
+  // Security & Building
+  _Amenity(key: 'security',    label: 'CCTV & Security',       icon: Icons.security,                        color: Color(0xFFFF9F43)),
+  _Amenity(key: 'fence',       label: 'Electric Fence',        icon: Icons.fence,                           color: Color(0xFFFF7043)),
+  _Amenity(key: 'intercom',    label: 'Intercom Access',       icon: Icons.doorbell_outlined,               color: Color(0xFFBA68C8)),
+  _Amenity(key: 'elevator',    label: 'Elevator / Lift',       icon: Icons.elevator_outlined,               color: Color(0xFF4DB6AC)),
+  _Amenity(key: 'parking',     label: 'Dedicated Parking',     icon: Icons.local_parking_outlined,          color: Color(0xFF4FC3F7)),
+  _Amenity(key: 'caretaker',   label: 'On-site Caretaker',     icon: Icons.person_pin_outlined,             color: Color(0xFFA1887F)),
+
+  // Space & Comfort
+  _Amenity(key: 'balcony',     label: 'Private Balcony',       icon: Icons.deck_outlined,                   color: Color(0xFFA5D6A7)),
+  _Amenity(key: 'rooftop',     label: 'Rooftop Terrace',       icon: Icons.apartment_outlined,              color: Color(0xFFB39DDB)),
+  _Amenity(key: 'garden',      label: 'Garden / Lawn',         icon: Icons.grass_outlined,                  color: Color(0xFF81C784)),
+  _Amenity(key: 'storage',     label: 'Storage Unit',          icon: Icons.inventory_2_outlined,            color: Color(0xFFDCE775)),
+
+  // Leisure & Services
+  _Amenity(key: 'pool',        label: 'Swimming Pool',         icon: Icons.pool,                            color: Color(0xFF4DD0E1)),
+  _Amenity(key: 'gym',         label: 'Gym & Fitness',         icon: Icons.fitness_center,                  color: Color(0xFFFF8A65)),
+  _Amenity(key: 'playArea',    label: 'Kids Play Area',        icon: Icons.child_care_outlined,             color: Color(0xFFF48FB1)),
+  _Amenity(key: 'petFriendly', label: 'Pet Friendly',          icon: Icons.pets,                            color: Color(0xFFEF9A9A)),
+  _Amenity(key: 'cleaning',    label: 'Housekeeping',          icon: Icons.cleaning_services_outlined,      color: Color(0xFF80CBC4)),
+  _Amenity(key: 'garbage',     label: 'Garbage Collection',    icon: Icons.delete_outline,                  color: Color(0xFFB0BEC5)),
+  _Amenity(key: 'wheelchair',  label: 'Wheelchair Access',     icon: Icons.accessible,                      color: Color(0xFF9FA8DA)),
 ];
 
 // ─── House type options ────────────────────────────────────────────────────
@@ -98,6 +124,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     'balcony':     false,
     'petFriendly': false,
   };
+  final List<String> _customAmenities = [];
 
   static const int _minPhotos = 3;
   static const int _maxPhotos = 10;
@@ -157,6 +184,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _amenityState['petFriendly'] = p.petFriendly;
 
     _imageUrls.addAll(p.imageUrls);
+    _customAmenities.addAll(p.customAmenities);
     _videoUrl = p.videoUrl;
   }
 
@@ -350,76 +378,99 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   // ── Persistence ────────────────────────────────────────────────────────
 
-  Map<String, dynamic> _buildPayload({required String status}) => {
-        'title':       _titleCtrl.text.trim(),
-        'buildingName': _buildingNameCtrl.text.trim().isEmpty
-            ? null
-            : _buildingNameCtrl.text.trim(),
-        'location':    _locationCtrl.text.trim(),
-        'price':       double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-        'deposit':     _depositCtrl.text.trim(),
-        'bedrooms':    _bedrooms,
-        'bathrooms':   _bathrooms,
-        'houseType':   _houseType,
-        'type':        'RENTAL',
-        'available':   _isEditing ? widget.editingProperty!.available : true,
-        'verified':    _isEditing ? widget.editingProperty!.verified  : false,
-        'landlordPhone': _phoneCtrl.text.trim(),
-        'description': _descriptionCtrl.text.trim(),
-        if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
-        'imageUrls':   _imageUrls,
-        'videoUrl':    _videoUrl,
-        'latitude':    _latitude,
-        'longitude':   _longitude,
-        'furnished':   _amenityState['furnished']   ?? false,
-        'parking':     _amenityState['parking']     ?? false,
-        'wifi':        _amenityState['wifi']        ?? false,
-        'water':       _amenityState['water']       ?? true,
-        'security':    _amenityState['security']    ?? true,
-        'balcony':     _amenityState['balcony']     ?? false,
-        'petFriendly': _amenityState['petFriendly'] ?? false,
-        'moveInDate':  'Immediate',
-        'country':     CountryService.config.code,
-        'status':      status,
-      };
+  Map<String, dynamic> _buildPayload({required String status}) {
+    final rawPhone = _phoneCtrl.text.trim();
+    final dialCode = CountryService.config.dialCode;
+    final fullPhone = rawPhone.isEmpty
+        ? ''
+        : (rawPhone.startsWith('+') ? rawPhone : '$dialCode$rawPhone');
+    final depText = _depositCtrl.text.trim();
 
-  Property _buildPreviewProperty() => Property(
-        title:        _titleCtrl.text.trim(),
-        buildingName: _buildingNameCtrl.text.trim().isEmpty
-            ? null
-            : _buildingNameCtrl.text.trim(),
-        description:  _descriptionCtrl.text.trim(),
-        location:     _locationCtrl.text.trim(),
-        price:        double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-        bedrooms:     _bedrooms,
-        bathrooms:    _bathrooms,
-        type:         'RENTAL',
-        houseType:    _houseType,
-        landlordPhone: _phoneCtrl.text.trim(),
-        available:    _isEditing ? widget.editingProperty!.available : true,
-        verified:     _isEditing ? widget.editingProperty!.verified  : false,
-        gpsVerified:  _gpsVerified,
-        imageUrl:     _imageUrls.isNotEmpty ? _imageUrls.first : null,
-        imageUrls:    _imageUrls,
-        videoUrl:     _videoUrl,
-        latitude:     _latitude,
-        longitude:    _longitude,
-        furnished:    _amenityState['furnished']   ?? false,
-        parking:      _amenityState['parking']     ?? false,
-        water:        _amenityState['water']       ?? true,
-        wifi:         _amenityState['wifi']        ?? false,
-        security:     _amenityState['security']    ?? true,
-        balcony:      _amenityState['balcony']     ?? false,
-        petFriendly:  _amenityState['petFriendly'] ?? false,
-        deposit:      _depositCtrl.text.trim().isEmpty ? null : _depositCtrl.text.trim(),
-        moveInDate:   'Immediate',
-        country:      CountryService.config.code,
-      );
+    return {
+      'title':       _titleCtrl.text.trim(),
+      'buildingName': _buildingNameCtrl.text.trim().isEmpty
+          ? null
+          : _buildingNameCtrl.text.trim(),
+      'location':    _locationCtrl.text.trim(),
+      'price':       double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      'deposit':     depText.isEmpty ? null : depText,
+      'bedrooms':    _bedrooms,
+      'bathrooms':   _bathrooms,
+      'houseType':   _houseType,
+      'type':        'RENTAL',
+      'available':   _isEditing ? widget.editingProperty!.available : true,
+      'verified':    _isEditing ? widget.editingProperty!.verified  : false,
+      'landlordPhone': fullPhone,
+      'description': _descriptionCtrl.text.trim(),
+      if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
+      'imageUrls':   _imageUrls,
+      'videoUrl':    _videoUrl,
+      'latitude':    _latitude,
+      'longitude':   _longitude,
+      'furnished':   _amenityState['furnished']   ?? false,
+      'parking':     _amenityState['parking']     ?? false,
+      'wifi':        _amenityState['wifi']        ?? false,
+      'water':       _amenityState['water']       ?? true,
+      'security':    _amenityState['security']    ?? true,
+      'balcony':     _amenityState['balcony']     ?? false,
+      'petFriendly': _amenityState['petFriendly'] ?? false,
+      'moveInDate':  'Immediate',
+      'country':     CountryService.config.code,
+      'status':      status,
+      'customAmenities': _customAmenities,
+    };
+  }
+
+  Property _buildPreviewProperty() {
+    final rawPhone = _phoneCtrl.text.trim();
+    final dialCode = CountryService.config.dialCode;
+    final fullPhone = rawPhone.isEmpty
+        ? ''
+        : (rawPhone.startsWith('+') ? rawPhone : '$dialCode$rawPhone');
+
+    return Property(
+      title:        _titleCtrl.text.trim(),
+      buildingName: _buildingNameCtrl.text.trim().isEmpty
+          ? null
+          : _buildingNameCtrl.text.trim(),
+      description:  _descriptionCtrl.text.trim(),
+      location:     _locationCtrl.text.trim(),
+      price:        double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      bedrooms:     _bedrooms,
+      bathrooms:    _bathrooms,
+      type:         'RENTAL',
+      houseType:    _houseType,
+      landlordPhone: fullPhone,
+      available:    _isEditing ? widget.editingProperty!.available : true,
+      verified:     _isEditing ? widget.editingProperty!.verified  : false,
+      gpsVerified:  _gpsVerified,
+      imageUrl:     _imageUrls.isNotEmpty ? _imageUrls.first : null,
+      imageUrls:    _imageUrls,
+      videoUrl:     _videoUrl,
+      latitude:     _latitude,
+      longitude:    _longitude,
+      furnished:    _amenityState['furnished']   ?? false,
+      parking:      _amenityState['parking']     ?? false,
+      water:        _amenityState['water']       ?? true,
+      wifi:         _amenityState['wifi']        ?? false,
+      security:     _amenityState['security']    ?? true,
+      balcony:      _amenityState['balcony']     ?? false,
+      petFriendly:  _amenityState['petFriendly'] ?? false,
+      deposit:      _depositCtrl.text.trim().isEmpty ? null : _depositCtrl.text.trim(),
+      moveInDate:   'Immediate',
+      country:      CountryService.config.code,
+      customAmenities: _customAmenities,
+    );
+  }
 
   Future<int?> _persist(Map<String, dynamic> payload) async {
     if (_draftId != null) {
-      await ApiService.put('/api/properties/$_draftId', payload);
-      return _draftId;
+      try {
+        await ApiService.put('/api/properties/$_draftId', payload);
+        return _draftId;
+      } catch (_) {
+        // Fall back to creating via POST if PUT on draft fails
+      }
     }
     final result = await ApiService.post('/api/properties', payload);
     final newId  = result is Map ? result['id'] as int? : null;
@@ -1285,7 +1336,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _StepHeader(
           stepNumber: 4,
           title: 'Amenities & Features',
-          subtitle: 'Tap to toggle what is available at this property',
+          subtitle: 'Select all features available at your property',
         ),
         const SizedBox(height: 24),
         Wrap(
@@ -1341,8 +1392,162 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             );
           }).toList(),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 32),
+        const Divider(color: Color(0xFF2C2C2E)),
+        const SizedBox(height: 20),
+
+        // ── Custom Amenities Section ─────────────────────────────────────
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Custom Amenities',
+                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Add unique features not listed above',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                ),
+              ],
+            ),
+            GestureDetector(
+              onTap: _showAddCustomAmenityDialog,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF6C63FF).withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: const Color(0xFF6C63FF), width: 1.2),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_rounded, size: 16, color: Color(0xFF6C63FF)),
+                    SizedBox(width: 4),
+                    Text(
+                      'Add Custom',
+                      style: TextStyle(color: Color(0xFF6C63FF), fontSize: 12, fontWeight: FontWeight.bold),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (_customAmenities.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF2C2C2E)),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.stars_outlined, color: Colors.grey[600], size: 20),
+                const SizedBox(width: 12),
+                Text(
+                  'No custom amenities added yet',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                ),
+              ],
+            ),
+          )
+        else
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: _customAmenities.map((custom) {
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFD700).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.6), width: 1.2),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.stars_rounded, size: 16, color: Color(0xFFFFD700)),
+                    const SizedBox(width: 8),
+                    Text(
+                      custom,
+                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(width: 8),
+                    GestureDetector(
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        setState(() => _customAmenities.remove(custom));
+                      },
+                      child: Icon(Icons.close_rounded, size: 16, color: Colors.grey[400]),
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+          ),
+        const SizedBox(height: 16),
       ],
+    );
+  }
+
+  void _showAddCustomAmenityDialog() {
+    final ctrl = TextEditingController();
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1C1C1E),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
+        title: const Row(
+          children: [
+            Icon(Icons.stars_rounded, color: Color(0xFFFFD700), size: 22),
+            SizedBox(width: 10),
+            Text('Add Custom Amenity', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Enter any amenity or special feature available at your property:', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+            const SizedBox(height: 16),
+            TextField(
+              controller: ctrl,
+              autofocus: true,
+              style: const TextStyle(color: Colors.white),
+              decoration: _inputDecoration('Amenity Name (e.g. Sauna, EV Charger)'),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey[400])),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF6C63FF),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            onPressed: () {
+              final text = ctrl.text.trim();
+              if (text.isNotEmpty && !_customAmenities.contains(text)) {
+                HapticFeedback.lightImpact();
+                setState(() => _customAmenities.add(text));
+              }
+              Navigator.pop(ctx);
+            },
+            child: const Text('Add Amenity', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1436,10 +1641,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   // ─────────────────────────────────────────────────────────────────────
 
   Widget _buildReviewStep() {
-    final selected = _amenities
+    final selectedStandard = _amenities
         .where((a) => _amenityState[a.key] == true)
-        .map((a) => a.label)
-        .toList();
+        .map((a) => a.label);
+    final selected = [...selectedStandard, ..._customAmenities];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,

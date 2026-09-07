@@ -617,6 +617,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                       if (widget.property.balcony) _buildAmenityChip(Icons.balcony, 'Balcony'),
                       if (widget.property.petFriendly) _buildAmenityChip(Icons.pets, 'Pet Friendly'),
                       if (widget.property.furnished) _buildAmenityChip(Icons.single_bed, 'Furnished'),
+                      ...widget.property.customAmenities.map((custom) => _buildAmenityChip(Icons.stars_outlined, custom)),
                     ],
                   ),
 

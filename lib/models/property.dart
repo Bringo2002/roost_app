@@ -77,6 +77,7 @@ class Property {
   final String? lastConfirmedAt;
   final String country;
   final List<NearbyFacility> nearbyFacilities;
+  final List<String> customAmenities;
 
   Property({
     this.id,
@@ -121,6 +122,7 @@ class Property {
     this.lastConfirmedAt,
     this.country = 'KE',
     this.nearbyFacilities = const [],
+    this.customAmenities = const [],
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -167,6 +169,9 @@ class Property {
       lastConfirmedAt: json['lastConfirmedAt']?.toString(),
       country: json['country']?.toString() ?? 'KE',
       nearbyFacilities: _parseNearbyFacilities(json['nearbyFacilities']),
+      customAmenities: json['customAmenities'] is List
+          ? (json['customAmenities'] as List).map((e) => e.toString()).toList()
+          : [],
     );
   }
 
@@ -223,6 +228,7 @@ class Property {
       'balcony': balcony,
       if (deposit != null) 'deposit': deposit,
       'country': country,
+      'customAmenities': customAmenities,
     };
   }
 
