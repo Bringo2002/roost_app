@@ -292,7 +292,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
     setState(() => _uploadingPhotos = true);
     try {
-      final files = await _picker.pickMultiImage(imageQuality: 75, maxWidth: 1600);
+      final files = await _picker.pickMultiImage();
       if (files.isEmpty) return;
       final toUpload = files.take(remaining).toList();
       if (files.length > remaining && mounted) {
@@ -310,8 +310,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     setState(() => _uploadingPhotos = true);
     try {
       while (_imageUrls.length < _maxPhotos) {
-        final file = await _picker.pickImage(
-            source: ImageSource.camera, imageQuality: 75, maxWidth: 1600);
+        final file = await _picker.pickImage(source: ImageSource.camera);
         if (file == null) return;
         await _uploadPhotos([file]);
         if (!mounted) return;
