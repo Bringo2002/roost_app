@@ -506,8 +506,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       try {
         await ApiService.put('/api/properties/$_draftId', payload);
         return _draftId;
+      } on ApiException catch (e) {
+        if (e.message.contains('not found') || e.message.contains('404')) {
+          _draftId = null;
+        } else {
+          rethrow;
+        }
       } catch (_) {
-        // Fall back to creating via POST if PUT on draft fails
+        // Fall back to POST if unknown client-side error
       }
     }
     final result = await ApiService.post('/api/properties', payload);
