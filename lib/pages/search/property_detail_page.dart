@@ -15,6 +15,8 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/pages/search/in_app_map_page.dart';
 import 'package:roost_app/theme/app_map_style.dart';
 
+import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
+
 class PropertyDetailPage extends StatefulWidget {
   final Property property;
 
@@ -372,15 +374,22 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                 return _HeroVideoSlide(url: widget.property.videoUrl!);
               }
               final photoIdx = hasVideo ? idx - 1 : idx;
-              return CachedNetworkImage(
-                imageUrl: urls[photoIdx],
-                height: 320,
-                width: double.infinity,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(color: Colors.black),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[900],
-                  child: const Icon(Icons.broken_image, color: Colors.grey, size: 48),
+              return GestureDetector(
+                onTap: () => FullScreenImageGallery.open(
+                  context,
+                  urls,
+                  initialIndex: photoIdx,
+                ),
+                child: CachedNetworkImage(
+                  imageUrl: urls[photoIdx],
+                  height: 320,
+                  width: double.infinity,
+                  fit: BoxFit.cover,
+                  placeholder: (context, url) => Container(color: Colors.black),
+                  errorWidget: (context, url, error) => Container(
+                    color: Colors.grey[900],
+                    child: const Icon(Icons.broken_image, color: Colors.grey, size: 48),
+                  ),
                 ),
               );
             },
