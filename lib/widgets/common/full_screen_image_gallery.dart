@@ -64,13 +64,13 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> {
                   child: CachedNetworkImage(
                     imageUrl: url,
                     fit: BoxFit.contain,
-                    placeholder: (_, __) => const Center(
+                    placeholder: (context, url) => const Center(
                       child: CircularProgressIndicator(
                         color: Colors.white70,
                         strokeWidth: 2,
                       ),
                     ),
-                    errorWidget: (_, __, ___) => const Column(
+                    errorWidget: (context, url, error) => const Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
