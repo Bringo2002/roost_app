@@ -629,7 +629,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     return ListView.builder(
       itemCount: 5,
       padding: const EdgeInsets.only(top: 8, bottom: 80),
-      itemBuilder: (_, _) => const PropertyCardSkeleton(),
+      itemBuilder: (context, index) => const PropertyCardSkeleton(),
     );
   }
 

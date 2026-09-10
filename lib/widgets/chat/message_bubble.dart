@@ -445,7 +445,7 @@ class _Attachment extends StatelessWidget {
             width: 220,
             height: 220,
             fit: BoxFit.cover,
-            errorBuilder: (_, _, _) => _AttachmentPlaceholder(
+            errorBuilder: (context, error, stackTrace) => _AttachmentPlaceholder(
               isMe: isMe,
               icon: Icons.broken_image_outlined,
               label: 'Image unavailable',
@@ -476,7 +476,7 @@ class _Attachment extends StatelessWidget {
       PageRouteBuilder(
         opaque: false,
         barrierColor: AppColors.black,
-        pageBuilder: (context, _, _) => _ImageViewer(bytes: bytes),
+        pageBuilder: (context, anim1, anim2) => _ImageViewer(bytes: bytes),
       ),
     );
   }

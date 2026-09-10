@@ -168,7 +168,7 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
       child: ListView.separated(
         padding: const EdgeInsets.symmetric(vertical: 8),
         itemCount: _conversations.length,
-        separatorBuilder: (_, _) => const Divider(
+        separatorBuilder: (context, index) => const Divider(
           height: 1,
           indent: 20,
           endIndent: 20,
