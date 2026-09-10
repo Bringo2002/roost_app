@@ -18,18 +18,27 @@ jobs:
           channel: 'stable'
           cache: true
 
-      - name: Precache iOS binaries and get dependencies
+      - name: Prepare Flutter and iOS dependencies
         run: |
           flutter precache --ios
           flutter pub get
+          flutter build ios --release --no-codesign --config-only
 
-      - name: Build iOS App (Release Unsigned)
+      - name: Compile iOS App with Xcode (Bypass Code Signing)
         run: |
-          flutter build ios --release --no-codesign
+          xcodebuild -workspace ios/Runner.xcworkspace \
+                     -scheme Runner \
+                     -configuration Release \
+                     -sdk iphoneos \
+                     -derivedDataPath build/ios \
+                     CODE_SIGNING_ALLOWED=NO \
+                     CODE_SIGNING_REQUIRED=NO \
+                     CODE_SIGN_IDENTITY="" \
+                     build
 
       - name: Package IPA
         run: |
-          cd build/ios/iphoneos
+          cd build/ios/Build/Products/Release-iphoneos
           mkdir -p Payload
           cp -r Runner.app Payload/
           zip -r roost_app_ios.ipa Payload
@@ -38,4 +47,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: roost-app-ios
-          path: build/ios/iphoneos/roost_app_ios.ipa
+          path: build/ios/Build/Products/Release-iphoneos/roost_app_ios.ipa
