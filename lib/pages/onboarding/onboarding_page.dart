@@ -28,6 +28,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
   bool _detectionFailed = false;
   bool _showCountryList = false;
   bool _requestingLocation = false;
+  bool _isCompleting = false;
 
   @override
   void initState() {
@@ -90,23 +91,40 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Future<void> _completeOnboarding() async {
-    await CountryService.instance.setCountry(_selectedCountry);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('pref_house_type', _houseType);
-    await prefs.setString('pref_budget', _budget);
-    await prefs.setString('pref_timeframe', _moveInTimeframe);
-    await prefs.setBool('onboarding_completed', true);
+    if (_isCompleting) return;
+    setState(() => _isCompleting = true);
 
-    if (!mounted) return;
-    final isLoggedIn = await AuthService.isLoggedIn();
-    if (!mounted) return;
-    Navigator.pushAndRemoveUntil(
-      context,
-      MaterialPageRoute(
-        builder: (_) => isLoggedIn ? const HomePage() : const WelcomePage(),
-      ),
-      (route) => false,
-    );
+    try {
+      await CountryService.instance.setCountry(_selectedCountry);
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('pref_house_type', _houseType);
+      await prefs.setString('pref_budget', _budget);
+      await prefs.setString('pref_timeframe', _moveInTimeframe);
+      await prefs.setBool('onboarding_completed', true);
+
+      if (!mounted) return;
+      final isLoggedIn = await AuthService.isLoggedIn().catchError((_) => false);
+      if (!mounted) return;
+
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isLoggedIn ? const HomePage() : const WelcomePage(),
+        ),
+        (route) => false,
+      );
+    } catch (_) {
+      if (!mounted) return;
+      final isLoggedIn = await AuthService.isLoggedIn().catchError((_) => false);
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => isLoggedIn ? const HomePage() : const WelcomePage(),
+        ),
+        (route) => false,
+      );
+    }
   }
 
   void _nextStep() {
@@ -207,7 +225,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 width: double.infinity,
                 height: 54,
                 child: ElevatedButton(
-                  onPressed: (_step == 0 && _isDetecting) || _requestingLocation
+                  onPressed: (_step == 0 && _isDetecting) || _requestingLocation || _isCompleting
                       ? null
                       : (_step == 2 ? _handleLocationStep : _nextStep),
                   style: ElevatedButton.styleFrom(
@@ -217,18 +235,34 @@ class _OnboardingPageState extends State<OnboardingPage> {
                     elevation: 0,
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
-                  child: Text(
-                    _step == 0
-                        ? (_isDetecting ? 'Detecting Location...' : 'Continue')
-                        : _step == 1
-                            ? 'Get Started'
-                            : _step == 2
-                                ? (_requestingLocation ? 'Requesting Access...' : 'Allow Location Access')
-                                : _step == 5
-                                    ? 'Curate My Feed'
-                                    : 'Continue',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                  ),
+                  child: _isCompleting
+                      ? const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5),
+                            ),
+                            SizedBox(width: 10),
+                            Text(
+                              'Curating Your Feed...',
+                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                            ),
+                          ],
+                        )
+                      : Text(
+                          _step == 0
+                              ? (_isDetecting ? 'Detecting Location...' : 'Continue')
+                              : _step == 1
+                                  ? 'Get Started'
+                                  : _step == 2
+                                      ? (_requestingLocation ? 'Requesting Access...' : 'Allow Location Access')
+                                      : _step == 5
+                                          ? 'Curate My Feed'
+                                          : 'Continue',
+                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                        ),
                 ),
               ),
             ],
