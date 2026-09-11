@@ -37,8 +37,11 @@ class _SearchPageState extends State<SearchPage> {
   int _nextPage = 0;
   static const int _pageSize = 20;
   final _scrollController = ScrollController();
-
   final _searchCtrl = TextEditingController();
+  final _searchFocusNode = FocusNode();
+
+  bool _isHeaderVisible = true;
+  double _lastScrollOffset = 0;
 
   // Active Filter state
   String _houseType = 'All';
@@ -67,25 +70,49 @@ class _SearchPageState extends State<SearchPage> {
     _loadUserLocation();
     _searchCtrl.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
+    _searchFocusNode.addListener(_onSearchFocusChanged);
   }
 
   @override
   void dispose() {
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
+    _searchFocusNode.removeListener(_onSearchFocusChanged);
+    _searchFocusNode.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
   }
 
+  void _onSearchFocusChanged() {
+    if (_searchFocusNode.hasFocus && !_isHeaderVisible) {
+      setState(() => _isHeaderVisible = true);
+    }
+  }
+
   /// Fires a page fetch once the user scrolls near the bottom of the
-  /// list. Guards on _hasMore/_loadingMore/_loading so a fast scroll
-  /// can't queue up duplicate requests.
+  /// list, and handles scroll-directional header hide/show behavior.
   void _onScroll() {
-    if (!_hasMore || _loadingMore || _loading) return;
     if (!_scrollController.hasClients) return;
     final pos = _scrollController.position;
+    final currentOffset = pos.pixels;
+
+    if (_searchFocusNode.hasFocus || currentOffset <= 0) {
+      if (!_isHeaderVisible) {
+        setState(() => _isHeaderVisible = true);
+      }
+    } else {
+      final delta = currentOffset - _lastScrollOffset;
+      if (delta > 10 && _isHeaderVisible) {
+        setState(() => _isHeaderVisible = false);
+      } else if (delta < -10 && !_isHeaderVisible) {
+        setState(() => _isHeaderVisible = true);
+      }
+    }
+    _lastScrollOffset = currentOffset;
+
+    if (!_hasMore || _loadingMore || _loading) return;
     if (pos.pixels >= pos.maxScrollExtent - 400) {
       _fetchFiltered(loadMore: true);
     }
@@ -627,95 +654,111 @@ class _SearchPageState extends State<SearchPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: TextField(
-                      controller: _searchCtrl,
-                      style: const TextStyle(color: Colors.white),
-                      textInputAction: TextInputAction.search,
-                      onSubmitted: (_) {
-                        _debounceTimer?.cancel();
-                        _applyClientSideFilters();
-                      },
-                      decoration: InputDecoration(
-                        hintText: CountryService.config.searchHint,
-                        hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-                        prefixIcon: const Icon(Icons.search, color: Colors.white),
-                        suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                          valueListenable: _searchCtrl,
-                          builder: (context, value, _) {
-                            if (value.text.isEmpty) return const SizedBox.shrink();
-                            return IconButton(
-                              icon: Icon(Icons.close, color: Colors.grey[500], size: 18),
-                              onPressed: () {
-                                _searchCtrl.clear();
-                                _debounceTimer?.cancel();
-                                _applyClientSideFilters();
-                              },
-                            );
-                          },
-                        ),
-                        filled: true,
-                        fillColor: const Color(0xFF1C1C1E),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(14),
-                          borderSide: BorderSide.none,
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  GestureDetector(
-                    onTap: () => _showFilterBottomSheet(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(14),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.grey[900]!),
-                      ),
-                      child: Stack(
-                        clipBehavior: Clip.none,
+            AnimatedSize(
+              duration: const Duration(milliseconds: 250),
+              curve: Curves.easeInOut,
+              child: AnimatedOpacity(
+                duration: const Duration(milliseconds: 200),
+                opacity: _isHeaderVisible ? 1.0 : 0.0,
+                child: _isHeaderVisible
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.tune, color: Colors.white),
-                          if (_activeFilterCount > 0)
-                            Positioned(
-                              right: -4,
-                              top: -4,
-                              child: Container(
-                                width: 16,
-                                height: 16,
-                                alignment: Alignment.center,
-                                decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                child: Text(
-                                  '$_activeFilterCount',
-                                  style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                          Padding(
+                            padding: const EdgeInsets.all(16),
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: TextField(
+                                    controller: _searchCtrl,
+                                    focusNode: _searchFocusNode,
+                                    style: const TextStyle(color: Colors.white),
+                                    textInputAction: TextInputAction.search,
+                                    onSubmitted: (_) {
+                                      _debounceTimer?.cancel();
+                                      _applyClientSideFilters();
+                                    },
+                                    decoration: InputDecoration(
+                                      hintText: CountryService.config.searchHint,
+                                      hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
+                                      prefixIcon: const Icon(Icons.search, color: Colors.white),
+                                      suffixIcon: ValueListenableBuilder<TextEditingValue>(
+                                        valueListenable: _searchCtrl,
+                                        builder: (context, value, _) {
+                                          if (value.text.isEmpty) return const SizedBox.shrink();
+                                          return IconButton(
+                                            icon: Icon(Icons.close, color: Colors.grey[500], size: 18),
+                                            onPressed: () {
+                                              _searchCtrl.clear();
+                                              _debounceTimer?.cancel();
+                                              _applyClientSideFilters();
+                                            },
+                                          );
+                                        },
+                                      ),
+                                      filled: true,
+                                      fillColor: const Color(0xFF1C1C1E),
+                                      border: OutlineInputBorder(
+                                        borderRadius: BorderRadius.circular(14),
+                                        borderSide: BorderSide.none,
+                                      ),
+                                    ),
+                                  ),
                                 ),
-                              ),
+                                const SizedBox(width: 10),
+                                GestureDetector(
+                                  onTap: () => _showFilterBottomSheet(context),
+                                  child: Container(
+                                    padding: const EdgeInsets.all(14),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF1C1C1E),
+                                      borderRadius: BorderRadius.circular(14),
+                                      border: Border.all(color: Colors.grey[900]!),
+                                    ),
+                                    child: Stack(
+                                      clipBehavior: Clip.none,
+                                      children: [
+                                        const Icon(Icons.tune, color: Colors.white),
+                                        if (_activeFilterCount > 0)
+                                          Positioned(
+                                            right: -4,
+                                            top: -4,
+                                            child: Container(
+                                              width: 16,
+                                              height: 16,
+                                              alignment: Alignment.center,
+                                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                              child: Text(
+                                                '$_activeFilterCount',
+                                                style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                                              ),
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ],
                             ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                TextButton(
+                                  onPressed: () {
+                                    _searchCtrl.clear();
+                                    _resetFilters();
+                                  },
+                                  child: const Text('Reset', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () {
-                      _searchCtrl.clear();
-                      _resetFilters();
-                    },
-                    child: const Text('Reset', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  ),
-                ],
+                      )
+                    : const SizedBox.shrink(),
               ),
             ),
             Expanded(

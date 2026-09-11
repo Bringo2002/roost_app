@@ -348,6 +348,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   String? _error;
   bool _showScrollToTop = false;
   bool _isSearchFocused = false;
+  bool _isHeaderVisible = true;
+  double _lastScrollOffset = 0;
   Timer? _debounceTimer;
 
   String? _prefHouseType;
@@ -381,6 +383,23 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     final show = _scrollController.offset > 600;
     if (show != _showScrollToTop) {
       setState(() => _showScrollToTop = show);
+    }
+
+    if (_scrollController.hasClients) {
+      final currentOffset = _scrollController.offset;
+      if (_isSearchFocused || currentOffset <= 0) {
+        if (!_isHeaderVisible) {
+          setState(() => _isHeaderVisible = true);
+        }
+      } else {
+        final delta = currentOffset - _lastScrollOffset;
+        if (delta > 10 && _isHeaderVisible) {
+          setState(() => _isHeaderVisible = false);
+        } else if (delta < -10 && !_isHeaderVisible) {
+          setState(() => _isHeaderVisible = true);
+        }
+      }
+      _lastScrollOffset = currentOffset;
     }
   }
 
@@ -646,64 +665,77 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
 
     return Column(
       children: [
-        // ── Branded header ──────────────────────────────────────────
-        _buildBrandedHeader(),
-
-        // ── Search bar (animated focus glow) ───────────────────────
-        AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          margin: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-          height: 48,
-          decoration: BoxDecoration(
-            color: Colors.grey[900],
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: _isSearchFocused
-                  ? Colors.white.withValues(alpha: 0.5)
-                  : Colors.grey[800]!,
-              width: _isSearchFocused ? 1.5 : 0.5,
-            ),
-          ),
-          child: Row(
-            children: [
-              const SizedBox(width: 16),
-              Icon(Icons.search, color: Colors.grey[500], size: 20),
-              const SizedBox(width: 10),
-              Expanded(
-                child: TextField(
-                  controller: searchController,
-                  focusNode: _searchFocus,
-                  style: const TextStyle(color: Colors.white, fontSize: 15),
-                  decoration: InputDecoration(
-                    hintText: 'Search location or title...',
-                    hintStyle: TextStyle(
-                      color: Colors.grey[600],
-                      fontSize: 15,
-                    ),
-                    border: InputBorder.none,
-                    contentPadding: EdgeInsets.zero,
-                    isDense: true,
-                  ),
-                ),
-              ),
-              ValueListenableBuilder<TextEditingValue>(
-                valueListenable: searchController,
-                builder: (context, value, _) {
-                  if (value.text.isEmpty) return const SizedBox(width: 16);
-                  return GestureDetector(
-                    onTap: searchController.clear,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: Icon(
-                        Icons.close,
-                        color: Colors.grey[500],
-                        size: 18,
+        // ── Scroll-to-Hide Header (Branded Header + Search Bar) ──
+        AnimatedSize(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          child: AnimatedOpacity(
+            duration: const Duration(milliseconds: 200),
+            opacity: _isHeaderVisible ? 1.0 : 0.0,
+            child: _isHeaderVisible
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _buildBrandedHeader(),
+                      AnimatedContainer(
+                        duration: const Duration(milliseconds: 200),
+                        margin: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: Colors.grey[900],
+                          borderRadius: BorderRadius.circular(24),
+                          border: Border.all(
+                            color: _isSearchFocused
+                                ? Colors.white.withValues(alpha: 0.5)
+                                : Colors.grey[800]!,
+                            width: _isSearchFocused ? 1.5 : 0.5,
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            const SizedBox(width: 16),
+                            Icon(Icons.search, color: Colors.grey[500], size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: TextField(
+                                controller: searchController,
+                                focusNode: _searchFocus,
+                                style: const TextStyle(color: Colors.white, fontSize: 15),
+                                decoration: InputDecoration(
+                                  hintText: 'Search location or title...',
+                                  hintStyle: TextStyle(
+                                    color: Colors.grey[600],
+                                    fontSize: 15,
+                                  ),
+                                  border: InputBorder.none,
+                                  contentPadding: EdgeInsets.zero,
+                                  isDense: true,
+                                ),
+                              ),
+                            ),
+                            ValueListenableBuilder<TextEditingValue>(
+                              valueListenable: searchController,
+                              builder: (context, value, _) {
+                                if (value.text.isEmpty) return const SizedBox(width: 16);
+                                return GestureDetector(
+                                  onTap: searchController.clear,
+                                  child: Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                    child: Icon(
+                                      Icons.close,
+                                      color: Colors.grey[500],
+                                      size: 18,
+                                    ),
+                                  ),
+                                );
+                              },
+                            ),
+                          ],
+                        ),
                       ),
-                    ),
-                  );
-                },
-              ),
-            ],
+                    ],
+                  )
+                : const SizedBox.shrink(),
           ),
         ),
 
