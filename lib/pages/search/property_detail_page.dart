@@ -422,91 +422,107 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: CustomScrollView(
-        slivers: [
-          SliverAppBar(
-            backgroundColor: Colors.black,
-            iconTheme: const IconThemeData(color: Colors.white),
-            expandedHeight: 320,
-            pinned: true,
-            actions: [
-              if (widget.property.id != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: Container(
-                    decoration: const BoxDecoration(color: Color(0x40000000), shape: BoxShape.circle),
-                    child: IconButton(
-                      icon: Icon(
-                        _isFavorite ? Icons.favorite : Icons.favorite_border,
-                        color: _isFavorite ? Colors.red : Colors.white,
-                      ),
-                      onPressed: _toggleFavorite,
-                    ),
-                  ),
-                ),
-            ],
-            flexibleSpace: FlexibleSpaceBar(background: _buildHeroMedia()),
+      body: Stack(
+        children: [
+          // 1. Fixed Background Hero Media (remains sticky in background)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
+            child: _buildHeroMedia(),
           ),
 
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Title
-                  Text(
-                    widget.property.title,
-                    style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                  ),
-                  if (widget.property.buildingName != null && widget.property.buildingName!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'at ${widget.property.buildingName}',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 14, fontStyle: FontStyle.italic),
-                    ),
-                  ],
-                  const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          widget.property.location,
-                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                        ),
+          // 2. Sliding Details Sheet (slides up over the fixed media header)
+          CustomScrollView(
+            slivers: [
+              const SliverToBoxAdapter(
+                child: SizedBox(height: 290),
+              ),
+              SliverToBoxAdapter(
+                child: Container(
+                  decoration: const BoxDecoration(
+                    color: Colors.black,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black87,
+                        blurRadius: 16,
+                        offset: Offset(0, -4),
                       ),
                     ],
                   ),
-                  if (_distanceLabel != null) ...[
-                    const SizedBox(height: 6),
-                    Row(
-                      children: [
-                        const Icon(Icons.near_me_outlined, color: Colors.grey, size: 14),
-                        const SizedBox(width: 4),
-                        Text(
-                          _distanceLabel!,
-                          style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                  child: Column(
+                    children: [
+                      Center(
+                        child: Container(
+                          margin: const EdgeInsets.only(top: 10, bottom: 4),
+                          width: 36,
+                          height: 4,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[800],
+                            borderRadius: BorderRadius.circular(2),
+                          ),
                         ),
-                      ],
-                    ),
-                  ],
-                  const SizedBox(height: 16),
+                      ),
+                      Padding(
+                        padding: const EdgeInsets.all(20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Title
+                            Text(
+                              widget.property.title,
+                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                            ),
+                            if (widget.property.buildingName != null && widget.property.buildingName!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'at ${widget.property.buildingName}',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 14, fontStyle: FontStyle.italic),
+                              ),
+                            ],
+                            const SizedBox(height: 6),
+                            Row(
+                              children: [
+                                const Icon(Icons.location_on, color: Colors.grey, size: 16),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    widget.property.location,
+                                    style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            if (_distanceLabel != null) ...[
+                              const SizedBox(height: 6),
+                              Row(
+                                children: [
+                                  const Icon(Icons.near_me_outlined, color: Colors.grey, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    _distanceLabel!,
+                                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                                  ),
+                                ],
+                              ),
+                            ],
+                            const SizedBox(height: 16),
 
-                  // Rent & deposit
-                  Text(
-                    CountryService.pricePerMonth(widget.property.price),
-                    style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
-                  ),
-                  if (widget.property.deposit != null && widget.property.deposit!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'Deposit: ${widget.property.deposit}',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                  ],
-                  const SizedBox(height: 14),
+                            // Rent & deposit
+                            Text(
+                              CountryService.pricePerMonth(widget.property.price),
+                              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
+                            ),
+                            if (widget.property.deposit != null && widget.property.deposit!.trim().isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                'Deposit: ${widget.property.deposit}',
+                                style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                              ),
+                            ],
+                            const SizedBox(height: 14),
 
                   // Availability & verification badges
                   Row(
@@ -960,6 +976,52 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
                   const SizedBox(height: 40),
                 ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    ),
+  ],
+),
+
+          // 3. Floating Action Controls Layer (Pinned back button and favorite icon)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Container(
+                      decoration: const BoxDecoration(
+                        color: Color(0x60000000),
+                        shape: BoxShape.circle,
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.arrow_back, color: Colors.white),
+                        onPressed: () => Navigator.pop(context),
+                      ),
+                    ),
+                    if (widget.property.id != null)
+                      Container(
+                        decoration: const BoxDecoration(
+                          color: Color(0x60000000),
+                          shape: BoxShape.circle,
+                        ),
+                        child: IconButton(
+                          icon: Icon(
+                            _isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: _isFavorite ? Colors.red : Colors.white,
+                          ),
+                          onPressed: _toggleFavorite,
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
           ),
