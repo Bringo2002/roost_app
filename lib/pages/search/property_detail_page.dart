@@ -1,3 +1,4 @@
+import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:video_player/video_player.dart';
 import 'package:flutter/material.dart';
@@ -422,81 +423,249 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      body: Stack(
-        children: [
-          // 1. Sliding Details Content (Layer 0: slides behind fixed media header)
-          CustomScrollView(
-            slivers: [
-              const SliverToBoxAdapter(
-                child: SizedBox(height: 320),
+
+      // --- FAANG Persistent Glassmorphic Bottom Action Bar ---
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          color: const Color(0xEE121214),
+          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1)),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.5),
+              blurRadius: 20,
+              offset: const Offset(0, -6),
+            ),
+          ],
+        ),
+        child: ClipRect(
+          child: BackdropFilter(
+            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                child: Row(
+                  children: [
+                    // Price & Deposit info
+                    Expanded(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            CountryService.pricePerMonth(widget.property.price),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 22,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -0.5,
+                            ),
+                          ),
+                          if (widget.property.deposit != null && widget.property.deposit!.trim().isNotEmpty) ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Deposit: ${widget.property.deposit}',
+                              style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ] else ...[
+                            const SizedBox(height: 2),
+                            Text(
+                              'Per month',
+                              style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
+                    // Call icon button
+                    Container(
+                      height: 48,
+                      width: 48,
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF2C2C2E),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: IconButton(
+                        icon: const Icon(Icons.phone_outlined, color: Colors.white, size: 20),
+                        onPressed: () {
+                          final phone = widget.property.landlordPhone;
+                          if (phone.isNotEmpty) launchUrl(Uri.parse('tel:$phone'));
+                        },
+                        tooltip: 'Call Landlord',
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+
+                    // Chat CTA Button
+                    ElevatedButton.icon(
+                      onPressed: () {
+                        if (widget.property.owner != null) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(builder: (_) => ChatRoomPage(partner: widget.property.owner!)),
+                          );
+                        }
+                      },
+                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                      label: const Text(
+                        'Chat with Host',
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: Colors.black,
+                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-              SliverToBoxAdapter(
+            ),
+          ),
+        ),
+      ),
+
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        slivers: [
+          // --- FAANG Elastic Parallax Hero Header ---
+          SliverAppBar(
+            expandedHeight: 340,
+            pinned: true,
+            stretch: true,
+            backgroundColor: Colors.black,
+            elevation: 0,
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Color(0x70000000),
+                  shape: BoxShape.circle,
+                ),
+                child: IconButton(
+                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ),
+            ),
+            actions: [
+              if (widget.property.id != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: Container(
+                    decoration: const BoxDecoration(
+                      color: Color(0x70000000),
+                      shape: BoxShape.circle,
+                    ),
+                    child: IconButton(
+                      icon: Icon(
+                        _isFavorite ? Icons.favorite : Icons.favorite_border,
+                        color: _isFavorite ? Colors.redAccent : Colors.white,
+                        size: 20,
+                      ),
+                      onPressed: _toggleFavorite,
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
                 child: Container(
-                  color: Colors.black,
-                  child: Padding(
-                    padding: const EdgeInsets.all(20),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                            // Title
-                            Text(
-                              widget.property.title,
-                              style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
-                            ),
-                            if (widget.property.buildingName != null && widget.property.buildingName!.trim().isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                'at ${widget.property.buildingName}',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 14, fontStyle: FontStyle.italic),
-                              ),
-                            ],
-                            const SizedBox(height: 6),
-                            Row(
-                              children: [
-                                const Icon(Icons.location_on, color: Colors.grey, size: 16),
-                                const SizedBox(width: 4),
-                                Expanded(
-                                  child: Text(
-                                    widget.property.location,
-                                    style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                                  ),
-                                ),
-                              ],
-                            ),
-                            if (_distanceLabel != null) ...[
-                              const SizedBox(height: 6),
-                              Row(
-                                children: [
-                                  const Icon(Icons.near_me_outlined, color: Colors.grey, size: 14),
-                                  const SizedBox(width: 4),
-                                  Text(
-                                    _distanceLabel!,
-                                    style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                                  ),
-                                ],
-                              ),
-                            ],
-                            const SizedBox(height: 16),
+                  decoration: const BoxDecoration(
+                    color: Color(0x70000000),
+                    shape: BoxShape.circle,
+                  ),
+                  child: IconButton(
+                    icon: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
+                    onPressed: _shareListing,
+                  ),
+                ),
+              ),
+            ],
+            flexibleSpace: FlexibleSpaceBar(
+              stretchModes: const [
+                StretchMode.zoomBackground,
+                StretchMode.blurBackground,
+              ],
+              background: _buildHeroMedia(),
+            ),
+          ),
 
-                            // Rent & deposit
-                            Text(
-                              CountryService.pricePerMonth(widget.property.price),
-                              style: const TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w900),
-                            ),
-                            if (widget.property.deposit != null && widget.property.deposit!.trim().isNotEmpty) ...[
-                              const SizedBox(height: 4),
-                              Text(
-                                'Deposit: ${widget.property.deposit}',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                              ),
-                            ],
-                            const SizedBox(height: 14),
+          // --- Body Content Slivers ---
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Title & Building
+                  Text(
+                    widget.property.title,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: -0.4,
+                    ),
+                  ),
+                  if (widget.property.buildingName != null && widget.property.buildingName!.trim().isNotEmpty) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      'at ${widget.property.buildingName}',
+                      style: TextStyle(color: Colors.grey[400], fontSize: 15, fontStyle: FontStyle.italic),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
 
-                  // Availability & verification badges
+                  // Location & Distance Row
                   Row(
                     children: [
+                      const Icon(Icons.location_on_outlined, color: Colors.grey, size: 16),
+                      const SizedBox(width: 4),
+                      Expanded(
+                        child: Text(
+                          widget.property.location,
+                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                        ),
+                      ),
+                    ],
+                  ),
+                  if (_distanceLabel != null) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.near_me_outlined, color: Colors.white70, size: 13),
+                          const SizedBox(width: 6),
+                          Text(
+                            _distanceLabel!,
+                            style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+
+                  const SizedBox(height: 16),
+
+                  // Badges Row (Available / Verified / Community Verified)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: widget.property.available ? Colors.white : Colors.grey[900],
                           borderRadius: BorderRadius.circular(20),
@@ -524,14 +693,13 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                           ],
                         ),
                       ),
-                      if (widget.property.verified) ...[
-                        const SizedBox(width: 8),
+                      if (widget.property.verified)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.grey[900],
+                            color: const Color(0xFF1C1C1E),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.grey[800]!),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
@@ -542,15 +710,13 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                             ],
                           ),
                         ),
-                      ],
-                      if (widget.property.communityVerified) ...[
-                        const SizedBox(width: 8),
+                      if (widget.property.communityVerified)
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: Colors.greenAccent.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.6)),
+                            border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5)),
                           ),
                           child: const Row(
                             mainAxisSize: MainAxisSize.min,
@@ -561,47 +727,45 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                             ],
                           ),
                         ),
-                      ],
                     ],
                   ),
-                  const SizedBox(height: 16),
 
-                  // House type, bedrooms & bathrooms
+                  const SizedBox(height: 24),
+
+                  // --- Key Quick Stats Grid (Beds, Baths, House Type) ---
                   Row(
                     children: [
-                      const Icon(Icons.bed_outlined, color: Colors.grey, size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        widget.property.bedroomDisplay,
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      _buildQuickStatCard(
+                        icon: Icons.king_bed_outlined,
+                        title: widget.property.bedroomDisplay,
+                        subtitle: 'Bedrooms',
                       ),
-                      const SizedBox(width: 16),
-                      const Icon(Icons.bathtub_outlined, color: Colors.grey, size: 18),
-                      const SizedBox(width: 6),
-                      Text(
-                        '${widget.property.bathrooms} bath',
-                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      const SizedBox(width: 10),
+                      _buildQuickStatCard(
+                        icon: Icons.bathtub_outlined,
+                        title: '${widget.property.bathrooms} Bath',
+                        subtitle: 'Bathrooms',
                       ),
-                      if (widget.property.houseType.isNotEmpty && widget.property.bedrooms > 0) ...[
-                        const SizedBox(width: 16),
-                        Text(
-                          '·  ${widget.property.houseType}',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 14, fontWeight: FontWeight.w500),
-                        ),
-                      ],
+                      const SizedBox(width: 10),
+                      _buildQuickStatCard(
+                        icon: Icons.home_work_outlined,
+                        title: widget.property.houseType.isNotEmpty ? widget.property.houseType : 'Apartment',
+                        subtitle: 'Type',
+                      ),
                     ],
                   ),
 
-                  const SizedBox(height: 20),
-                  const Divider(color: Color(0xFF2C2C2E)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 28),
 
-                  // Amenities Row Grid
-                  const Text('Amenities', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 12),
+                  // Amenities Section
+                  const Text(
+                    'Amenities',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+                  ),
+                  const SizedBox(height: 14),
                   Wrap(
-                    spacing: 12,
-                    runSpacing: 12,
+                    spacing: 10,
+                    runSpacing: 10,
                     children: [
                       if (widget.property.parking) _buildAmenityChip(Icons.directions_car, 'Parking'),
                       if (widget.property.wifi) _buildAmenityChip(Icons.wifi, 'WiFi'),
@@ -633,49 +797,44 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                     ],
                   ),
 
-                  const SizedBox(height: 20),
-                  const Divider(color: Color(0xFF2C2C2E)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 28),
 
                   // Description
                   if (widget.property.description.trim().isNotEmpty) ...[
-                    const Text('Description', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    const Text(
+                      'About this home',
+                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+                    ),
                     const SizedBox(height: 10),
                     Text(
                       widget.property.description,
-                      style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
+                      style: TextStyle(color: Colors.grey[300], fontSize: 15, height: 1.6),
                     ),
-                    const SizedBox(height: 20),
-                    const Divider(color: Color(0xFF2C2C2E)),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 28),
                   ],
 
-                  // Map preview — Baked Uber-style In-App Map
+                  // Map preview
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('Location', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                      const Text(
+                        'Location & Surroundings',
+                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+                      ),
                       TextButton.icon(
-                        onPressed: () {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => InAppMapPage(property: widget.property),
-                            ),
-                          );
-                        },
+                        onPressed: _navigateToMap,
                         icon: const Icon(Icons.fullscreen, color: Colors.white, size: 18),
                         label: const Text('Fullscreen', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   ClipRRect(
                     borderRadius: BorderRadius.circular(20),
                     child: Container(
-                      height: 180,
+                      height: 200,
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey[800]!),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Stack(
@@ -709,14 +868,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                             child: Material(
                               color: Colors.transparent,
                               child: InkWell(
-                                onTap: () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (_) => InAppMapPage(property: widget.property),
-                                    ),
-                                  );
-                                },
+                                onTap: _navigateToMap,
                               ),
                             ),
                           ),
@@ -728,13 +880,13 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                               decoration: BoxDecoration(
                                 color: Colors.black.withValues(alpha: 0.85),
                                 borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.grey[800]!),
+                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                               ),
                               child: const Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [
                                   Icon(Icons.touch_app, color: Colors.white, size: 14),
-                                  SizedBox(width: 4),
+                                  SizedBox(width: 6),
                                   Text('Tap to Explore Map', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
                                 ],
                               ),
@@ -747,8 +899,6 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
                   if (widget.property.nearbyFacilities.isNotEmpty) ...[
                     const SizedBox(height: 16),
-                    const Text('Nearby', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -770,25 +920,27 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                     ),
                   ],
 
-                  const SizedBox(height: 20),
-                  const Divider(color: Color(0xFF2C2C2E)),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 28),
 
-                  // Landlord Section
-                  const Text('Landlord', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                  // Landlord Profile Card
+                  const Text(
+                    'Hosted by',
+                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
+                  ),
                   const SizedBox(height: 12),
                   Container(
-                    padding: const EdgeInsets.all(16),
+                    padding: const EdgeInsets.all(18),
                     decoration: BoxDecoration(
                       color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(16),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                     ),
                     child: Row(
                       children: [
                         CircleAvatar(
-                          radius: 24,
+                          radius: 26,
                           backgroundColor: Colors.white,
-                          child: Text(firstLetter, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 20)),
+                          child: Text(firstLetter, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
                         ),
                         const SizedBox(width: 14),
                         Expanded(
@@ -804,8 +956,14 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                                   ],
                                 ],
                               ),
-                              const SizedBox(height: 2),
-                              Text('Usually responds within 2 hours', style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+                              const SizedBox(height: 4),
+                              Row(
+                                children: [
+                                  const Icon(Icons.bolt, color: Colors.amberAccent, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text('Usually responds within 2 hours', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                                ],
+                              ),
                             ],
                           ),
                         ),
@@ -815,91 +973,14 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
 
                   const SizedBox(height: 24),
 
-                  // Action Buttons
-                  Row(
-                    children: [
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            final phone = widget.property.landlordPhone;
-                            if (phone.isNotEmpty) launchUrl(Uri.parse('tel:$phone'));
-                          },
-                          icon: const Icon(Icons.phone),
-                          label: const Text('Call Landlord'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: () {
-                            if (widget.property.owner != null) {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(builder: (_) => ChatRoomPage(partner: widget.property.owner!)),
-                              );
-                            }
-                          },
-                          icon: const Icon(Icons.chat),
-                          label: const Text('Chat'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.white,
-                            foregroundColor: Colors.black,
-                            padding: const EdgeInsets.symmetric(vertical: 14),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _navigateToMap,
-                          icon: const Icon(Icons.navigation_outlined, size: 18),
-                          label: const Text('Navigate'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Color(0xFF3A3A3C)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _shareListing,
-                          icon: const Icon(Icons.share_outlined, size: 18),
-                          label: const Text('Share'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Color(0xFF3A3A3C)),
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
                   if (_communityCheckEligible && !_communityCheckSubmitted) ...[
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(16),
+                      padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
                         color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: const Color(0xFF2C2C2E)),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -911,18 +992,18 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                           const SizedBox(height: 4),
                           Text(
                             'Since you applied to this property, your answer helps build trust for other renters.',
-                            style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                            style: TextStyle(color: Colors.grey[400], fontSize: 12),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 14),
                           SizedBox(
                             width: double.infinity,
                             child: OutlinedButton(
                               onPressed: _showCommunityCheckSheet,
                               style: OutlinedButton.styleFrom(
                                 foregroundColor: Colors.white,
-                                side: const BorderSide(color: Color(0xFF3A3A3C)),
+                                side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
                                 padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                               ),
                               child: const Text('Confirm accuracy'),
                             ),
@@ -947,71 +1028,43 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
               ),
             ),
           ),
-        ),
-      ],
-    ),
-
-          // 2. Fixed Hero Media (Layer 1: stays fixed on top, details slide under it)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 320,
-            child: Container(
-              decoration: const BoxDecoration(
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black87,
-                    blurRadius: 12,
-                    offset: Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: _buildHeroMedia(),
-            ),
-          ),
-
-          // 3. Floating Action Controls Layer (Pinned back button and favorite icon)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Container(
-                      decoration: const BoxDecoration(
-                        color: Color(0x60000000),
-                        shape: BoxShape.circle,
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.arrow_back, color: Colors.white),
-                        onPressed: () => Navigator.pop(context),
-                      ),
-                    ),
-                    if (widget.property.id != null)
-                      Container(
-                        decoration: const BoxDecoration(
-                          color: Color(0x60000000),
-                          shape: BoxShape.circle,
-                        ),
-                        child: IconButton(
-                          icon: Icon(
-                            _isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: _isFavorite ? Colors.red : Colors.white,
-                          ),
-                          onPressed: _toggleFavorite,
-                        ),
-                      ),
-                  ],
-                ),
-              ),
-            ),
-          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildQuickStatCard({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+  }) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: Colors.white, size: 22),
+            const SizedBox(height: 8),
+            Text(
+              title,
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 2),
+            Text(
+              subtitle,
+              style: TextStyle(color: Colors.grey[500], fontSize: 11),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
       ),
     );
   }
