@@ -5,6 +5,8 @@ import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 import 'package:roost_app/models/country_config.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/pages/auth/welcome_page.dart';
 
 class OnboardingPage extends StatefulWidget {
   const OnboardingPage({super.key});
@@ -96,9 +98,13 @@ class _OnboardingPageState extends State<OnboardingPage> {
     await prefs.setBool('onboarding_completed', true);
 
     if (!mounted) return;
+    final isLoggedIn = await AuthService.isLoggedIn();
+    if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,
-      MaterialPageRoute(builder: (_) => const HomePage()),
+      MaterialPageRoute(
+        builder: (_) => isLoggedIn ? const HomePage() : const WelcomePage(),
+      ),
       (route) => false,
     );
   }

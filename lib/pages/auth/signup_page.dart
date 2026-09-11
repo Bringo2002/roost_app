@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/main.dart';
 import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/pages/auth/login_page.dart';
@@ -47,9 +48,14 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const OnboardingPage()),
+        MaterialPageRoute(
+          builder: (_) => onboardingDone ? const HomePage() : const OnboardingPage(),
+        ),
         (route) => false,
       );
     } else {
@@ -69,9 +75,14 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => result.isNewUser ? const OnboardingPage() : const HomePage()),
+        MaterialPageRoute(
+          builder: (_) => (result.isNewUser && !onboardingDone) ? const OnboardingPage() : const HomePage(),
+        ),
         (route) => false,
       );
     } else if (result.error != null) {
