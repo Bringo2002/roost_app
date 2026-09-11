@@ -424,52 +424,20 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // 1. Fixed Background Hero Media (remains sticky in background)
-          Positioned(
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 320,
-            child: _buildHeroMedia(),
-          ),
-
-          // 2. Sliding Details Sheet (slides up over the fixed media header)
+          // 1. Sliding Details Content (Layer 0: slides behind fixed media header)
           CustomScrollView(
             slivers: [
               const SliverToBoxAdapter(
-                child: SizedBox(height: 290),
+                child: SizedBox(height: 320),
               ),
               SliverToBoxAdapter(
                 child: Container(
-                  decoration: const BoxDecoration(
-                    color: Colors.black,
-                    borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black87,
-                        blurRadius: 16,
-                        offset: Offset(0, -4),
-                      ),
-                    ],
-                  ),
-                  child: Column(
-                    children: [
-                      Center(
-                        child: Container(
-                          margin: const EdgeInsets.only(top: 10, bottom: 4),
-                          width: 36,
-                          height: 4,
-                          decoration: BoxDecoration(
-                            color: Colors.grey[800],
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                        ),
-                      ),
-                      Padding(
-                        padding: const EdgeInsets.all(20),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
+                  color: Colors.black,
+                  child: Padding(
+                    padding: const EdgeInsets.all(20),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
                             // Title
                             Text(
                               widget.property.title,
@@ -978,12 +946,30 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                 ],
               ),
             ),
-          ],
+          ),
         ),
-      ),
+      ],
     ),
-  ],
-),
+
+          // 2. Fixed Hero Media (Layer 1: stays fixed on top, details slide under it)
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 320,
+            child: Container(
+              decoration: const BoxDecoration(
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black87,
+                    blurRadius: 12,
+                    offset: Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: _buildHeroMedia(),
+            ),
+          ),
 
           // 3. Floating Action Controls Layer (Pinned back button and favorite icon)
           Positioned(
