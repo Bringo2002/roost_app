@@ -104,6 +104,8 @@ class _AuthCheckState extends State<AuthCheck> {
 
 // ─── Home Page (Bottom Nav Shell) ────────────────────────────────────────────
 
+final ValueNotifier<int> mainTabNotifier = ValueNotifier<int>(0);
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -129,6 +131,7 @@ class _HomePageState extends State<HomePage> {
       const ActiveChatsPage(),
       const ProfilePage(),
     ];
+    mainTabNotifier.addListener(_onMainTabChanged);
     _loadUserRole();
     _startUnreadPolling();
     PushNotificationService.initialize();
@@ -136,8 +139,17 @@ class _HomePageState extends State<HomePage> {
 
   @override
   void dispose() {
+    mainTabNotifier.removeListener(_onMainTabChanged);
     _unreadTimer?.cancel();
     super.dispose();
+  }
+
+  void _onMainTabChanged() {
+    if (mounted && _currentIndex != mainTabNotifier.value) {
+      setState(() {
+        _currentIndex = mainTabNotifier.value;
+      });
+    }
   }
 
   void _startUnreadPolling() {

@@ -4,6 +4,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/favorites_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
+import 'package:roost_app/main.dart';
 
 class SavedPage extends StatefulWidget {
   const SavedPage({super.key});
@@ -469,7 +470,10 @@ class _SavedPageState extends State<SavedPage> {
             ),
             const SizedBox(height: 28),
             ElevatedButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+                mainTabNotifier.value = 0;
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
