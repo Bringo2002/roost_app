@@ -56,6 +56,8 @@ class _SearchPageState extends State<SearchPage> {
   bool _balcony = false;
   bool _petFriendly = false;
   bool _verifiedOnly = false;
+  bool _docVerifiedOnly = false;
+  bool _gpsVerifiedOnly = false;
   bool _sortNewestFirst = false;
 
   Position? _userPosition;
@@ -339,13 +341,19 @@ class _SearchPageState extends State<SearchPage> {
 
         final matchesBalcony = !_balcony || p.balcony;
         final matchesPetFriendly = !_petFriendly || p.petFriendly;
+        final matchesVerified = !_verifiedOnly || p.verified;
+        final matchesDocVerified = !_docVerifiedOnly || p.documentVerified;
+        final matchesGpsVerified = !_gpsVerifiedOnly || p.gpsVerified;
 
         return matchesQuery &&
             matchesIntentHouseType &&
             matchesIntentPrice &&
             matchesIntentFurnished &&
             matchesBalcony &&
-            matchesPetFriendly;
+            matchesPetFriendly &&
+            matchesVerified &&
+            matchesDocVerified &&
+            matchesGpsVerified;
       }).toList();
 
       _sortResults();
@@ -397,6 +405,8 @@ class _SearchPageState extends State<SearchPage> {
       _balcony = false;
       _petFriendly = false;
       _verifiedOnly = false;
+      _docVerifiedOnly = false;
+      _gpsVerifiedOnly = false;
       _sortNewestFirst = false;
     });
     _fetchFiltered();
@@ -419,8 +429,106 @@ class _SearchPageState extends State<SearchPage> {
     if (_balcony) count++;
     if (_petFriendly) count++;
     if (_verifiedOnly) count++;
+    if (_docVerifiedOnly) count++;
+    if (_gpsVerifiedOnly) count++;
     if (_sortNewestFirst) count++;
     return count;
+  }
+
+  Widget _buildVerificationQuickFiltersRow() {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 8),
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Row(
+          children: [
+            _buildQuickFilterChip(
+              label: 'All Rentals',
+              selected: !_verifiedOnly && !_docVerifiedOnly && !_gpsVerifiedOnly,
+              onTap: () {
+                setState(() {
+                  _verifiedOnly = false;
+                  _docVerifiedOnly = false;
+                  _gpsVerifiedOnly = false;
+                });
+                _applyClientSideFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildQuickFilterChip(
+              label: '🛡️ Verified Landlords',
+              selected: _verifiedOnly,
+              onTap: () {
+                setState(() {
+                  _verifiedOnly = !_verifiedOnly;
+                  if (_verifiedOnly) {
+                    _docVerifiedOnly = false;
+                    _gpsVerifiedOnly = false;
+                  }
+                });
+                _fetchFiltered();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildQuickFilterChip(
+              label: '📄 Title Deed Proofs',
+              selected: _docVerifiedOnly,
+              onTap: () {
+                setState(() {
+                  _docVerifiedOnly = !_docVerifiedOnly;
+                  if (_docVerifiedOnly) {
+                    _verifiedOnly = false;
+                    _gpsVerifiedOnly = false;
+                  }
+                });
+                _applyClientSideFilters();
+              },
+            ),
+            const SizedBox(width: 8),
+            _buildQuickFilterChip(
+              label: '📍 On-Site GPS',
+              selected: _gpsVerifiedOnly,
+              onTap: () {
+                setState(() {
+                  _gpsVerifiedOnly = !_gpsVerifiedOnly;
+                  if (_gpsVerifiedOnly) {
+                    _verifiedOnly = false;
+                    _docVerifiedOnly = false;
+                  }
+                });
+                _applyClientSideFilters();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickFilterChip({required String label, required bool selected, required VoidCallback onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        decoration: BoxDecoration(
+          color: selected ? const Color(0xFF10B981) : const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(
+            color: selected ? const Color(0xFF10B981) : Colors.white12,
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.white70,
+            fontSize: 12,
+            fontWeight: selected ? FontWeight.bold : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
   }
 
   void _showFilterBottomSheet(BuildContext context) {
@@ -597,12 +705,46 @@ class _SearchPageState extends State<SearchPage> {
 
                     const SizedBox(height: 16),
 
-                    // Verified Only
+                    // Verification Level Section
+                    const Text('Landlord Verification Level', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
                     SwitchListTile(
-                      title: const Text('Verified Landlords Only', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      title: const Text('🛡️ Verified Landlords Only', style: TextStyle(color: Colors.white, fontSize: 14)),
                       value: _verifiedOnly,
-                      activeThumbColor: Colors.white,
-                      onChanged: (val) => setSheetState(() => _verifiedOnly = val),
+                      activeThumbColor: const Color(0xFF10B981),
+                      onChanged: (val) => setSheetState(() {
+                        _verifiedOnly = val;
+                        if (val) {
+                          _docVerifiedOnly = false;
+                          _gpsVerifiedOnly = false;
+                        }
+                      }),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    SwitchListTile(
+                      title: const Text('📄 Title Deed / Utility Verified', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      value: _docVerifiedOnly,
+                      activeThumbColor: const Color(0xFF10B981),
+                      onChanged: (val) => setSheetState(() {
+                        _docVerifiedOnly = val;
+                        if (val) {
+                          _verifiedOnly = false;
+                          _gpsVerifiedOnly = false;
+                        }
+                      }),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+                    SwitchListTile(
+                      title: const Text('📍 On-Site GPS Location Confirmed', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      value: _gpsVerifiedOnly,
+                      activeThumbColor: const Color(0xFF10B981),
+                      onChanged: (val) => setSheetState(() {
+                        _gpsVerifiedOnly = val;
+                        if (val) {
+                          _verifiedOnly = false;
+                          _docVerifiedOnly = false;
+                        }
+                      }),
                       contentPadding: EdgeInsets.zero,
                     ),
 
@@ -741,6 +883,7 @@ class _SearchPageState extends State<SearchPage> {
                               ],
                             ),
                           ),
+                          _buildVerificationQuickFiltersRow(),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             child: Row(
