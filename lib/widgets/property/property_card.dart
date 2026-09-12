@@ -104,12 +104,12 @@ class _PropertyCardState extends State<PropertyCard> {
         decoration: BoxDecoration(
           color: const Color(0xFF1C1C1E),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: Colors.grey[900]!, width: 1),
-          boxShadow: const [
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08), width: 1),
+          boxShadow: [
             BoxShadow(
-              color: Color(0x28000000),
-              blurRadius: 16,
-              offset: Offset(0, 6),
+              color: Colors.black.withValues(alpha: 0.35),
+              blurRadius: 20,
+              offset: const Offset(0, 8),
             ),
           ],
         ),
@@ -118,55 +118,85 @@ class _PropertyCardState extends State<PropertyCard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            // Image section (180px height)
+            // Image section with Vignettes & Overlay Badges
             if (widget.showTopImage)
               Stack(
                 children: [
                   PropertyImage(
                     imageUrls: _galleryUrls,
-                    height: widget.compact ? 140 : 180,
+                    height: widget.compact ? 140 : 185,
                     heroTag: widget.heroTag,
                   ),
+
+                  // Top Vignette Gradient Overlay
                   Positioned(
-                    top: 10,
-                    right: 10,
-                    child: GestureDetector(
-                      onTap: widget.onFavoriteTap,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: widget.isFavorite ? Colors.redAccent : Colors.white,
-                          size: 20,
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: 50,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            Colors.black.withValues(alpha: 0.5),
+                            Colors.transparent,
+                          ],
+                          begin: Alignment.topCenter,
+                          end: Alignment.bottomCenter,
                         ),
                       ),
                     ),
                   ),
+
+                  // Favorite Heart Action Button
+                  Positioned(
+                    top: 10,
+                    right: 10,
+                    child: Material(
+                      color: Colors.transparent,
+                      child: InkWell(
+                        onTap: widget.onFavoriteTap,
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withValues(alpha: 0.65),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+                          ),
+                          child: Icon(
+                            widget.isFavorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+                            color: widget.isFavorite ? Colors.redAccent : Colors.white,
+                            size: 18,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+
+                  // Verified Landlord Pill Badge
                   if (property.verified)
                     Positioned(
                       top: 10,
                       left: 10,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
+                          color: const Color(0xDD000000),
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4)),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.verified, color: Colors.black, size: 14),
+                            Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 12),
                             SizedBox(width: 4),
                             Text(
-                              'VERIFIED',
+                              'VERIFIED LANDLORD',
                               style: TextStyle(
-                                color: Colors.black,
-                                fontSize: 10,
-                                fontWeight: FontWeight.bold,
-                                letterSpacing: 0.5,
+                                color: Colors.white,
+                                fontSize: 9,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.4,
                               ),
                             ),
                           ],
@@ -181,7 +211,7 @@ class _PropertyCardState extends State<PropertyCard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title & availability indicator
+                  // Title & Availability Indicator
                   Row(
                     children: [
                       Expanded(
@@ -191,26 +221,47 @@ class _PropertyCardState extends State<PropertyCard> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            letterSpacing: -0.2,
                           ),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Container(
-                        width: 8,
-                        height: 8,
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                         decoration: BoxDecoration(
-                          color: property.available ? Colors.white : Colors.grey[700],
-                          shape: BoxShape.circle,
+                          color: property.available
+                              ? Colors.greenAccent.withValues(alpha: 0.12)
+                              : Colors.white.withValues(alpha: 0.06),
+                          borderRadius: BorderRadius.circular(8),
+                          border: Border.all(
+                            color: property.available
+                                ? Colors.greenAccent.withValues(alpha: 0.3)
+                                : Colors.white.withValues(alpha: 0.08),
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        property.available ? 'Avail' : 'Taken',
-                        style: TextStyle(
-                          color: property.available ? Colors.white : Colors.grey[500],
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Container(
+                              width: 6,
+                              height: 6,
+                              decoration: BoxDecoration(
+                                color: property.available ? Colors.greenAccent : Colors.grey[500],
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              property.available ? 'Available' : 'Booked',
+                              style: TextStyle(
+                                color: property.available ? Colors.greenAccent : Colors.grey[400],
+                                fontSize: 10,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ],
@@ -218,11 +269,11 @@ class _PropertyCardState extends State<PropertyCard> {
 
                   const SizedBox(height: 6),
 
-                  // Location
+                  // Location & Distance Pin
                   Row(
                     children: [
-                      const Icon(Icons.location_on_outlined, color: Colors.grey, size: 14),
-                      const SizedBox(width: 4),
+                      const Icon(Icons.location_on_rounded, color: Colors.redAccent, size: 14),
+                      const SizedBox(width: 3),
                       Expanded(
                         child: Text(
                           property.location,
@@ -233,9 +284,16 @@ class _PropertyCardState extends State<PropertyCard> {
                       ),
                       if (widget.distanceLabel != null) ...[
                         const SizedBox(width: 6),
-                        Text(
-                          '· ${widget.distanceLabel}',
-                          style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w600),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.06),
+                            borderRadius: BorderRadius.circular(6),
+                          ),
+                          child: Text(
+                            widget.distanceLabel!,
+                            style: TextStyle(color: Colors.grey[300], fontSize: 11, fontWeight: FontWeight.w600),
+                          ),
                         ),
                       ],
                     ],
@@ -243,7 +301,7 @@ class _PropertyCardState extends State<PropertyCard> {
 
                   const SizedBox(height: 10),
 
-                  // Price & Rental badge
+                  // Rent Price & House Type Pill
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -253,19 +311,20 @@ class _PropertyCardState extends State<PropertyCard> {
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
                         decoration: BoxDecoration(
-                          color: Colors.grey[900],
+                          color: Colors.white.withValues(alpha: 0.07),
                           borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.grey[800]!),
+                          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                         ),
                         child: Text(
-                          property.type.toUpperCase(),
+                          property.houseType.toUpperCase(),
                           style: const TextStyle(
-                            color: Colors.white,
+                            color: Colors.white70,
                             fontSize: 10,
                             fontWeight: FontWeight.bold,
                             letterSpacing: 0.5,
@@ -277,80 +336,72 @@ class _PropertyCardState extends State<PropertyCard> {
 
                   const SizedBox(height: 10),
 
-                  // Bedroom & bathroom details
-                  Row(
+                  // Frosted Amenity Micro-Chips
+                  Wrap(
+                    spacing: 6,
+                    runSpacing: 4,
                     children: [
-                      const Icon(Icons.bed_outlined, color: Colors.grey, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        property.bedroomDisplay,
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      const SizedBox(width: 12),
-                      const Icon(Icons.bathtub_outlined, color: Colors.grey, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        '${property.bathrooms} bath',
-                        style: const TextStyle(color: Colors.white70, fontSize: 12),
-                      ),
-                      if (property.houseType.isNotEmpty && property.bedrooms > 0) ...[
-                        const SizedBox(width: 12),
-                        Text(
-                          '·  ${property.houseType}',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 12, fontWeight: FontWeight.w500),
-                        ),
-                      ],
+                      _buildFAANGSpecChip(property.bedroomDisplay, Icons.bed_rounded),
+                      _buildFAANGSpecChip('${property.bathrooms} Bath', Icons.shower_rounded),
+                      if (property.wifi) _buildFAANGSpecChip('WiFi', Icons.wifi_rounded),
+                      if (property.furnished) _buildFAANGSpecChip('Furnished', Icons.chair_rounded),
                     ],
                   ),
 
-                  const SizedBox(height: 14),
+                  const SizedBox(height: 12),
+                  Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                  const SizedBox(height: 12),
 
-                  const Divider(height: 1, color: Color(0xFF2C2C2E)),
-
-                  const SizedBox(height: 10),
-
-                  // Action buttons: Call | Chat | Navigate
+                  // FAANG Balanced Action Row: Quick Icons (Call, Chat) + Prominent Primary CTA (Navigate)
                   Row(
                     children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _callLandlord,
-                          icon: const Icon(Icons.phone_outlined, size: 16),
-                          label: const Text('Call'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Color(0xFF3A3A3C)),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                      // Call Icon Button
+                      InkWell(
+                        onTap: _callLandlord,
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                           ),
+                          child: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
                         ),
                       ),
                       const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _chatLandlord(context),
-                          icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                          label: const Text('Chat'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            side: const BorderSide(color: Color(0xFF3A3A3C)),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+
+                      // Chat Icon Button
+                      InkWell(
+                        onTap: () => _chatLandlord(context),
+                        borderRadius: BorderRadius.circular(12),
+                        child: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.07),
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                           ),
+                          child: const Icon(Icons.chat_bubble_rounded, color: Colors.white, size: 18),
                         ),
                       ),
-                      const SizedBox(width: 8),
+                      const SizedBox(width: 10),
+
+                      // Primary Filled Navigate Button
                       Expanded(
                         child: ElevatedButton.icon(
                           onPressed: _navigateToMap,
-                          icon: const Icon(Icons.navigation_outlined, size: 16),
-                          label: const Text('Navigate'),
+                          icon: const Icon(Icons.near_me_rounded, size: 16),
+                          label: const Text(
+                            'Navigate Map',
+                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                          ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
                             elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            padding: const EdgeInsets.symmetric(vertical: 10),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                           ),
                         ),
                       ),
@@ -361,6 +412,28 @@ class _PropertyCardState extends State<PropertyCard> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildFAANGSpecChip(String label, IconData icon) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(6),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: Colors.grey[400], size: 11),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: TextStyle(color: Colors.grey[300], fontSize: 11, fontWeight: FontWeight.w600),
+          ),
+        ],
       ),
     );
   }
