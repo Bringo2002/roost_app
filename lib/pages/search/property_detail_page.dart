@@ -104,6 +104,16 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     return '${LocationService.formatDistance(km)} · ~$minutes min $mode';
   }
 
+  String _formatDepositText(String? raw) {
+    if (raw == null || raw.trim().isEmpty) return '';
+    final cleaned = raw.replaceAll(RegExp(r'[^0-9.]'), '');
+    final numVal = num.tryParse(cleaned);
+    if (numVal != null && numVal > 0) {
+      return 'Deposit: ${CountryService.price(numVal)}';
+    }
+    return 'Deposit: $raw';
+  }
+
   void _navigateToMap() {
     Navigator.push(
       context,
@@ -428,10 +438,10 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
       bottomNavigationBar: Container(
         decoration: BoxDecoration(
           color: const Color(0xEE121214),
-          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.08), width: 1)),
+          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1)),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withValues(alpha: 0.5),
+              color: Colors.black.withValues(alpha: 0.6),
               blurRadius: 20,
               offset: const Offset(0, -6),
             ),
@@ -442,29 +452,48 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
             filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
             child: SafeArea(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                 child: Row(
                   children: [
-                    // Price & Deposit info
+                    // Price & Deposit info (fitted on 1 line so it never wraps awkwardly)
                     Expanded(
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            CountryService.pricePerMonth(widget.property.price),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 22,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.5,
+                          FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              crossAxisAlignment: CrossAxisAlignment.baseline,
+                              textBaseline: TextBaseline.alphabetic,
+                              children: [
+                                Text(
+                                  CountryService.price(widget.property.price),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 20,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: -0.4,
+                                  ),
+                                ),
+                                const Text(
+                                  ' /mo',
+                                  style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                           if (widget.property.deposit != null && widget.property.deposit!.trim().isNotEmpty) ...[
                             const SizedBox(height: 2),
                             Text(
-                              'Deposit: ${widget.property.deposit}',
-                              style: TextStyle(color: Colors.grey[500], fontSize: 11, fontWeight: FontWeight.w500),
+                              _formatDepositText(widget.property.deposit),
+                              style: TextStyle(color: Colors.grey[400], fontSize: 11, fontWeight: FontWeight.w500),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -479,14 +508,16 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                       ),
                     ),
 
+                    const SizedBox(width: 12),
+
                     // Call icon button
                     Container(
-                      height: 48,
-                      width: 48,
+                      height: 46,
+                      width: 46,
                       decoration: BoxDecoration(
                         color: const Color(0xFF2C2C2E),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
                       ),
                       child: IconButton(
                         icon: const Icon(Icons.phone_outlined, color: Colors.white, size: 20),
@@ -497,7 +528,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                         tooltip: 'Call Landlord',
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const SizedBox(width: 8),
 
                     // Chat CTA Button
                     ElevatedButton.icon(
@@ -509,15 +540,15 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                           );
                         }
                       },
-                      icon: const Icon(Icons.chat_bubble_outline, size: 18),
+                      icon: const Icon(Icons.chat_bubble_outline, size: 17),
                       label: const Text(
                         'Chat with Host',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: Colors.white,
                         foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                         elevation: 0,
                       ),
@@ -1023,7 +1054,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                     ),
                   ),
 
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 110),
                 ],
               ),
             ),
