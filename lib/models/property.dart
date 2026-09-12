@@ -103,6 +103,16 @@ class Property {
   final List<NearbyFacility> nearbyFacilities;
   final List<String> customAmenities;
 
+  // Management Role & Caretaker fields
+  final String managerRole; // 'LANDLORD' | 'CARETAKER' | 'AGENT'
+  final String? caretakerName;
+  final String? caretakerPhone;
+  final bool caretakerLivesOnSite;
+  final bool landlordEndorsed;
+  final String? endorsementToken;
+  final String? ownerVerifyName;
+  final String? ownerVerifyPhone;
+
   Property({
     this.id,
     required this.title,
@@ -168,6 +178,14 @@ class Property {
     this.country = 'KE',
     this.nearbyFacilities = const [],
     this.customAmenities = const [],
+    this.managerRole = 'LANDLORD',
+    this.caretakerName,
+    this.caretakerPhone,
+    this.caretakerLivesOnSite = true,
+    this.landlordEndorsed = false,
+    this.endorsementToken,
+    this.ownerVerifyName,
+    this.ownerVerifyPhone,
   });
 
   factory Property.fromJson(Map<String, dynamic> json) {
@@ -238,6 +256,14 @@ class Property {
       customAmenities: json['customAmenities'] is List
           ? (json['customAmenities'] as List).map((e) => e.toString()).toList()
           : [],
+      managerRole: json['managerRole']?.toString() ?? 'LANDLORD',
+      caretakerName: json['caretakerName']?.toString(),
+      caretakerPhone: json['caretakerPhone']?.toString(),
+      caretakerLivesOnSite: json['caretakerLivesOnSite'] != false,
+      landlordEndorsed: json['landlordEndorsed'] == true,
+      endorsementToken: json['endorsementToken']?.toString(),
+      ownerVerifyName: json['ownerVerifyName']?.toString(),
+      ownerVerifyPhone: json['ownerVerifyPhone']?.toString(),
     );
   }
 
@@ -316,8 +342,45 @@ class Property {
       if (deposit != null) 'deposit': deposit,
       'country': country,
       'customAmenities': customAmenities,
+      'managerRole': managerRole,
+      if (caretakerName != null) 'caretakerName': caretakerName,
+      if (caretakerPhone != null) 'caretakerPhone': caretakerPhone,
+      'caretakerLivesOnSite': caretakerLivesOnSite,
+      'landlordEndorsed': landlordEndorsed,
+      if (endorsementToken != null) 'endorsementToken': endorsementToken,
+      if (ownerVerifyName != null) 'ownerVerifyName': ownerVerifyName,
+      if (ownerVerifyPhone != null) 'ownerVerifyPhone': ownerVerifyPhone,
     };
   }
+
+  // ─── Management Role Getters ───────────────────────────────────────────────
+
+  bool get isDirectLandlord => managerRole == 'LANDLORD';
+  bool get isCaretaker => managerRole == 'CARETAKER';
+  bool get isAgent => managerRole == 'AGENT';
+
+  /// Returns the display badge string shown on listing cards / detail pages.
+  String get managementBadgeLabel {
+    if (isDirectLandlord) return 'Direct Owner';
+    if (isCaretaker) {
+      return landlordEndorsed
+          ? 'Landlord Endorsed Caretaker'
+          : 'Caretaker Managed';
+    }
+    return landlordEndorsed ? 'Landlord Endorsed Agent' : 'Authorized Agent';
+  }
+
+  /// Name of the primary viewing contact (caretaker if present, else landlord).
+  String get primaryViewingName =>
+      (isCaretaker || isAgent) && (caretakerName?.isNotEmpty ?? false)
+          ? caretakerName!
+          : (landlordName ?? 'Landlord');
+
+  /// Phone of the primary viewing contact.
+  String get primaryViewingPhone =>
+      (isCaretaker || isAgent) && (caretakerPhone?.isNotEmpty ?? false)
+          ? caretakerPhone!
+          : landlordPhone;
 
   /// Formatted bedroom display text.
   /// Converts 0 bedrooms to 'Studio' or 'Bedsitter' matching Zillow/Airbnb standard.

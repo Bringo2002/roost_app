@@ -458,46 +458,28 @@ class _SearchPageState extends State<SearchPage> {
             ),
             const SizedBox(width: 8),
             _buildQuickFilterChip(
-              label: '🛡️ Verified Landlords',
+              label: '🛡️ Verified',
               selected: _verifiedOnly,
               onTap: () {
-                setState(() {
-                  _verifiedOnly = !_verifiedOnly;
-                  if (_verifiedOnly) {
-                    _docVerifiedOnly = false;
-                    _gpsVerifiedOnly = false;
-                  }
-                });
+                setState(() => _verifiedOnly = !_verifiedOnly);
                 _fetchFiltered();
               },
             ),
             const SizedBox(width: 8),
             _buildQuickFilterChip(
-              label: '📄 Title Deed Proofs',
+              label: '📄 Doc Proof',
               selected: _docVerifiedOnly,
               onTap: () {
-                setState(() {
-                  _docVerifiedOnly = !_docVerifiedOnly;
-                  if (_docVerifiedOnly) {
-                    _verifiedOnly = false;
-                    _gpsVerifiedOnly = false;
-                  }
-                });
+                setState(() => _docVerifiedOnly = !_docVerifiedOnly);
                 _applyClientSideFilters();
               },
             ),
             const SizedBox(width: 8),
             _buildQuickFilterChip(
-              label: '📍 On-Site GPS',
+              label: '📍 GPS Confirmed',
               selected: _gpsVerifiedOnly,
               onTap: () {
-                setState(() {
-                  _gpsVerifiedOnly = !_gpsVerifiedOnly;
-                  if (_gpsVerifiedOnly) {
-                    _verifiedOnly = false;
-                    _docVerifiedOnly = false;
-                  }
-                });
+                setState(() => _gpsVerifiedOnly = !_gpsVerifiedOnly);
                 _applyClientSideFilters();
               },
             ),
@@ -708,43 +690,50 @@ class _SearchPageState extends State<SearchPage> {
                     // Verification Level Section
                     const Text('Landlord Verification Level', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
                     const SizedBox(height: 8),
+                    // Tier legend context
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                      margin: const EdgeInsets.only(bottom: 10),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF10B981).withAlpha(18),
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: const Color(0xFF10B981).withAlpha(50)),
+                      ),
+                      child: const Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('TRUST & VERIFICATION TIERS', style: TextStyle(color: Color(0xFF34D399), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                          SizedBox(height: 6),
+                          Row(children: [Text('Tier 1 (🛡️ Phone): ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)), Expanded(child: Text('SMS identity confirmed by Roost', style: TextStyle(color: Colors.white70, fontSize: 11)))]),
+                          SizedBox(height: 4),
+                          Row(children: [Text('Tier 2 (📍 GPS): ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)), Expanded(child: Text('Landlord physically verified at property', style: TextStyle(color: Colors.white70, fontSize: 11)))]),
+                          SizedBox(height: 4),
+                          Row(children: [Text('Tier 3 (📄 Title Deed): ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)), Expanded(child: Text('Ownership deed uploaded & admin audited', style: TextStyle(color: Colors.white70, fontSize: 11)))]),
+                        ],
+                      ),
+                    ),
                     SwitchListTile(
                       title: const Text('🛡️ Verified Landlords Only', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      subtitle: const Text('Phone identity confirmed', style: TextStyle(color: Colors.white38, fontSize: 11)),
                       value: _verifiedOnly,
                       activeThumbColor: const Color(0xFF10B981),
-                      onChanged: (val) => setSheetState(() {
-                        _verifiedOnly = val;
-                        if (val) {
-                          _docVerifiedOnly = false;
-                          _gpsVerifiedOnly = false;
-                        }
-                      }),
+                      onChanged: (val) => setSheetState(() => _verifiedOnly = val),
                       contentPadding: EdgeInsets.zero,
                     ),
                     SwitchListTile(
                       title: const Text('📄 Title Deed / Utility Verified', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      subtitle: const Text('Ownership document uploaded & admin-approved', style: TextStyle(color: Colors.white38, fontSize: 11)),
                       value: _docVerifiedOnly,
                       activeThumbColor: const Color(0xFF10B981),
-                      onChanged: (val) => setSheetState(() {
-                        _docVerifiedOnly = val;
-                        if (val) {
-                          _verifiedOnly = false;
-                          _gpsVerifiedOnly = false;
-                        }
-                      }),
+                      onChanged: (val) => setSheetState(() => _docVerifiedOnly = val),
                       contentPadding: EdgeInsets.zero,
                     ),
                     SwitchListTile(
-                      title: const Text('📍 On-Site GPS Location Confirmed', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      title: const Text('📍 On-Site GPS Confirmed', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      subtitle: const Text('Landlord physically verified at property location', style: TextStyle(color: Colors.white38, fontSize: 11)),
                       value: _gpsVerifiedOnly,
                       activeThumbColor: const Color(0xFF10B981),
-                      onChanged: (val) => setSheetState(() {
-                        _gpsVerifiedOnly = val;
-                        if (val) {
-                          _verifiedOnly = false;
-                          _docVerifiedOnly = false;
-                        }
-                      }),
+                      onChanged: (val) => setSheetState(() => _gpsVerifiedOnly = val),
                       contentPadding: EdgeInsets.zero,
                     ),
 

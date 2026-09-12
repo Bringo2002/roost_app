@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -148,6 +149,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool get _hasGpsVerified => _gpsVerified;
   bool get _hasDocUploaded => _documentUrls.isNotEmpty;
 
+  // Management Role
+  String _managerRole = 'LANDLORD'; // 'LANDLORD' | 'CARETAKER' | 'AGENT'
+  bool _caretakerLivesOnSite = true;
+  bool _noViewingFeePledge = false;
+  final _caretakerNameCtrl    = TextEditingController();
+  final _caretakerPhoneCtrl   = TextEditingController();
+  final _ownerNameCtrl        = TextEditingController();
+  final _ownerPhoneCtrl       = TextEditingController();
+
   int get _verificationScore =>
       (_hasPhoneVerified ? 1 : 0) +
       (_hasGpsVerified ? 1 : 0) +
@@ -204,6 +214,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _documentUrls.addAll(p.documentUrls);
     _customAmenities.addAll(p.customAmenities);
     _videoUrl = p.videoUrl;
+
+    // Management role fields
+    _managerRole          = p.managerRole;
+    _caretakerLivesOnSite = p.caretakerLivesOnSite;
+    _caretakerNameCtrl.text  = p.caretakerName ?? '';
+    _caretakerPhoneCtrl.text = p.caretakerPhone ?? '';
+    _ownerNameCtrl.text      = p.ownerVerifyName ?? '';
+    _ownerPhoneCtrl.text     = p.ownerVerifyPhone ?? '';
   }
 
   @override
@@ -215,6 +233,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _depositCtrl.dispose();
     _descriptionCtrl.dispose();
     _phoneCtrl.dispose();
+    _caretakerNameCtrl.dispose();
+    _caretakerPhoneCtrl.dispose();
+    _ownerNameCtrl.dispose();
+    _ownerPhoneCtrl.dispose();
     super.dispose();
   }
 
@@ -252,6 +274,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       case 4:
         if (_phoneCtrl.text.trim().isEmpty) {
           errors['phone'] = 'Add a contact phone number';
+        }
+        if (_managerRole != 'LANDLORD') {
+          if (_caretakerNameCtrl.text.trim().isEmpty) {
+            errors['caretakerName'] = 'Enter the name of the on-site contact';
+          }
+          if (_caretakerPhoneCtrl.text.trim().isEmpty) {
+            errors['caretakerPhone'] = 'Enter their phone number';
+          }
         }
         break;
     }
@@ -454,7 +484,48 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       'country':     CountryService.config.code,
       'status':      status,
       'customAmenities': _customAmenities,
+      'managerRole': _managerRole,
+      if (_managerRole != 'LANDLORD') 'caretakerName':  _caretakerNameCtrl.text.trim(),
+      if (_managerRole != 'LANDLORD') 'caretakerPhone': _formatPhone(_caretakerPhoneCtrl.text.trim()),
+      'caretakerLivesOnSite': _caretakerLivesOnSite,
+      'landlordEndorsed': false,
+      if (_ownerNameCtrl.text.trim().isNotEmpty)
+        'ownerVerifyName': _ownerNameCtrl.text.trim(),
+      if (_ownerPhoneCtrl.text.trim().isNotEmpty)
+        'ownerVerifyPhone': _formatPhone(_ownerPhoneCtrl.text.trim()),
+      if (_ownerPhoneCtrl.text.trim().isNotEmpty)
+        'endorsementToken': _generateToken(),
     };
+  }
+
+  String _formatPhone(String raw) {
+    if (raw.isEmpty) return '';
+    final dialCode = CountryService.config.dialCode;
+    return raw.startsWith('+') ? raw : '$dialCode$raw';
+  }
+
+  /// Generates a simple 32-char hex token for endorsement links.
+  String _generateToken() {
+    final rng = math.Random.secure();
+    return List.generate(32, (_) => rng.nextInt(16).toRadixString(16)).join();
+  }
+
+  String _buildManagementReviewValue() {
+    if (_managerRole == 'LANDLORD') return 'Direct Owner';
+    final role = _managerRole == 'CARETAKER' ? 'Caretaker' : 'Agent';
+    final name = _caretakerNameCtrl.text.trim();
+    final parts = <String>['$role: $name'];
+    if (_managerRole == 'CARETAKER' && _caretakerLivesOnSite) {
+      parts.add('Lives on-site');
+    }
+    final ownerName = _ownerNameCtrl.text.trim();
+    if (ownerName.isNotEmpty) {
+      parts.add('Owner: $ownerName (pending endorsement)');
+    }
+    if (_noViewingFeePledge) {
+      parts.add('Free viewings pledged');
+    }
+    return parts.join(' | ');
   }
 
   Property _buildPreviewProperty() {
@@ -517,6 +588,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       moveInDate:   'Immediate',
       country:      CountryService.config.code,
       customAmenities: _customAmenities,
+      managerRole:  _managerRole,
+      caretakerName: _managerRole != 'LANDLORD' ? _caretakerNameCtrl.text.trim() : null,
+      caretakerPhone: _managerRole != 'LANDLORD' ? _formatPhone(_caretakerPhoneCtrl.text.trim()) : null,
+      caretakerLivesOnSite: _caretakerLivesOnSite,
+      ownerVerifyName: _ownerNameCtrl.text.trim().isEmpty ? null : _ownerNameCtrl.text.trim(),
+      ownerVerifyPhone: _ownerPhoneCtrl.text.trim().isEmpty ? null : _formatPhone(_ownerPhoneCtrl.text.trim()),
     );
   }
 
@@ -1947,18 +2024,67 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   Widget _buildContactStep() {
     const maxDesc = 500;
     final descLen = _descriptionCtrl.text.length;
+    final showCaretakerFields = _managerRole != 'LANDLORD';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _StepHeader(
           stepNumber: 5,
-          title: 'Description & Contact',
-          subtitle: 'How renters can reach you + a property description',
+          title: 'Contact & Management',
+          subtitle: 'Who manages this property and how renters can reach them',
         ),
         const SizedBox(height: 24),
 
-        // Phone with country prefix label
+        // ── Management Role Selector ──
+        Text(
+          'Who are you?',
+          style: TextStyle(
+            color: Colors.grey[300],
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            _RoleChip(
+              label: 'Direct Owner',
+              icon: Icons.home_outlined,
+              selected: _managerRole == 'LANDLORD',
+              onTap: () => setState(() {
+                _managerRole = 'LANDLORD';
+              }),
+            ),
+            const SizedBox(width: 8),
+            _RoleChip(
+              label: 'Caretaker',
+              icon: Icons.person_pin_outlined,
+              selected: _managerRole == 'CARETAKER',
+              onTap: () => setState(() {
+                _managerRole = 'CARETAKER';
+                _amenityState['caretaker'] = true;
+              }),
+            ),
+            const SizedBox(width: 8),
+            _RoleChip(
+              label: 'Agent',
+              icon: Icons.support_agent_outlined,
+              selected: _managerRole == 'AGENT',
+              onTap: () => setState(() {
+                _managerRole = 'AGENT';
+              }),
+            ),
+          ],
+        ),
+        const SizedBox(height: 20),
+
+        // ── Your phone (always shown — the listing owner's phone) ──
+        Text(
+          'Your phone number',
+          style: TextStyle(color: Colors.grey[400], fontSize: 12),
+        ),
+        const SizedBox(height: 6),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -1992,9 +2118,249 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           ],
         ),
 
-        const SizedBox(height: 16),
+        // ── Caretaker / Agent fields (shown when role != LANDLORD) ──
+        if (showCaretakerFields) ...[
+          const SizedBox(height: 24),
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF1A1A2E),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFF2A2A4A)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Icon(
+                      _managerRole == 'CARETAKER'
+                          ? Icons.person_pin_outlined
+                          : Icons.support_agent_outlined,
+                      color: const Color(0xFF6C63FF),
+                      size: 20,
+                    ),
+                    const SizedBox(width: 8),
+                    Text(
+                      _managerRole == 'CARETAKER'
+                          ? 'On-site Caretaker Details'
+                          : 'Agent Details',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Tenants will see this contact for property viewings',
+                  style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _caretakerNameCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration(
+                    _managerRole == 'CARETAKER'
+                        ? 'Caretaker full name'
+                        : 'Agent full name',
+                    errorText: _errors['caretakerName'],
+                  ),
+                  onChanged: (_) => _clearError('caretakerName'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        CountryService.config.dialCode,
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _caretakerPhoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(color: Colors.white),
+                        decoration: _inputDecoration(
+                          _managerRole == 'CARETAKER'
+                              ? 'Caretaker phone'
+                              : 'Agent phone',
+                          errorText: _errors['caretakerPhone'],
+                        ),
+                        onChanged: (_) => _clearError('caretakerPhone'),
+                      ),
+                    ),
+                  ],
+                ),
+                if (_managerRole == 'CARETAKER') ...[
+                  const SizedBox(height: 14),
+                  _ToggleRow(
+                    label: 'Lives on the property',
+                    value: _caretakerLivesOnSite,
+                    onChanged: (v) =>
+                        setState(() => _caretakerLivesOnSite = v),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(height: 16),
 
-        // Description with char counter
+          // ── Optional: Owner/Landlord verification (for caretaker/agent) ──
+          Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0D1B2A),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+              color: const Color(0xFF1B3A4B).withValues(alpha: 0.6)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const Icon(Icons.verified_outlined,
+                        color: Color(0xFF00C896), size: 20),
+                    const SizedBox(width: 8),
+                    const Expanded(
+                      child: Text(
+                        'Landlord Endorsement (optional)',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'Add the property owner\'s details so they can endorse '
+                  'your listing via WhatsApp. This earns a trust badge '
+                  'but is not required to publish.',
+                  style: TextStyle(
+                      color: Colors.grey[500], fontSize: 11, height: 1.4),
+                ),
+                const SizedBox(height: 14),
+                TextField(
+                  controller: _ownerNameCtrl,
+                  style: const TextStyle(color: Colors.white),
+                  decoration: _inputDecoration('Owner / Landlord name'),
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      height: 56,
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      alignment: Alignment.center,
+                      child: Text(
+                        CountryService.config.dialCode,
+                        style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 14,
+                            fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: TextField(
+                        controller: _ownerPhoneCtrl,
+                        keyboardType: TextInputType.phone,
+                        style: const TextStyle(color: Colors.white),
+                        decoration:
+                            _inputDecoration('Owner / Landlord phone'),
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ],
+
+        const SizedBox(height: 20),
+
+        // ── No Viewing Fee Pledge ──
+        GestureDetector(
+          onTap: () =>
+              setState(() => _noViewingFeePledge = !_noViewingFeePledge),
+          child: Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: _noViewingFeePledge
+                  ? const Color(0xFF00C896).withValues(alpha: 0.1)
+                  : const Color(0xFF1C1C1E),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: _noViewingFeePledge
+                    ? const Color(0xFF00C896)
+                    : const Color(0xFF2A2A2A),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  _noViewingFeePledge
+                      ? Icons.check_circle
+                      : Icons.check_circle_outline,
+                  color: _noViewingFeePledge
+                      ? const Color(0xFF00C896)
+                      : Colors.grey[600],
+                  size: 22,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        '100% Free Viewings Guarantee',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        'I pledge never to charge tenants for property viewings',
+                        style: TextStyle(
+                            color: Colors.grey[500], fontSize: 11),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
+        // ── Description ──
         Stack(
           children: [
             TextField(
@@ -2098,6 +2464,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           isOk: _phoneCtrl.text.trim().isNotEmpty,
           onEdit: () => _jumpToStep(4),
         ),
+        _ReviewRow(
+          icon: Icons.badge_outlined,
+          title: 'Management',
+          value: _buildManagementReviewValue(),
+          isOk: true,
+          onEdit: () => _jumpToStep(4),
+        ),
 
         const SizedBox(height: 16),
         Center(
@@ -2152,6 +2525,94 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 // ─────────────────────────────────────────────────────────────────────────
 // Supporting widgets
 // ─────────────────────────────────────────────────────────────────────────
+
+/// Selectable role chip used in the management role picker.
+class _RoleChip extends StatelessWidget {
+  final String label;
+  final IconData icon;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _RoleChip({
+    required this.label,
+    required this.icon,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: GestureDetector(
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          decoration: BoxDecoration(
+            color: selected
+                ? const Color(0xFF6C63FF).withValues(alpha: 0.15)
+                : const Color(0xFF1C1C1E),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? const Color(0xFF6C63FF)
+                  : const Color(0xFF2A2A2A),
+              width: selected ? 1.5 : 1,
+            ),
+          ),
+          child: Column(
+            children: [
+              Icon(icon,
+                  color: selected
+                      ? const Color(0xFF6C63FF)
+                      : Colors.grey[500],
+                  size: 22),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: selected ? Colors.white : Colors.grey[500],
+                  fontSize: 11,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// A label + switch toggle row.
+class _ToggleRow extends StatelessWidget {
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+        Switch.adaptive(
+          value: value,
+          onChanged: onChanged,
+          activeTrackColor: const Color(0xFF6C63FF),
+        ),
+      ],
+    );
+  }
+}
 
 /// Step heading: numbered badge + title + subtitle.
 class _StepHeader extends StatelessWidget {

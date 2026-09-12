@@ -163,7 +163,11 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location verified')),
+        const SnackBar(
+          content: Text('📍 On-Site GPS Location Verified! Your physical presence has been confirmed at this property.'),
+          backgroundColor: Color(0xFF10B981),
+          behavior: SnackBarBehavior.floating,
+        ),
       );
       await _loadListings();
     } catch (e) {
@@ -204,7 +208,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
           ],
         ),
       );
-      if (proceedToWizard == true) {
+      if (proceedToWizard == true && mounted) {
         final updated = await Navigator.push<bool>(
           context,
           MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
@@ -221,36 +225,57 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       padding: const EdgeInsets.all(16),
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: Colors.grey[900],
+        gradient: LinearGradient(
+          colors: [const Color(0xFF18181B), const Color(0xFF0F172A).withAlpha(180)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
         borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF10B981).withAlpha(30)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withAlpha(12),
+            blurRadius: 16,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Listings', '${_myListings.length}'),
-          _buildStatItem('Drafts', '${_myListings.where((p) => p.status == 'DRAFT').length}'),
-          _buildStatItem('Available', '${_myListings.where((p) => p.available).length}'),
+          _buildStatItem('Total Listings', '${_myListings.length}', Icons.home_work_outlined, Colors.white70),
+          Container(width: 1, height: 32, color: Colors.white10),
+          _buildStatItem('Drafts', '${_myListings.where((p) => p.status == 'DRAFT').length}', Icons.edit_note, Colors.amber),
+          Container(width: 1, height: 32, color: Colors.white10),
+          _buildStatItem('Available', '${_myListings.where((p) => p.available).length}', Icons.check_circle_outline, const Color(0xFF10B981)),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value) {
+  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+        Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, color: color, size: 15),
+            const SizedBox(width: 5),
+            Text(
+              value,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
         ),
         const SizedBox(height: 4),
         Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
+          label,
+          style: const TextStyle(color: Colors.white54, fontSize: 11),
         ),
       ],
     );

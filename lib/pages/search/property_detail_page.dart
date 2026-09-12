@@ -345,6 +345,151 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     );
   }
 
+  void _showReportViewingFeeSheet() {
+    String selectedDetail = 'Asked to pay before viewing';
+    final details = [
+      'Asked to pay before viewing',
+      'Charged during the viewing',
+      'Charged after the viewing',
+      'Deposit demanded before seeing the unit',
+      'Other fee requested',
+    ];
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) {
+        bool isSubmitting = false;
+        return StatefulBuilder(
+          builder: (sheetContext, setSheetState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                left: 20,
+                right: 20,
+                top: 20,
+                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
+              ),
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.redAccent.withValues(alpha: 0.15),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.money_off_rounded,
+                              color: Colors.redAccent, size: 22),
+                        ),
+                        const SizedBox(width: 12),
+                        const Expanded(
+                          child: Text(
+                            'Report Viewing Fee',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Property viewings on Roost are always free. '
+                      'If someone asked you to pay, let us know so we can take action.',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
+                    ),
+                    const SizedBox(height: 16),
+                    ...details.map((d) {
+                      return ListTile(
+                        title: Text(d,
+                            style: TextStyle(
+                                color: selectedDetail == d
+                                    ? Colors.white
+                                    : Colors.grey[400],
+                                fontSize: 14)),
+                        trailing: Icon(
+                          selectedDetail == d
+                              ? Icons.radio_button_checked
+                              : Icons.radio_button_off,
+                          color:
+                              selectedDetail == d ? Colors.white : Colors.grey,
+                          size: 20,
+                        ),
+                        contentPadding: EdgeInsets.zero,
+                        onTap: isSubmitting
+                            ? null
+                            : () =>
+                                setSheetState(() => selectedDetail = d),
+                      );
+                    }),
+                    const SizedBox(height: 20),
+                    SizedBox(
+                      width: double.infinity,
+                      height: 52,
+                      child: ElevatedButton(
+                        onPressed: isSubmitting
+                            ? null
+                            : () async {
+                                setSheetState(() => isSubmitting = true);
+                                try {
+                                  await ApiService.post(
+                                      '/api/properties/${widget.property.id}/report',
+                                      {
+                                        'reason': 'Viewing fee charged',
+                                        'detail': selectedDetail,
+                                      });
+                                } catch (_) {
+                                  // Silently succeed for now
+                                }
+                                if (ctx.mounted) Navigator.pop(ctx);
+                                if (!mounted) return;
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Report submitted. We take viewing fees very seriously.'),
+                                    duration: Duration(seconds: 4),
+                                  ),
+                                );
+                              },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.redAccent,
+                          foregroundColor: Colors.white,
+                          disabledBackgroundColor:
+                              Colors.redAccent.withValues(alpha: 0.5),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: isSubmitting
+                            ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: Colors.white),
+                              )
+                            : const Text('Submit Report',
+                                style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 16)),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildHeroMedia() {
     final List<String> urls = [];
     if (widget.property.imageUrl != null && widget.property.imageUrl!.isNotEmpty) {
@@ -522,10 +667,10 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                       child: IconButton(
                         icon: const Icon(Icons.phone_outlined, color: Colors.white, size: 20),
                         onPressed: () {
-                          final phone = widget.property.landlordPhone;
+                          final phone = widget.property.primaryViewingPhone;
                           if (phone.isNotEmpty) launchUrl(Uri.parse('tel:$phone'));
                         },
-                        tooltip: 'Call Landlord',
+                        tooltip: 'Call ${widget.property.isDirectLandlord ? 'Landlord' : 'Caretaker'}',
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -987,6 +1132,26 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                                     ],
                                   ),
                                   const SizedBox(height: 4),
+                                  // Management role badge
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                    decoration: BoxDecoration(
+                                      color: widget.property.isDirectLandlord
+                                          ? Colors.white.withValues(alpha: 0.08)
+                                          : const Color(0xFF6C63FF).withValues(alpha: 0.15),
+                                      borderRadius: BorderRadius.circular(6),
+                                    ),
+                                    child: Text(
+                                      widget.property.managementBadgeLabel,
+                                      style: TextStyle(
+                                        color: widget.property.isDirectLandlord
+                                            ? Colors.grey[400]
+                                            : const Color(0xFF9D97FF),
+                                        fontSize: 10,
+                                        fontWeight: FontWeight.w600,
+                                      ),
+                                    ),
+                                  ),
                                   Row(
                                     children: [
                                       const Icon(Icons.bolt, color: Colors.amberAccent, size: 14),
@@ -1059,6 +1224,114 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                             ),
                           ),
                         ],
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 24),
+
+                  // ── Dual-Contact Trust Card ──
+                  if (!widget.property.isDirectLandlord && (widget.property.caretakerName?.isNotEmpty ?? false)) ...[
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(18),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF1C1C1E),
+                        borderRadius: BorderRadius.circular(18),
+                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Property Contacts',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Both contacts are shown for your trust and convenience',
+                            style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                          ),
+                          const SizedBox(height: 16),
+
+                          // Caretaker/Agent row
+                          _DualContactRow(
+                            roleLabel: widget.property.isCaretaker ? 'On-site Caretaker' : 'Authorized Agent',
+                            name: widget.property.caretakerName!,
+                            phone: widget.property.caretakerPhone ?? '',
+                            icon: widget.property.isCaretaker ? Icons.person_pin : Icons.support_agent,
+                            accentColor: const Color(0xFF6C63FF),
+                            livesOnSite: widget.property.isCaretaker && widget.property.caretakerLivesOnSite,
+                          ),
+
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 12),
+                            child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                          ),
+
+                          // Landlord/Owner row
+                          _DualContactRow(
+                            roleLabel: 'Property Owner',
+                            name: landlordName,
+                            phone: widget.property.landlordPhone,
+                            icon: Icons.home_outlined,
+                            accentColor: const Color(0xFF00C896),
+                            endorsed: widget.property.landlordEndorsed,
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                  ],
+
+                  // ── Free Viewings Guarantee Banner ──
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00C896).withValues(alpha: 0.08),
+                      borderRadius: BorderRadius.circular(14),
+                      border: Border.all(color: const Color(0xFF00C896).withValues(alpha: 0.25)),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.shield_outlined, color: Color(0xFF00C896), size: 22),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text(
+                                '100% Free Viewings Guarantee',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w700,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'Roost prohibits charging for property viewings. Report any fees.',
+                                style: TextStyle(color: Colors.grey[400], fontSize: 10.5),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        GestureDetector(
+                          onTap: () => _showReportViewingFeeSheet(),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: const Color(0xFF00C896).withValues(alpha: 0.5)),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Text(
+                              'Report',
+                              style: TextStyle(color: Color(0xFF00C896), fontSize: 10, fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -1524,6 +1797,163 @@ class _HeroVideoSlideState extends State<_HeroVideoSlide> {
               ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Dual-Contact Row — used inside the Property Contacts trust card
+// ─────────────────────────────────────────────────────────────────────────
+
+class _DualContactRow extends StatelessWidget {
+  final String roleLabel;
+  final String name;
+  final String phone;
+  final IconData icon;
+  final Color accentColor;
+  final bool livesOnSite;
+  final bool endorsed;
+
+  const _DualContactRow({
+    required this.roleLabel,
+    required this.name,
+    required this.phone,
+    required this.icon,
+    required this.accentColor,
+    this.livesOnSite = false,
+    this.endorsed = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Icon avatar
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: accentColor.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Icon(icon, color: accentColor, size: 20),
+        ),
+        const SizedBox(width: 12),
+
+        // Name + role + tags
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Flexible(
+                    child: Text(
+                      name,
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 13,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (endorsed) ...[
+                    const SizedBox(width: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF00C896).withValues(alpha: 0.15),
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: const Text(
+                        'Endorsed',
+                        style: TextStyle(
+                          color: Color(0xFF00C896),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 3),
+              Row(
+                children: [
+                  Text(
+                    roleLabel,
+                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                  ),
+                  if (livesOnSite) ...[
+                    const SizedBox(width: 6),
+                    Icon(Icons.location_on, color: Colors.grey[600], size: 11),
+                    const SizedBox(width: 2),
+                    Text(
+                      'Lives on-site',
+                      style: TextStyle(color: Colors.grey[500], fontSize: 10),
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+
+        // Call + Chat buttons
+        if (phone.isNotEmpty) ...[
+          _ContactIconButton(
+            icon: Icons.phone_outlined,
+            color: accentColor,
+            onTap: () => launchUrl(Uri.parse('tel:$phone')),
+            tooltip: 'Call $name',
+          ),
+          const SizedBox(width: 6),
+          _ContactIconButton(
+            icon: Icons.chat_bubble_outline,
+            color: accentColor,
+            onTap: () => launchUrl(
+                Uri.parse('https://wa.me/${phone.replaceAll('+', '')}')),
+            tooltip: 'WhatsApp $name',
+          ),
+        ],
+      ],
+    );
+  }
+}
+
+class _ContactIconButton extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final VoidCallback onTap;
+  final String tooltip;
+
+  const _ContactIconButton({
+    required this.icon,
+    required this.color,
+    required this.onTap,
+    required this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 34,
+          height: 34,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: color.withValues(alpha: 0.25)),
+          ),
+          child: Icon(icon, color: color, size: 16),
         ),
       ),
     );

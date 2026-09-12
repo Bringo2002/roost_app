@@ -301,17 +301,24 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
             style: const TextStyle(color: Colors.white70, fontSize: 13, height: 1.4),
           ),
           const SizedBox(height: 16),
-          // Progress Bar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: LinearProgressIndicator(
-              value: tier / 3.0,
-              minHeight: 7,
-              backgroundColor: Colors.white10,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                tier == 3 ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
-              ),
-            ),
+          // Animated Progress Bar
+          TweenAnimationBuilder<double>(
+            tween: Tween<double>(begin: 0, end: tier / 3.0),
+            duration: const Duration(milliseconds: 900),
+            curve: Curves.easeOutCubic,
+            builder: (context, animatedValue, _) {
+              return ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: LinearProgressIndicator(
+                  value: animatedValue,
+                  minHeight: 7,
+                  backgroundColor: Colors.white10,
+                  valueColor: AlwaysStoppedAnimation<Color>(
+                    tier == 3 ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                  ),
+                ),
+              );
+            },
           ),
         ],
       ),

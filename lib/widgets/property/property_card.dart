@@ -55,7 +55,7 @@ class _PropertyCardState extends State<PropertyCard> {
   }
 
   void _callLandlord() async {
-    final phone = property.landlordPhone.replaceAll(' ', '');
+    final phone = property.primaryViewingPhone.replaceAll(' ', '');
     if (phone.isNotEmpty) {
       final uri = Uri.parse('tel:$phone');
       if (await canLaunchUrl(uri)) {
@@ -274,6 +274,26 @@ class _PropertyCardState extends State<PropertyCard> {
                       ),
                     ],
                   ),
+
+                  // Management role badge (only for non-direct-owner listings)
+                  if (!property.isDirectLandlord) ...[
+                    const SizedBox(height: 6),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF6C63FF).withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(6),
+                      ),
+                      child: Text(
+                        property.managementBadgeLabel,
+                        style: const TextStyle(
+                          color: Color(0xFF9D97FF),
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ],
 
                   const SizedBox(height: 10),
 

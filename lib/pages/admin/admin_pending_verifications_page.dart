@@ -373,7 +373,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(
-                'Submitted: 2 hrs ago',
+                _formatRelativeTime(property.listedAt),
                 style: TextStyle(color: Colors.grey[600], fontSize: 11),
               ),
               ElevatedButton.icon(
@@ -417,6 +417,21 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
       ),
     );
   }
+
+}
+
+/// Returns a human-readable relative timestamp from an ISO-8601 string,
+/// e.g. "5 mins ago", "3 hrs ago", "2 days ago".
+String _formatRelativeTime(String? isoDate) {
+  if (isoDate == null) return 'Submitted recently';
+  final dt = DateTime.tryParse(isoDate);
+  if (dt == null) return 'Submitted recently';
+  final diff = DateTime.now().difference(dt);
+  if (diff.inMinutes < 1) return 'Just now';
+  if (diff.inMinutes < 60) return 'Submitted ${diff.inMinutes} min ago';
+  if (diff.inHours < 24) return 'Submitted ${diff.inHours} hr ago';
+  if (diff.inDays == 1) return 'Submitted yesterday';
+  return 'Submitted ${diff.inDays} days ago';
 }
 
 class _AuditDocumentSheet extends StatelessWidget {
@@ -475,6 +490,17 @@ class _AuditDocumentSheet extends StatelessWidget {
                         Text(
                           '${property.location} · ${CountryService.price(property.price)}',
                           style: const TextStyle(color: Colors.white54, fontSize: 13),
+                        ),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(Icons.schedule, size: 12, color: Color(0xFF10B981)),
+                            const SizedBox(width: 4),
+                            Text(
+                              _formatRelativeTime(property.listedAt),
+                              style: const TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.w600),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -655,17 +681,30 @@ class _AuditDocumentSheet extends StatelessWidget {
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: ElevatedButton.icon(
-                      onPressed: busy ? null : onApprove,
-                      icon: busy
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.verified, size: 16),
-                      label: Text(busy ? 'Processing...' : 'Grant VERIFIED', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF10B981),
-                        foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFF10B981).withAlpha(80),
+                            blurRadius: 16,
+                            spreadRadius: 0,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: ElevatedButton.icon(
+                        onPressed: busy ? null : onApprove,
+                        icon: busy
+                            ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                            : const Icon(Icons.verified, size: 16),
+                        label: Text(busy ? 'Processing...' : 'Grant VERIFIED', style: const TextStyle(fontWeight: FontWeight.bold)),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF10B981),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
                       ),
                     ),
                   ),
