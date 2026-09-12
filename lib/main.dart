@@ -145,7 +145,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _onMainTabChanged() {
-    if (mounted && _currentIndex != mainTabNotifier.value) {
+    if (mounted) {
       setState(() {
         _currentIndex = mainTabNotifier.value;
       });
@@ -284,7 +284,10 @@ class _HomePageState extends State<HomePage> {
     final color = selected ? Colors.white : Colors.grey[700];
     return Expanded(
       child: InkWell(
-        onTap: () => setState(() => _currentIndex = index),
+        onTap: () {
+          mainTabNotifier.value = index;
+          setState(() => _currentIndex = index);
+        },
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           mainAxisSize: MainAxisSize.min,
@@ -538,10 +541,12 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     if (_prefBudget != null) {
       final b = _prefBudget!;
       if (b.contains('Under 15') && p.price < 15000) score += 10;
-      if (b.contains('15k – 30k') && p.price >= 15000 && p.price <= 30000)
+      if (b.contains('15k – 30k') && p.price >= 15000 && p.price <= 30000) {
         score += 10;
-      if (b.contains('30k – 60k') && p.price >= 30000 && p.price <= 60000)
+      }
+      if (b.contains('30k – 60k') && p.price >= 30000 && p.price <= 60000) {
         score += 10;
+      }
       if (b.contains('60,000+') && p.price >= 60000) score += 10;
     }
 
