@@ -49,12 +49,14 @@ class Property {
   final String? imageUrl;
   final bool verified;
   final bool gpsVerified;
+  final bool documentVerified;
   final bool communityVerified;
   final String status;
   final double? latitude;
   final double? longitude;
   final User? owner;
   final List<String> imageUrls;
+  final List<String> documentUrls;
   final double averageRating;
   final int reviewCount;
   final int reportCount;
@@ -117,12 +119,14 @@ class Property {
     this.imageUrl,
     this.verified = false,
     this.gpsVerified = false,
+    this.documentVerified = false,
     this.communityVerified = false,
     this.status = 'PUBLISHED',
     this.latitude,
     this.longitude,
     this.owner,
     this.imageUrls = const [],
+    this.documentUrls = const [],
     this.averageRating = 0.0,
     this.reviewCount = 0,
     this.reportCount = 0,
@@ -183,12 +187,14 @@ class Property {
       imageUrl: json['imageUrl']?.toString(),
       verified: json['verified'] ?? false,
       gpsVerified: json['gpsVerified'] ?? false,
+      documentVerified: json['documentVerified'] ?? false,
       communityVerified: json['communityVerified'] ?? false,
       status: json['status'] ?? 'PUBLISHED',
       latitude: (json['latitude'] as num?)?.toDouble(),
       longitude: (json['longitude'] as num?)?.toDouble(),
       owner: json['owner'] is Map<String, dynamic> ? User.fromJson(json['owner']) : null,
       imageUrls: json['imageUrls'] is List ? (json['imageUrls'] as List).map((e) => e.toString()).toList() : [],
+      documentUrls: json['documentUrls'] is List ? (json['documentUrls'] as List).map((e) => e.toString()).toList() : [],
       averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
       reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
       reportCount: (json['reportCount'] as num?)?.toInt() ?? 0,
@@ -271,11 +277,13 @@ class Property {
       'imageUrl': imageUrl,
       'verified': verified,
       'gpsVerified': gpsVerified,
+      'documentVerified': documentVerified,
       'communityVerified': communityVerified,
       'status': status,
       'latitude': latitude,
       'longitude': longitude,
       'imageUrls': imageUrls,
+      'documentUrls': documentUrls,
       'videoUrl': videoUrl,
       'houseType': houseType,
       'bathrooms': bathrooms,
