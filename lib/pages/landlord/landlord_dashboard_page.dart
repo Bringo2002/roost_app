@@ -5,6 +5,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
+import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
 
 class LandlordDashboardPage extends StatefulWidget {
   const LandlordDashboardPage({super.key});
@@ -255,6 +256,71 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     );
   }
 
+  Widget _buildVerificationCenterBanner() {
+    final verifiedCount = _myListings.where((p) => p.verified).length;
+    final totalCount = _myListings.length;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        gradient: const LinearGradient(
+          colors: [Color(0xFF064E3B), Color(0xFF0F172A)],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF10B981).withAlpha(100)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: const BoxDecoration(
+              color: Color(0x3010B981),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.verified_user, color: Color(0xFF10B981), size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Landlord Verification Center',
+                  style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  totalCount == 0
+                      ? 'Complete account & listing proof checks'
+                      : '$verifiedCount/$totalCount Listings Fully Verified',
+                  style: const TextStyle(color: Colors.white70, fontSize: 12),
+                ),
+              ],
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const LandlordVerificationHubPage()),
+              ).then((_) => _loadListings());
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            ),
+            child: const Text('Manage', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -273,6 +339,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
               child: ListView(
                 padding: const EdgeInsets.all(16),
                 children: [
+                  _buildVerificationCenterBanner(),
                   _buildStatsHeader(),
                   if (_myListings.isEmpty)
                     SizedBox(

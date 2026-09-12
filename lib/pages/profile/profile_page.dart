@@ -3,6 +3,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
+import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
 import 'package:roost_app/pages/admin/admin_flagged_listings_page.dart';
 import 'package:roost_app/pages/admin/admin_pending_verifications_page.dart';
 import 'package:roost_app/pages/profile/saved_page.dart';
@@ -204,11 +205,14 @@ class _ProfilePageState extends State<ProfilePage> {
                 Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedPage()));
               }),
 
-              if (isLandlord)
+              if (isLandlord) ...[
+                _buildMenuItem(Icons.verified_user_outlined, 'Landlord Verification Center', () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordVerificationHubPage()));
+                }),
                 _buildMenuItem(Icons.holiday_village_outlined, 'My Listed Properties', () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordDashboardPage()));
-                })
-              else
+                }),
+              ] else
                 _buildMenuItem(Icons.add_home_work_outlined, 'List Your Property', _becomeLandlord),
 
               if (isAdmin)
