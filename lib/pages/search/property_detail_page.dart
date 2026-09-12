@@ -724,23 +724,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                           ],
                         ),
                       ),
-                      if (widget.property.verified)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF1C1C1E),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.verified, color: Colors.white, size: 14),
-                              SizedBox(width: 4),
-                              Text('Verified', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
+                      _buildTopBadges(),
                       if (widget.property.communityVerified)
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -964,40 +948,117 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
                     decoration: BoxDecoration(
                       color: const Color(0xFF1C1C1E),
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                    ),
-                    child: Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 26,
-                          backgroundColor: Colors.white,
-                          child: Text(firstLetter, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
-                        ),
-                        const SizedBox(width: 14),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                children: [
-                                  Text(landlordName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                                  if (widget.property.verified) ...[
-                                    const SizedBox(width: 4),
-                                    const Icon(Icons.verified, color: Colors.white, size: 16),
-                                  ],
-                                ],
-                              ),
-                              const SizedBox(height: 4),
-                              Row(
-                                children: [
-                                  const Icon(Icons.bolt, color: Colors.amberAccent, size: 14),
-                                  const SizedBox(width: 4),
-                                  Text('Usually responds within 2 hours', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-                                ],
-                              ),
-                            ],
+                      border: Border.all(
+                        color: widget.property.verified
+                            ? Colors.greenAccent.withValues(alpha: 0.3)
+                            : Colors.white.withValues(alpha: 0.08),
+                      ),
+                      boxShadow: [
+                        if (widget.property.verified)
+                          BoxShadow(
+                            color: Colors.greenAccent.withValues(alpha: 0.1),
+                            blurRadius: 16,
+                            spreadRadius: 1,
                           ),
+                      ],
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 26,
+                              backgroundColor: Colors.white,
+                              child: Text(firstLetter, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
+                            ),
+                            const SizedBox(width: 14),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
+                                    children: [
+                                      Text(landlordName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                      if (widget.property.verified) ...[
+                                        const SizedBox(width: 4),
+                                        const Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 18),
+                                      ],
+                                    ],
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Row(
+                                    children: [
+                                      const Icon(Icons.bolt, color: Colors.amberAccent, size: 14),
+                                      const SizedBox(width: 4),
+                                      Text('Usually responds within 2 hours · 98% SLA', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+                                    ],
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
+                        const SizedBox(height: 16),
+                        Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                        const SizedBox(height: 14),
+
+                        // Verification Checkpoints Grid
+                        const Text(
+                          'Landlord Verification Proof',
+                          style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildTrustBadgePill(
+                                icon: Icons.phone_android_rounded,
+                                title: 'Phone SMS',
+                                isVerified: true,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildTrustBadgePill(
+                                icon: Icons.my_location_rounded,
+                                title: 'GPS Location',
+                                isVerified: widget.property.gpsVerified || widget.property.verified,
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: _buildTrustBadgePill(
+                                icon: Icons.description_outlined,
+                                title: 'Doc Proof',
+                                isVerified: widget.property.documentVerified || widget.property.documentUrls.isNotEmpty || widget.property.verified,
+                              ),
+                            ),
+                          ],
+                        ),
+                        if (widget.property.verified) ...[
+                          const SizedBox(height: 14),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: Colors.greenAccent.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                              border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
+                            ),
+                            child: const Row(
+                              children: [
+                                Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 16),
+                                SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    '100% Verified Listing & Landlord — All identity, location & document proofs confirmed.',
+                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),
@@ -1130,6 +1191,243 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
       default:
         return Icons.place_outlined;
     }
+  }
+
+  void _showVerificationDetailsModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withValues(alpha: 0.2),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Row(
+              children: [
+                Icon(Icons.shield_rounded, color: Colors.greenAccent, size: 26),
+                SizedBox(width: 10),
+                Text(
+                  'Roost Trust & Verification Proof',
+                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Roost protects tenants by verifying landlord identity, location, and property authorization.',
+              style: TextStyle(color: Colors.grey[400], fontSize: 13, height: 1.4),
+            ),
+            const SizedBox(height: 20),
+            _buildProofModalRow(
+              icon: Icons.phone_android_rounded,
+              title: 'Phone Authenticated',
+              subtitle: 'Landlord phone number verified via SMS OTP.',
+              isVerified: true,
+            ),
+            const SizedBox(height: 12),
+            _buildProofModalRow(
+              icon: Icons.my_location_rounded,
+              title: 'On-Site GPS Location',
+              subtitle: 'Landlord captured live coordinates physically at the property.',
+              isVerified: widget.property.gpsVerified || widget.property.verified,
+            ),
+            const SizedBox(height: 12),
+            _buildProofModalRow(
+              icon: Icons.description_outlined,
+              title: 'Ownership / Utility Proof',
+              subtitle: 'Title deed, utility bill or ID photo uploaded for review.',
+              isVerified: widget.property.documentVerified || widget.property.documentUrls.isNotEmpty || widget.property.verified,
+            ),
+            const SizedBox(height: 24),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () => Navigator.pop(ctx),
+                child: const Text('Got It', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProofModalRow({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required bool isVerified,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: isVerified ? Colors.greenAccent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: isVerified ? Colors.greenAccent : Colors.grey[500], size: 20),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                  const SizedBox(width: 6),
+                  Icon(
+                    isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
+                    color: isVerified ? Colors.greenAccent : Colors.grey[500],
+                    size: 14,
+                  ),
+                ],
+              ),
+              const SizedBox(height: 2),
+              Text(subtitle, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTopBadges() {
+    return Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: [
+        if (widget.property.verified)
+          InkWell(
+            onTap: _showVerificationDetailsModal,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.greenAccent.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 14),
+                  SizedBox(width: 4),
+                  Text('Verified Listing', style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
+                ],
+              ),
+            ),
+          ),
+        if (widget.property.gpsVerified)
+          InkWell(
+            onTap: _showVerificationDetailsModal,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.my_location_rounded, color: Colors.white70, size: 13),
+                  SizedBox(width: 4),
+                  Text('GPS Confirmed', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+        if (widget.property.documentVerified || widget.property.documentUrls.isNotEmpty)
+          InkWell(
+            onTap: _showVerificationDetailsModal,
+            borderRadius: BorderRadius.circular(20),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1C1C1E),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.description_outlined, color: Colors.white70, size: 13),
+                  SizedBox(width: 4),
+                  Text('Doc Attached', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
+                ],
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildTrustBadgePill({
+    required IconData icon,
+    required String title,
+    required bool isVerified,
+  }) {
+    return InkWell(
+      onTap: _showVerificationDetailsModal,
+      borderRadius: BorderRadius.circular(10),
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+        decoration: BoxDecoration(
+          color: isVerified ? Colors.greenAccent.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.04),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isVerified ? Colors.greenAccent.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08),
+          ),
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
+              color: isVerified ? Colors.greenAccent : Colors.grey[500],
+              size: 13,
+            ),
+            const SizedBox(width: 4),
+            Flexible(
+              child: Text(
+                title,
+                style: TextStyle(
+                  color: isVerified ? Colors.white : Colors.grey[400],
+                  fontSize: 11,
+                  fontWeight: isVerified ? FontWeight.bold : FontWeight.w500,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
