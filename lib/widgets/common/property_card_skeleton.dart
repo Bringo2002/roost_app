@@ -16,26 +16,25 @@ class PropertyCardSkeleton extends StatelessWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1C1C1E),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
-        boxShadow: [
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.3),
-            blurRadius: 20,
-            offset: const Offset(0, 8),
+            color: Color(0x28000000),
+            blurRadius: 16,
+            offset: Offset(0, 6),
           ),
         ],
       ),
       clipBehavior: Clip.antiAlias,
       child: Shimmer.fromColors(
-        baseColor: const Color(0xFF1C1C1E),
-        highlightColor: const Color(0xFF2C2C2E),
+        baseColor: const Color(0xFF2C2C2E),
+        highlightColor: const Color(0xFF3A3A3C),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
             // Image placeholder
             Container(
-              height: 185,
+              height: 180,
               width: double.infinity,
               color: const Color(0xFF2C2C2E),
             ),
@@ -45,12 +44,12 @@ class PropertyCardSkeleton extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Title + availability pill
+                  // Title + availability dot
                   Row(
                     children: [
                       _block(width: 180, height: 17),
                       const Spacer(),
-                      _block(width: 60, height: 18),
+                      _block(width: 46, height: 14),
                     ],
                   ),
                   const SizedBox(height: 10),
@@ -59,39 +58,31 @@ class PropertyCardSkeleton extends StatelessWidget {
                   _block(width: 140, height: 13),
                   const SizedBox(height: 12),
 
-                  // Price + house type badge
+                  // Price + badge
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _block(width: 120, height: 20),
-                      _block(width: 65, height: 22),
+                      _block(width: 110, height: 18),
+                      _block(width: 58, height: 24),
                     ],
                   ),
                   const SizedBox(height: 12),
 
-                  // Amenity chips row
-                  Row(
-                    children: [
-                      _block(width: 55, height: 16),
-                      const SizedBox(width: 6),
-                      _block(width: 55, height: 16),
-                      const SizedBox(width: 6),
-                      _block(width: 45, height: 16),
-                    ],
-                  ),
+                  // Beds / baths
+                  _block(width: 160, height: 13),
                   const SizedBox(height: 14),
 
-                  Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
+                  const Divider(height: 1, color: Color(0xFF2C2C2E)),
                   const SizedBox(height: 12),
 
-                  // Action buttons: 2 icon squares + 1 primary CTA
+                  // Action buttons
                   Row(
                     children: [
-                      _block(width: 40, height: 40),
+                      Expanded(child: _block(height: 36)),
                       const SizedBox(width: 8),
-                      _block(width: 40, height: 40),
-                      const SizedBox(width: 10),
-                      Expanded(child: _block(height: 40)),
+                      Expanded(child: _block(height: 36)),
+                      const SizedBox(width: 8),
+                      Expanded(child: _block(height: 36)),
                     ],
                   ),
                 ],
@@ -109,7 +100,7 @@ class PropertyCardSkeleton extends StatelessWidget {
       height: height,
       decoration: BoxDecoration(
         color: const Color(0xFF2C2C2E),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(6),
       ),
     );
   }
