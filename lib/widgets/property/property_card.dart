@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/chat/chat_room_page.dart';
@@ -40,6 +41,7 @@ class PropertyCard extends StatefulWidget {
 
 class _PropertyCardState extends State<PropertyCard> {
   Property get property => widget.property;
+  bool _pressed = false;
 
   List<String> get _galleryUrls {
     final urls = <String>[];
@@ -52,6 +54,12 @@ class _PropertyCardState extends State<PropertyCard> {
       }
     }
     return urls;
+  }
+
+  void _handleFavoriteTap() {
+    if (widget.onFavoriteTap == null) return;
+    HapticFeedback.lightImpact();
+    widget.onFavoriteTap!();
   }
 
   void _callLandlord() async {
@@ -93,13 +101,25 @@ class _PropertyCardState extends State<PropertyCard> {
     final formattedPrice = CountryService.pricePerMonth(property.price);
 
     return GestureDetector(
-      onTap: widget.onTap ?? () {
-        Navigator.push(
-          context,
-          MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
-        );
+      onTapDown: (_) => setState(() => _pressed = true),
+      onTapUp: (_) => setState(() => _pressed = false),
+      onTapCancel: () => setState(() => _pressed = false),
+      onTap: () {
+        HapticFeedback.selectionClick();
+        if (widget.onTap != null) {
+          widget.onTap!();
+        } else {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
+          );
+        }
       },
-      child: Container(
+      child: AnimatedScale(
+        scale: _pressed ? 0.98 : 1.0,
+        duration: const Duration(milliseconds: 120),
+        curve: Curves.easeOut,
+        child: Container(
         margin: widget.margin,
         decoration: BoxDecoration(
           color: const Color(0xFF1C1C1E),
@@ -131,17 +151,24 @@ class _PropertyCardState extends State<PropertyCard> {
                     top: 10,
                     right: 10,
                     child: GestureDetector(
-                      onTap: widget.onFavoriteTap,
+                      onTap: _handleFavoriteTap,
                       child: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
                           color: Colors.black.withValues(alpha: 0.6),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
-                          widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: widget.isFavorite ? Colors.redAccent : Colors.white,
-                          size: 20,
+                        child: TweenAnimationBuilder<double>(
+                          key: ValueKey(widget.isFavorite),
+                          tween: Tween(begin: 0.6, end: 1.0),
+                          duration: const Duration(milliseconds: 250),
+                          curve: Curves.elasticOut,
+                          builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+                          child: Icon(
+                            widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: widget.isFavorite ? Colors.redAccent : Colors.white,
+                            size: 20,
+                          ),
                         ),
                       ),
                     ),
@@ -191,28 +218,30 @@ class _PropertyCardState extends State<PropertyCard> {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             color: Colors.white,
-                            fontSize: 17,
-                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
-                      Container(
-                        width: 8,
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: property.available ? Colors.white : Colors.grey[700],
-                          shape: BoxShape.circle,
+                      if (!property.available) ...[
+                        Container(
+                          width: 8,
+                          height: 8,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[700],
+                            shape: BoxShape.circle,
+                          ),
                         ),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        property.available ? 'Avail' : 'Taken',
-                        style: TextStyle(
-                          color: property.available ? Colors.white : Colors.grey[500],
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
+                        const SizedBox(width: 4),
+                        Text(
+                          'Taken',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                            fontSize: 11,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                      ),
+                      ],
                     ],
                   ),
 
@@ -251,7 +280,7 @@ class _PropertyCardState extends State<PropertyCard> {
                         formattedPrice,
                         style: const TextStyle(
                           color: Colors.white,
-                          fontSize: 18,
+                          fontSize: 22,
                           fontWeight: FontWeight.w900,
                         ),
                       ),
@@ -380,6 +409,7 @@ class _PropertyCardState extends State<PropertyCard> {
               ),
             ),
           ],
+        ),
         ),
       ),
     );
