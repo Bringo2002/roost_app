@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' show min;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
@@ -116,7 +117,7 @@ class HomePage extends StatefulWidget {
   State<HomePage> createState() => _HomePageState();
 }
 
-class _HomePageState extends State<HomePage> {
+class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   String _userRole = 'TENANT';
   int _unreadCount = 0;
@@ -135,6 +136,7 @@ class _HomePageState extends State<HomePage> {
       const ProfilePage(),
     ];
     mainTabNotifier.addListener(_onMainTabChanged);
+    WidgetsBinding.instance.addObserver(this);
     _loadUserRole();
     _startUnreadPolling();
     PushNotificationService.initialize();
@@ -143,8 +145,21 @@ class _HomePageState extends State<HomePage> {
   @override
   void dispose() {
     mainTabNotifier.removeListener(_onMainTabChanged);
+    WidgetsBinding.instance.removeObserver(this);
     _unreadTimer?.cancel();
     super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Polling every 60s is wasted battery/network while the app is
+    // backgrounded -- nobody sees the badge update until they reopen it
+    // anyway, at which point resuming fetches immediately.
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+      _unreadTimer?.cancel();
+    } else if (state == AppLifecycleState.resumed) {
+      _startUnreadPolling();
+    }
   }
 
   void _onMainTabChanged() {
@@ -156,6 +171,7 @@ class _HomePageState extends State<HomePage> {
   }
 
   void _startUnreadPolling() {
+    _unreadTimer?.cancel();
     _fetchUnreadCount();
     _unreadTimer = Timer.periodic(const Duration(seconds: 60), (_) {
       _fetchUnreadCount();
@@ -185,11 +201,11 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.background,
       appBar: _currentIndex == 2
           ? AppBar(
               title: const Text('Messages'),
-              backgroundColor: Colors.black,
+              backgroundColor: AppColors.background,
               elevation: 0,
             )
           : null,
@@ -204,13 +220,13 @@ class _HomePageState extends State<HomePage> {
 
   Widget _buildPlainBar() {
     return Container(
-      color: Colors.black,
+      color: AppColors.background,
       child: SafeArea(
         top: false,
         bottom: true,
         child: Container(
-          decoration: BoxDecoration(
-            border: Border(top: BorderSide(color: Colors.grey[900]!, width: 1)),
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: AppColors.divider, width: 1)),
           ),
           height: 60,
           child: Row(
@@ -250,6 +266,7 @@ class _HomePageState extends State<HomePage> {
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
         onTap: () async {
+          HapticFeedback.mediumImpact();
           final result = await Navigator.push(
             context,
             MaterialPageRoute(builder: (_) => const ListingIntroPage()),
@@ -267,11 +284,11 @@ class _HomePageState extends State<HomePage> {
             width: 44,
             height: 32,
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: AppColors.white,
               borderRadius: BorderRadius.circular(10),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.white.withValues(alpha: 0.15),
+                  color: AppColors.white.withValues(alpha: 0.15),
                   blurRadius: 8,
                   offset: const Offset(0, 2),
                 ),
@@ -279,7 +296,7 @@ class _HomePageState extends State<HomePage> {
             ),
             child: const Icon(
               Icons.add_rounded,
-              color: Colors.black,
+              color: AppColors.black,
               size: 22,
             ),
           ),
@@ -296,10 +313,11 @@ class _HomePageState extends State<HomePage> {
     int badgeCount = 0,
   }) {
     final selected = _currentIndex == index;
-    final color = selected ? Colors.white : Colors.grey[700];
+    final color = selected ? AppColors.white : AppColors.grey700;
     return Expanded(
       child: InkWell(
         onTap: () {
+          if (_currentIndex != index) HapticFeedback.selectionClick();
           mainTabNotifier.value = index;
           setState(() => _currentIndex = index);
         },
@@ -310,19 +328,34 @@ class _HomePageState extends State<HomePage> {
             Stack(
               clipBehavior: Clip.none,
               children: [
-                Icon(selected ? activeIcon : icon, color: color, size: 24),
+                AnimatedScale(
+                  scale: selected ? 1.08 : 1.0,
+                  duration: const Duration(milliseconds: 180),
+                  curve: Curves.easeOut,
+                  child: AnimatedSwitcher(
+                    duration: const Duration(milliseconds: 150),
+                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+                    child: Icon(
+                      selected ? activeIcon : icon,
+                      key: ValueKey(selected),
+                      color: color,
+                      size: 24,
+                    ),
+                  ),
+                ),
                 if (badgeCount > 0) _buildUnreadBadge(badgeCount),
               ],
             ),
             const SizedBox(height: 2),
-            Text(
-              label,
+            AnimatedDefaultTextStyle(
+              duration: const Duration(milliseconds: 180),
               style: TextStyle(
                 color: color,
                 fontSize: 11,
                 fontWeight: selected ? FontWeight.w700 : FontWeight.normal,
                 letterSpacing: selected ? 0.5 : 0,
               ),
+              child: Text(label),
             ),
           ],
         ),
@@ -342,7 +375,7 @@ class _HomePageState extends State<HomePage> {
         ),
         constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
         child: Text(
-          '$count',
+          count > 99 ? '99+' : '$count',
           style: const TextStyle(
             color: AppColors.black,
             fontSize: 10,
