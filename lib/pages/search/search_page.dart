@@ -6,6 +6,8 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 
 /// Friendly display labels for the canonical backend house-type values,
@@ -801,79 +803,50 @@ class _SearchPageState extends State<SearchPage> {
                         children: [
                           Padding(
                             padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                Expanded(
-                                  child: TextField(
-                                    controller: _searchCtrl,
-                                    focusNode: _searchFocusNode,
-                                    style: const TextStyle(color: Colors.white),
-                                    textInputAction: TextInputAction.search,
-                                    onSubmitted: (_) {
-                                      _debounceTimer?.cancel();
-                                      _applyClientSideFilters();
-                                    },
-                                    decoration: InputDecoration(
-                                      hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
-                                      hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
-                                      prefixIcon: const Icon(Icons.search, color: Colors.white),
-                                      suffixIcon: ValueListenableBuilder<TextEditingValue>(
-                                        valueListenable: _searchCtrl,
-                                        builder: (context, value, _) {
-                                          if (value.text.isEmpty) return const SizedBox.shrink();
-                                          return IconButton(
-                                            icon: Icon(Icons.close, color: Colors.grey[500], size: 18),
-                                            onPressed: () {
-                                              _searchCtrl.clear();
-                                              _debounceTimer?.cancel();
-                                              _applyClientSideFilters();
-                                            },
-                                          );
-                                        },
-                                      ),
-                                      filled: true,
-                                      fillColor: const Color(0xFF1C1C1E),
-                                      border: OutlineInputBorder(
-                                        borderRadius: BorderRadius.circular(14),
-                                        borderSide: BorderSide.none,
-                                      ),
-                                    ),
+                            child: RoostSearchBar(
+                              controller: _searchCtrl,
+                              focusNode: _searchFocusNode,
+                              hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
+                              onSubmitted: (_) {
+                                _debounceTimer?.cancel();
+                                _applyClientSideFilters();
+                              },
+                              onClear: () {
+                                _debounceTimer?.cancel();
+                                _applyClientSideFilters();
+                              },
+                              trailing: GestureDetector(
+                                onTap: () => _showFilterBottomSheet(context),
+                                child: Container(
+                                  padding: const EdgeInsets.all(14),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.surfaceRaised,
+                                    borderRadius: BorderRadius.circular(14),
+                                    border: Border.all(color: AppColors.border),
                                   ),
-                                ),
-                                const SizedBox(width: 10),
-                                GestureDetector(
-                                  onTap: () => _showFilterBottomSheet(context),
-                                  child: Container(
-                                    padding: const EdgeInsets.all(14),
-                                    decoration: BoxDecoration(
-                                      color: const Color(0xFF1C1C1E),
-                                      borderRadius: BorderRadius.circular(14),
-                                      border: Border.all(color: Colors.grey[900]!),
-                                    ),
-                                    child: Stack(
-                                      clipBehavior: Clip.none,
-                                      children: [
-                                        const Icon(Icons.tune, color: Colors.white),
-                                        if (_activeFilterCount > 0)
-                                          Positioned(
-                                            right: -4,
-                                            top: -4,
-                                            child: Container(
-                                              width: 16,
-                                              height: 16,
-                                              alignment: Alignment.center,
-                                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                              child: Text(
-                                                '$_activeFilterCount',
-                                                style: const TextStyle(color: Colors.black, fontSize: 10, fontWeight: FontWeight.bold),
-                                              ),
+                                  child: Stack(
+                                    clipBehavior: Clip.none,
+                                    children: [
+                                      const Icon(Icons.tune, color: AppColors.white),
+                                      if (_activeFilterCount > 0)
+                                        Positioned(
+                                          right: -4,
+                                          top: -4,
+                                          child: Container(
+                                            width: 16,
+                                            height: 16,
+                                            alignment: Alignment.center,
+                                            decoration: const BoxDecoration(color: AppColors.white, shape: BoxShape.circle),
+                                            child: Text(
+                                              '$_activeFilterCount',
+                                              style: const TextStyle(color: AppColors.black, fontSize: 10, fontWeight: FontWeight.bold),
                                             ),
                                           ),
-                                      ],
-                                    ),
+                                        ),
+                                    ],
                                   ),
                                 ),
-                              ],
+                              ),
                             ),
                           ),
                           _buildVerificationQuickFiltersRow(),

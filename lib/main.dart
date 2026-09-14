@@ -31,6 +31,7 @@ import 'package:roost_app/services/push_notification_service.dart';
 import 'package:roost_app/services/navigator_key.dart';
 import 'package:roost_app/widgets/common/property_card_skeleton.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
+import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -381,6 +382,17 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   double _lastScrollOffset = 0;
   Timer? _debounceTimer;
 
+  // Pagination -- this feed used to fetch every property in the catalog
+  // in one unbounded call. That's fine at a few hundred listings and a
+  // real scalability problem beyond that: payload size and load time
+  // grow forever as the catalog grows. This now windows through
+  // /api/properties/filter the same way the dedicated Search page
+  // already does, 20 at a time.
+  static const int _pageSize = 20;
+  int _nextPage = 0;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+
   String? _prefHouseType;
   String? _prefBudget;
   String? _prefTimeframe;
@@ -430,6 +442,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
         }
       }
       _lastScrollOffset = currentOffset;
+
+      if (!_hasMore || _loadingMore || loading) return;
+      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
+        _fetchProperties(loadMore: true);
+      }
     }
   }
 
@@ -467,6 +484,12 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   /// Fetches the device location in the background and re-ranks the feed
   /// once it resolves. Runs independently of _loadData so the feed never
   /// waits on location permission before showing properties.
+  ///
+  /// Re-fetches from page 0 (not just a client re-sort) once location
+  /// resolves, since the server now orders by distance once lat/lng is
+  /// present -- re-sorting only the already-loaded pages client-side
+  /// would leave page boundaries inconsistent with the new server order,
+  /// the same page-boundary issue SearchPage's own fetch avoids.
   Future<void> _loadUserPosition() async {
     final position = await LocationService.getCurrentPosition();
     if (!mounted || position == null) return;
@@ -475,8 +498,10 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     setState(() {
       _userPosition = position;
       _userNeighborhood = neighborhood;
+      _nextPage = 0;
+      _hasMore = true;
     });
-    _filterProperties();
+    await _fetchProperties();
   }
 
   /// Distance from the user to [p] in km, or null if either the user's
@@ -490,30 +515,62 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     return LocationService.distanceKm(pos.latitude, pos.longitude, lat, lng);
   }
 
-  Future<void> _fetchProperties() async {
+  /// Query string for GET /api/properties/filter -- mirrors
+  /// SearchPage._buildFilterQuery, minus the filter-sheet-only params
+  /// this feed doesn't have (price range, amenities, verified-only).
+  /// Sending lat/lng (once resolved) asks the server to order by
+  /// distance, matching what the client-side relevance pass already
+  /// weights most heavily.
+  String _buildQuery(int page) {
+    final params = <String, String>{'page': '$page', 'size': '$_pageSize'};
+    final pos = _userPosition;
+    if (pos != null) {
+      params['lat'] = '${pos.latitude}';
+      params['lng'] = '${pos.longitude}';
+    }
+    return params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+  }
+
+  Future<void> _fetchProperties({bool loadMore = false}) async {
+    if (loadMore) {
+      if (!_hasMore || _loadingMore) return;
+      setState(() => _loadingMore = true);
+    }
+
+    final pageToFetch = loadMore ? _nextPage : 0;
+
     try {
-      final jsonList = await ApiService.get('/api/properties');
+      final query = _buildQuery(pageToFetch);
+      final jsonList = await ApiService.get('/api/properties/filter?$query');
       if (!mounted) return;
+      final props = (jsonList as List).map((json) => Property.fromJson(json)).toList();
       setState(() {
-        properties =
-            (jsonList as List).map((json) => Property.fromJson(json)).toList();
-        filtered = properties;
+        properties = loadMore ? [...properties, ...props] : props;
+        _hasMore = props.length == _pageSize;
+        _nextPage = pageToFetch + 1;
         _error = null;
         loading = false;
+        _loadingMore = false;
       });
       _filterProperties();
     } catch (e) {
       if (!mounted) return;
       setState(() {
         loading = false;
-        _error =
-            e.toUserMessage('Failed to load properties. Please try again.');
+        _loadingMore = false;
+        // A failed "load more" leaves existing results on screen; only
+        // a failed initial load shows the full-page error state.
+        if (!loadMore) {
+          _error = e.toUserMessage('Failed to load properties. Please try again.');
+        }
       });
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(
-          content: Text(e
-              .toUserMessage('Failed to load properties. Please try again.'))));
+      if (!loadMore) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(
+            content: Text(e
+                .toUserMessage('Failed to load properties. Please try again.'))));
+      }
     }
   }
 
@@ -603,6 +660,15 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
           return a.price.compareTo(b.price);
         });
     });
+
+    // A text search or type filter can leave too little on screen to
+    // fill the viewport even though more pages exist server-side --
+    // keep pulling pages until either the filtered set is big enough or
+    // the server runs out, the same sparse-results handling
+    // SearchPage's own client-side filtering pass already does.
+    if (filtered.length < _pageSize && _hasMore && !_loadingMore && !loading) {
+      _fetchProperties(loadMore: true);
+    }
   }
 
   // ── Premium loading state — shimmer skeleton + header ──────────────────
@@ -714,65 +780,12 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       _buildBrandedHeader(),
-                      AnimatedContainer(
-                        duration: const Duration(milliseconds: 200),
-                        margin: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.grey[900],
-                          borderRadius: BorderRadius.circular(24),
-                          border: Border.all(
-                            color: _isSearchFocused
-                                ? Colors.white.withValues(alpha: 0.5)
-                                : Colors.grey[800]!,
-                            width: _isSearchFocused ? 1.5 : 0.5,
-                          ),
-                        ),
-                        child: Row(
-                          children: [
-                            const SizedBox(width: 16),
-                            Icon(Icons.search,
-                                color: Colors.grey[500], size: 20),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: searchController,
-                                focusNode: _searchFocus,
-                                style: const TextStyle(
-                                    color: Colors.white, fontSize: 15),
-                                decoration: InputDecoration(
-                                  hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
-                                  hintStyle: TextStyle(
-                                    color: Colors.grey[600],
-                                    fontSize: 15,
-                                  ),
-                                  border: InputBorder.none,
-                                  contentPadding: EdgeInsets.zero,
-                                  isDense: true,
-                                ),
-                              ),
-                            ),
-                            ValueListenableBuilder<TextEditingValue>(
-                              valueListenable: searchController,
-                              builder: (context, value, _) {
-                                if (value.text.isEmpty) {
-                                  return const SizedBox(width: 16);
-                                }
-                                return GestureDetector(
-                                  onTap: searchController.clear,
-                                  child: Padding(
-                                    padding: const EdgeInsets.symmetric(
-                                        horizontal: 12),
-                                    child: Icon(
-                                      Icons.close,
-                                      color: Colors.grey[500],
-                                      size: 18,
-                                    ),
-                                  ),
-                                );
-                              },
-                            ),
-                          ],
+                      Padding(
+                        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+                        child: RoostSearchBar(
+                          controller: searchController,
+                          focusNode: _searchFocus,
+                          hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
                         ),
                       ),
                     ],
@@ -814,9 +827,23 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                       onRefresh: _loadData,
                       child: ListView.builder(
                         controller: _scrollController,
-                        itemCount: filtered.length,
+                        itemCount: filtered.length + (_hasMore ? 1 : 0),
                         padding: const EdgeInsets.only(bottom: 80),
                         itemBuilder: (context, index) {
+                          if (index >= filtered.length) {
+                            return Padding(
+                              padding: const EdgeInsets.symmetric(vertical: 24),
+                              child: Center(
+                                child: _loadingMore
+                                    ? const SizedBox(
+                                        width: 24,
+                                        height: 24,
+                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      )
+                                    : const SizedBox.shrink(),
+                              ),
+                            );
+                          }
                           final property = filtered[index];
                           final km = _distanceKmTo(property);
                           return _StaggeredListItem(
