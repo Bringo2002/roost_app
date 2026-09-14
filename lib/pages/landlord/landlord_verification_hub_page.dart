@@ -3,6 +3,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
+import 'package:roost_app/pages/landlord/endorsement_page.dart';
 
 class LandlordVerificationHubPage extends StatefulWidget {
   const LandlordVerificationHubPage({super.key});
@@ -143,6 +144,10 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                     children: [
                       // FAANG Hero Tier Header Banner
                       _buildHeroTierCard(overallTier),
+
+                      const SizedBox(height: 20),
+
+                      _buildEndorsementCard(),
 
                       const SizedBox(height: 24),
 
@@ -669,6 +674,72 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                   style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.35),
                 ),
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEndorsementCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF1C1C1E),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF00C896).withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: const Color(0xFF00C896).withValues(alpha: 0.15),
+              shape: BoxShape.circle,
+            ),
+            child: const Icon(Icons.verified_user, color: Color(0xFF00C896), size: 24),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Endorse a Caretaker',
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  'Have an endorsement code from your caretaker? Review & grant official trust badge.',
+                  style: TextStyle(color: Colors.grey[400], fontSize: 11, height: 1.3),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: () async {
+              await Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const EndorsementPage()),
+              );
+              _fetchVerificationData();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF00C896),
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            ),
+            child: const Text(
+              'Endorse',
+              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
             ),
           ),
         ],

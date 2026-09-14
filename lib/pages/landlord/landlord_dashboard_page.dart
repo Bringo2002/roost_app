@@ -6,6 +6,8 @@ import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
 import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
+import 'package:roost_app/pages/landlord/endorsement_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class LandlordDashboardPage extends StatefulWidget {
   const LandlordDashboardPage({super.key});
@@ -217,6 +219,37 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       }
     } finally {
       if (mounted) setState(() => _busyIds.remove(property.id));
+    }
+  }
+
+  void _shareLandlordEndorsement(Property property) async {
+    final token = property.endorsementToken ?? '';
+    final ownerPhone = (property.ownerVerifyPhone ?? '').replaceAll(' ', '');
+    final ownerName = property.ownerVerifyName ?? 'Landlord';
+    final title = property.title;
+
+    final msg = Uri.encodeComponent(
+      'Hi $ownerName, I listed $title on Roost. Please open the link below to confirm me as your caretaker & grant the Landlord Endorsement trust badge:\n\nhttps://roost.app/endorse?token=$token',
+    );
+
+    final cleanPhone = ownerPhone.replaceAll('+', '');
+    final whatsappUri = Uri.parse('https://wa.me/$cleanPhone?text=$msg');
+
+    if (cleanPhone.isNotEmpty && await canLaunchUrl(whatsappUri)) {
+      await launchUrl(whatsappUri, mode: LaunchMode.externalApplication);
+    } else {
+      if (mounted) {
+        final result = await Navigator.push<Property>(
+          context,
+          MaterialPageRoute(
+            builder: (_) => EndorsementPage(
+              initialToken: token,
+              property: property,
+            ),
+          ),
+        );
+        if (result != null) _loadListings();
+      }
     }
   }
 
@@ -542,6 +575,90 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
                                       const Text(
                                         'Stand at the property and tap to verify location',
                                         style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w600),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                              if (!property.isDirectLandlord) ...[
+                                const SizedBox(height: 10),
+                                Container(
+                                  padding: const EdgeInsets.all(10),
+                                  decoration: BoxDecoration(
+                                    color: property.landlordEndorsed
+                                        ? const Color(0xFF00C896).withValues(alpha: 0.1)
+                                        : Colors.amber.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(10),
+                                    border: Border.all(
+                                      color: property.landlordEndorsed
+                                          ? const Color(0xFF00C896).withValues(alpha: 0.3)
+                                          : Colors.amber.withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Row(
+                                    children: [
+                                      Icon(
+                                        property.landlordEndorsed ? Icons.verified : Icons.mark_email_unread_outlined,
+                                        color: property.landlordEndorsed ? const Color(0xFF00C896) : Colors.amber,
+                                        size: 16,
+                                      ),
+                                      const SizedBox(width: 8),
+                                      Expanded(
+                                        child: Text(
+                                          property.landlordEndorsed
+                                              ? 'Landlord Endorsed Listing'
+                                              : 'Pending Owner Endorsement',
+                                          style: TextStyle(
+                                            color: property.landlordEndorsed ? const Color(0xFF00C896) : Colors.amber,
+                                            fontSize: 12,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
+                                      GestureDetector(
+                                        onTap: () async {
+                                          if (property.landlordEndorsed) {
+                                            Navigator.push(
+                                              context,
+                                              MaterialPageRoute(
+                                                builder: (_) => EndorsementPage(
+                                                  initialToken: property.endorsementToken,
+                                                  property: property,
+                                                ),
+                                              ),
+                                            );
+                                          } else {
+                                            _shareLandlordEndorsement(property);
+                                          }
+                                        },
+                                        child: Container(
+                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                                          decoration: BoxDecoration(
+                                            color: property.landlordEndorsed
+                                                ? const Color(0xFF00C896)
+                                                : Colors.amber,
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          child: Row(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Icon(
+                                                property.landlordEndorsed ? Icons.check_circle : Icons.share,
+                                                color: Colors.black,
+                                                size: 12,
+                                              ),
+                                              const SizedBox(width: 4),
+                                              Text(
+                                                property.landlordEndorsed ? 'View Badge' : 'Send Link',
+                                                style: const TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
                                       ),
                                     ],
                                   ),
