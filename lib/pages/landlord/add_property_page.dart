@@ -21,6 +21,7 @@ class _Amenity {
     required this.icon,
     required this.color,
   });
+
   final String key;
   final String label;
   final IconData icon;
@@ -29,38 +30,142 @@ class _Amenity {
 
 const _amenities = <_Amenity>[
   // Comfort & Essentials
-  _Amenity(key: 'furnished',   label: 'Furnished',             icon: Icons.chair_outlined,                  color: Color(0xFF6C63FF)),
-  _Amenity(key: 'wifi',        label: 'WiFi / Fiber',           icon: Icons.wifi,                            color: Color(0xFF00C896)),
-  _Amenity(key: 'water',       label: '24hr Water / Borehole', icon: Icons.water_drop_outlined,             color: Color(0xFF29B6F6)),
-  _Amenity(key: 'generator',   label: 'Backup Generator',      icon: Icons.power_outlined,                  color: Color(0xFFFFB74D)),
-  _Amenity(key: 'solar',       label: 'Solar Water Heater',    icon: Icons.wb_sunny_outlined,               color: Color(0xFFFFD54F)),
-  _Amenity(key: 'ac',          label: 'Air Conditioning',      icon: Icons.ac_unit,                         color: Color(0xFF81D4FA)),
-  _Amenity(key: 'heating',     label: 'Heating',               icon: Icons.local_fire_department_outlined,  color: Color(0xFFFF8A65)),
-  _Amenity(key: 'laundry',     label: 'In-Unit Laundry',       icon: Icons.local_laundry_service_outlined,  color: Color(0xFF90CAF9)),
-  _Amenity(key: 'dstv',        label: 'DSTV / Cable TV',       icon: Icons.tv_outlined,                     color: Color(0xFFAB47BC)),
+  _Amenity(
+      key: 'furnished',
+      label: 'Furnished',
+      icon: Icons.chair_outlined,
+      color: Color(0xFF6C63FF)),
+  _Amenity(
+      key: 'wifi',
+      label: 'WiFi / Fiber',
+      icon: Icons.wifi,
+      color: Color(0xFF00C896)),
+  _Amenity(
+      key: 'water',
+      label: '24hr Water / Borehole',
+      icon: Icons.water_drop_outlined,
+      color: Color(0xFF29B6F6)),
+  _Amenity(
+      key: 'generator',
+      label: 'Backup Generator',
+      icon: Icons.power_outlined,
+      color: Color(0xFFFFB74D)),
+  _Amenity(
+      key: 'solar',
+      label: 'Solar Water Heater',
+      icon: Icons.wb_sunny_outlined,
+      color: Color(0xFFFFD54F)),
+  _Amenity(
+      key: 'ac',
+      label: 'Air Conditioning',
+      icon: Icons.ac_unit,
+      color: Color(0xFF81D4FA)),
+  _Amenity(
+      key: 'heating',
+      label: 'Heating',
+      icon: Icons.local_fire_department_outlined,
+      color: Color(0xFFFF8A65)),
+  _Amenity(
+      key: 'laundry',
+      label: 'In-Unit Laundry',
+      icon: Icons.local_laundry_service_outlined,
+      color: Color(0xFF90CAF9)),
+  _Amenity(
+      key: 'dstv',
+      label: 'DSTV / Cable TV',
+      icon: Icons.tv_outlined,
+      color: Color(0xFFAB47BC)),
 
   // Security & Building
-  _Amenity(key: 'security',    label: 'CCTV & Security',       icon: Icons.security,                        color: Color(0xFFFF9F43)),
-  _Amenity(key: 'fence',       label: 'Electric Fence',        icon: Icons.fence,                           color: Color(0xFFFF7043)),
-  _Amenity(key: 'intercom',    label: 'Intercom Access',       icon: Icons.doorbell_outlined,               color: Color(0xFFBA68C8)),
-  _Amenity(key: 'elevator',    label: 'Elevator / Lift',       icon: Icons.elevator_outlined,               color: Color(0xFF4DB6AC)),
-  _Amenity(key: 'parking',     label: 'Dedicated Parking',     icon: Icons.local_parking_outlined,          color: Color(0xFF4FC3F7)),
-  _Amenity(key: 'caretaker',   label: 'On-site Caretaker',     icon: Icons.person_pin_outlined,             color: Color(0xFFA1887F)),
+  _Amenity(
+      key: 'security',
+      label: 'CCTV & Security',
+      icon: Icons.security,
+      color: Color(0xFFFF9F43)),
+  _Amenity(
+      key: 'fence',
+      label: 'Electric Fence',
+      icon: Icons.fence,
+      color: Color(0xFFFF7043)),
+  _Amenity(
+      key: 'intercom',
+      label: 'Intercom Access',
+      icon: Icons.doorbell_outlined,
+      color: Color(0xFFBA68C8)),
+  _Amenity(
+      key: 'elevator',
+      label: 'Elevator / Lift',
+      icon: Icons.elevator_outlined,
+      color: Color(0xFF4DB6AC)),
+  _Amenity(
+      key: 'parking',
+      label: 'Dedicated Parking',
+      icon: Icons.local_parking_outlined,
+      color: Color(0xFF4FC3F7)),
+  _Amenity(
+      key: 'caretaker',
+      label: 'On-site Caretaker',
+      icon: Icons.person_pin_outlined,
+      color: Color(0xFFA1887F)),
 
   // Space & Comfort
-  _Amenity(key: 'balcony',     label: 'Private Balcony',       icon: Icons.deck_outlined,                   color: Color(0xFFA5D6A7)),
-  _Amenity(key: 'rooftop',     label: 'Rooftop Terrace',       icon: Icons.apartment_outlined,              color: Color(0xFFB39DDB)),
-  _Amenity(key: 'garden',      label: 'Garden / Lawn',         icon: Icons.grass_outlined,                  color: Color(0xFF81C784)),
-  _Amenity(key: 'storage',     label: 'Storage Unit',          icon: Icons.inventory_2_outlined,            color: Color(0xFFDCE775)),
+  _Amenity(
+      key: 'balcony',
+      label: 'Private Balcony',
+      icon: Icons.deck_outlined,
+      color: Color(0xFFA5D6A7)),
+  _Amenity(
+      key: 'rooftop',
+      label: 'Rooftop Terrace',
+      icon: Icons.apartment_outlined,
+      color: Color(0xFFB39DDB)),
+  _Amenity(
+      key: 'garden',
+      label: 'Garden / Lawn',
+      icon: Icons.grass_outlined,
+      color: Color(0xFF81C784)),
+  _Amenity(
+      key: 'storage',
+      label: 'Storage Unit',
+      icon: Icons.inventory_2_outlined,
+      color: Color(0xFFDCE775)),
 
   // Leisure & Services
-  _Amenity(key: 'pool',        label: 'Swimming Pool',         icon: Icons.pool,                            color: Color(0xFF4DD0E1)),
-  _Amenity(key: 'gym',         label: 'Gym & Fitness',         icon: Icons.fitness_center,                  color: Color(0xFFFF8A65)),
-  _Amenity(key: 'playArea',    label: 'Kids Play Area',        icon: Icons.child_care_outlined,             color: Color(0xFFF48FB1)),
-  _Amenity(key: 'petFriendly', label: 'Pet Friendly',          icon: Icons.pets,                            color: Color(0xFFEF9A9A)),
-  _Amenity(key: 'cleaning',    label: 'Housekeeping',          icon: Icons.cleaning_services_outlined,      color: Color(0xFF80CBC4)),
-  _Amenity(key: 'garbage',     label: 'Garbage Collection',    icon: Icons.delete_outline,                  color: Color(0xFFB0BEC5)),
-  _Amenity(key: 'wheelchair',  label: 'Wheelchair Access',     icon: Icons.accessible,                      color: Color(0xFF9FA8DA)),
+  _Amenity(
+      key: 'pool',
+      label: 'Swimming Pool',
+      icon: Icons.pool,
+      color: Color(0xFF4DD0E1)),
+  _Amenity(
+      key: 'gym',
+      label: 'Gym & Fitness',
+      icon: Icons.fitness_center,
+      color: Color(0xFFFF8A65)),
+  _Amenity(
+      key: 'playArea',
+      label: 'Kids Play Area',
+      icon: Icons.child_care_outlined,
+      color: Color(0xFFF48FB1)),
+  _Amenity(
+      key: 'petFriendly',
+      label: 'Pet Friendly',
+      icon: Icons.pets,
+      color: Color(0xFFEF9A9A)),
+  _Amenity(
+      key: 'cleaning',
+      label: 'Housekeeping',
+      icon: Icons.cleaning_services_outlined,
+      color: Color(0xFF80CBC4)),
+  _Amenity(
+      key: 'garbage',
+      label: 'Garbage Collection',
+      icon: Icons.delete_outline,
+      color: Color(0xFFB0BEC5)),
+  _Amenity(
+      key: 'wheelchair',
+      label: 'Wheelchair Access',
+      icon: Icons.accessible,
+      color: Color(0xFF9FA8DA)),
 ];
 
 // ─── House type options ────────────────────────────────────────────────────
@@ -77,7 +182,14 @@ const _houseTypeLabels = {
 
 // ─── Step labels ──────────────────────────────────────────────────────────
 
-const _stepLabels = ['Photos', 'Basics', 'Location', 'Amenities', 'Contact', 'Review'];
+const _stepLabels = [
+  'Photos',
+  'Basics',
+  'Location',
+  'Amenities',
+  'Contact',
+  'Review'
+];
 
 // ─── Main widget ──────────────────────────────────────────────────────────
 
@@ -97,33 +209,33 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _isLoading = false;
   bool _movingForward = true;
 
-  final _titleCtrl       = TextEditingController();
-  final _buildingNameCtrl= TextEditingController();
-  final _locationCtrl    = TextEditingController();
-  final _priceCtrl       = TextEditingController();
-  final _depositCtrl     = TextEditingController();
+  final _titleCtrl = TextEditingController();
+  final _buildingNameCtrl = TextEditingController();
+  final _locationCtrl = TextEditingController();
+  final _priceCtrl = TextEditingController();
+  final _depositCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
-  final _phoneCtrl       = TextEditingController();
+  final _phoneCtrl = TextEditingController();
 
   // Stepper-based instead of raw text fields
-  int _bedrooms  = 1;
+  int _bedrooms = 1;
   int _bathrooms = 1;
 
   String _houseType = '1BR';
   double? _latitude;
   double? _longitude;
   bool _locationConfirmed = false;
-  bool _gpsVerified   = false;
-  bool _checkingGps   = false;
+  bool _gpsVerified = false;
+  bool _checkingGps = false;
 
   // Amenity toggles — keyed by _Amenity.key
   final Map<String, bool> _amenityState = {
-    'furnished':   false,
-    'parking':     false,
-    'wifi':        false,
-    'water':       true,
-    'security':    true,
-    'balcony':     false,
+    'furnished': false,
+    'parking': false,
+    'wifi': false,
+    'water': true,
+    'security': true,
+    'balcony': false,
     'petFriendly': false,
   };
   final List<String> _customAmenities = [];
@@ -134,8 +246,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   String? _videoUrl;
   final ImagePicker _picker = ImagePicker();
   bool _uploadingPhotos = false;
-  int  _uploadDone  = 0;
-  int  _uploadTotal = 0;
+  int _uploadDone = 0;
+  int _uploadTotal = 0;
   bool _uploadingVideo = false;
   bool _autosaving = false;
   int? _draftId;
@@ -146,17 +258,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _uploadingDocument = false;
 
   bool get _hasPhoneVerified => _phoneCtrl.text.trim().isNotEmpty;
+
   bool get _hasGpsVerified => _gpsVerified;
+
   bool get _hasDocUploaded => _documentUrls.isNotEmpty;
 
   // Management Role
   String _managerRole = 'LANDLORD'; // 'LANDLORD' | 'CARETAKER' | 'AGENT'
   bool _caretakerLivesOnSite = true;
   bool _noViewingFeePledge = false;
-  final _caretakerNameCtrl    = TextEditingController();
-  final _caretakerPhoneCtrl   = TextEditingController();
-  final _ownerNameCtrl        = TextEditingController();
-  final _ownerPhoneCtrl       = TextEditingController();
+  final _caretakerNameCtrl = TextEditingController();
+  final _caretakerPhoneCtrl = TextEditingController();
+  final _ownerNameCtrl = TextEditingController();
+  final _ownerPhoneCtrl = TextEditingController();
 
   int get _verificationScore =>
       (_hasPhoneVerified ? 1 : 0) +
@@ -171,7 +285,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (_errors.containsKey(key)) setState(() => _errors.remove(key));
   }
 
-  bool get _busy => _isLoading || _uploadingPhotos || _uploadingVideo || _autosaving;
+  bool get _busy =>
+      _isLoading || _uploadingPhotos || _uploadingVideo || _autosaving;
+
   bool get _isEditing => widget.editingProperty != null;
 
   // ── Lifecycle ──────────────────────────────────────────────────────────
@@ -183,31 +299,31 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     final p = widget.editingProperty;
     if (p == null) return;
 
-    _titleCtrl.text        = p.title;
+    _titleCtrl.text = p.title;
     _buildingNameCtrl.text = p.buildingName ?? '';
-    _locationCtrl.text     = p.location;
+    _locationCtrl.text = p.location;
     _priceCtrl.text = p.price == p.price.roundToDouble()
         ? p.price.toInt().toString()
         : p.price.toString();
-    _depositCtrl.text     = p.deposit ?? '';
-    _bedrooms             = p.bedrooms;
-    _bathrooms            = p.bathrooms;
+    _depositCtrl.text = p.deposit ?? '';
+    _bedrooms = p.bedrooms;
+    _bathrooms = p.bathrooms;
     _descriptionCtrl.text = p.description;
-    _phoneCtrl.text       = p.landlordPhone;
-    _houseType            = p.houseType;
+    _phoneCtrl.text = p.landlordPhone;
+    _houseType = p.houseType;
 
     if (p.latitude != null && p.longitude != null) {
-      _latitude          = p.latitude;
-      _longitude         = p.longitude;
+      _latitude = p.latitude;
+      _longitude = p.longitude;
       _locationConfirmed = true;
     }
     _gpsVerified = p.gpsVerified;
-    _amenityState['furnished']   = p.furnished;
-    _amenityState['parking']     = p.parking;
-    _amenityState['wifi']        = p.wifi;
-    _amenityState['water']       = p.water;
-    _amenityState['security']    = p.security;
-    _amenityState['balcony']     = p.balcony;
+    _amenityState['furnished'] = p.furnished;
+    _amenityState['parking'] = p.parking;
+    _amenityState['wifi'] = p.wifi;
+    _amenityState['water'] = p.water;
+    _amenityState['security'] = p.security;
+    _amenityState['balcony'] = p.balcony;
     _amenityState['petFriendly'] = p.petFriendly;
 
     _imageUrls.addAll(p.imageUrls);
@@ -216,12 +332,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _videoUrl = p.videoUrl;
 
     // Management role fields
-    _managerRole          = p.managerRole;
+    _managerRole = p.managerRole;
     _caretakerLivesOnSite = p.caretakerLivesOnSite;
-    _caretakerNameCtrl.text  = p.caretakerName ?? '';
+    _caretakerNameCtrl.text = p.caretakerName ?? '';
     _caretakerPhoneCtrl.text = p.caretakerPhone ?? '';
-    _ownerNameCtrl.text      = p.ownerVerifyName ?? '';
-    _ownerPhoneCtrl.text     = p.ownerVerifyPhone ?? '';
+    _ownerNameCtrl.text = p.ownerVerifyName ?? '';
+    _ownerPhoneCtrl.text = p.ownerVerifyPhone ?? '';
   }
 
   @override
@@ -286,7 +402,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         break;
     }
     setState(() {
-      _errors..clear()..addAll(errors);
+      _errors
+        ..clear()
+        ..addAll(errors);
     });
     return errors.isEmpty;
   }
@@ -301,23 +419,25 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       if (position == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Couldn\'t get your location. Make sure location access is allowed for Roost, then try again.")),
+          const SnackBar(
+              content: Text(
+                  "Couldn't get your location. Make sure location access is allowed for Roost, then try again.")),
         );
         return;
       }
       if (!mounted) return;
       setState(() {
-        _latitude          = position.latitude;
-        _longitude         = position.longitude;
+        _latitude = position.latitude;
+        _longitude = position.longitude;
         _locationConfirmed = true;
-        _gpsVerified       = false;
+        _gpsVerified = false;
       });
       try {
         final status = _isEditing ? widget.editingProperty!.status : 'DRAFT';
         final id = await _persist(_buildPayload(status: status));
         if (id != null) {
           await ApiService.post('/api/properties/$id/verify-gps', {
-            'latitude':  position.latitude,
+            'latitude': position.latitude,
             'longitude': position.longitude,
           });
           if (mounted) setState(() => _gpsVerified = true);
@@ -345,7 +465,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       final toUpload = files.take(remaining).toList();
       if (files.length > remaining && mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Only added $remaining — maximum $_maxPhotos photos')),
+          SnackBar(
+              content:
+                  Text('Only added $remaining — maximum $_maxPhotos photos')),
         );
       }
       await _uploadPhotos(toUpload);
@@ -375,12 +497,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   Future<void> _uploadPhotos(List<XFile> files) async {
     setState(() {
-      _uploadDone  = 0;
+      _uploadDone = 0;
       _uploadTotal = files.length;
     });
     for (final file in files) {
       try {
-        final bytes  = await file.readAsBytes();
+        final bytes = await file.readAsBytes();
         final result = await ApiService.post('/api/properties/upload-photo', {
           'data': base64Encode(bytes),
         });
@@ -403,7 +525,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       final file = await _picker.pickVideo(
           source: source, maxDuration: const Duration(seconds: 60));
       if (file == null) return;
-      final bytes  = await file.readAsBytes();
+      final bytes = await file.readAsBytes();
       final result = await ApiService.post('/api/properties/upload-video', {
         'data': base64Encode(bytes),
       });
@@ -420,7 +542,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
-  void _removeVideo()           => setState(() => _videoUrl = null);
+  void _removeVideo() => setState(() => _videoUrl = null);
+
   void _removePhoto(String url) => setState(() => _imageUrls.remove(url));
 
   // ── Persistence ────────────────────────────────────────────────────────
@@ -434,59 +557,61 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     final depText = _depositCtrl.text.trim();
 
     return {
-      'title':       _titleCtrl.text.trim(),
+      'title': _titleCtrl.text.trim(),
       'buildingName': _buildingNameCtrl.text.trim().isEmpty
           ? null
           : _buildingNameCtrl.text.trim(),
-      'location':    _locationCtrl.text.trim(),
-      'price':       double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-      'deposit':     depText.isEmpty ? null : depText,
-      'bedrooms':    _bedrooms,
-      'bathrooms':   _bathrooms,
-      'houseType':   _houseType,
-      'type':        'RENTAL',
-      'available':   _isEditing ? widget.editingProperty!.available : true,
-      'verified':    _isEditing ? widget.editingProperty!.verified  : false,
+      'location': _locationCtrl.text.trim(),
+      'price': double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      'deposit': depText.isEmpty ? null : depText,
+      'bedrooms': _bedrooms,
+      'bathrooms': _bathrooms,
+      'houseType': _houseType,
+      'type': 'RENTAL',
+      'available': _isEditing ? widget.editingProperty!.available : true,
+      'verified': _isEditing ? widget.editingProperty!.verified : false,
       'landlordPhone': fullPhone,
       'description': _descriptionCtrl.text.trim(),
       if (_imageUrls.isNotEmpty) 'imageUrl': _imageUrls.first,
-      'imageUrls':   _imageUrls,
-      'videoUrl':    _videoUrl,
-      'latitude':    _latitude,
-      'longitude':   _longitude,
-      'furnished':   _amenityState['furnished']   ?? false,
-      'parking':     _amenityState['parking']     ?? false,
-      'wifi':        _amenityState['wifi']        ?? false,
-      'water':       _amenityState['water']       ?? true,
-      'security':    _amenityState['security']    ?? true,
-      'balcony':     _amenityState['balcony']     ?? false,
+      'imageUrls': _imageUrls,
+      'videoUrl': _videoUrl,
+      'latitude': _latitude,
+      'longitude': _longitude,
+      'furnished': _amenityState['furnished'] ?? false,
+      'parking': _amenityState['parking'] ?? false,
+      'wifi': _amenityState['wifi'] ?? false,
+      'water': _amenityState['water'] ?? true,
+      'security': _amenityState['security'] ?? true,
+      'balcony': _amenityState['balcony'] ?? false,
       'petFriendly': _amenityState['petFriendly'] ?? false,
-      'ac':          _amenityState['ac']          ?? false,
-      'heating':     _amenityState['heating']     ?? false,
-      'laundry':     _amenityState['laundry']     ?? false,
-      'dstv':        _amenityState['dstv']        ?? false,
-      'fence':       _amenityState['fence']       ?? false,
-      'intercom':    _amenityState['intercom']    ?? false,
-      'elevator':    _amenityState['elevator']    ?? false,
-      'caretaker':   _amenityState['caretaker']   ?? false,
-      'rooftop':     _amenityState['rooftop']     ?? false,
-      'garden':      _amenityState['garden']      ?? false,
-      'storage':     _amenityState['storage']     ?? false,
-      'pool':        _amenityState['pool']        ?? false,
-      'gym':         _amenityState['gym']         ?? false,
-      'playArea':    _amenityState['playArea']    ?? false,
-      'cleaning':    _amenityState['cleaning']    ?? false,
-      'garbage':     _amenityState['garbage']     ?? false,
-      'wheelchair':  _amenityState['wheelchair']  ?? false,
-      'solar':       _amenityState['solar']       ?? false,
-      'generator':   _amenityState['generator']   ?? false,
-      'moveInDate':  'Immediate',
-      'country':     CountryService.config.code,
-      'status':      status,
+      'ac': _amenityState['ac'] ?? false,
+      'heating': _amenityState['heating'] ?? false,
+      'laundry': _amenityState['laundry'] ?? false,
+      'dstv': _amenityState['dstv'] ?? false,
+      'fence': _amenityState['fence'] ?? false,
+      'intercom': _amenityState['intercom'] ?? false,
+      'elevator': _amenityState['elevator'] ?? false,
+      'caretaker': _amenityState['caretaker'] ?? false,
+      'rooftop': _amenityState['rooftop'] ?? false,
+      'garden': _amenityState['garden'] ?? false,
+      'storage': _amenityState['storage'] ?? false,
+      'pool': _amenityState['pool'] ?? false,
+      'gym': _amenityState['gym'] ?? false,
+      'playArea': _amenityState['playArea'] ?? false,
+      'cleaning': _amenityState['cleaning'] ?? false,
+      'garbage': _amenityState['garbage'] ?? false,
+      'wheelchair': _amenityState['wheelchair'] ?? false,
+      'solar': _amenityState['solar'] ?? false,
+      'generator': _amenityState['generator'] ?? false,
+      'moveInDate': 'Immediate',
+      'country': CountryService.config.code,
+      'status': status,
       'customAmenities': _customAmenities,
       'managerRole': _managerRole,
-      if (_managerRole != 'LANDLORD') 'caretakerName':  _caretakerNameCtrl.text.trim(),
-      if (_managerRole != 'LANDLORD') 'caretakerPhone': _formatPhone(_caretakerPhoneCtrl.text.trim()),
+      if (_managerRole != 'LANDLORD')
+        'caretakerName': _caretakerNameCtrl.text.trim(),
+      if (_managerRole != 'LANDLORD')
+        'caretakerPhone': _formatPhone(_caretakerPhoneCtrl.text.trim()),
       'caretakerLivesOnSite': _caretakerLivesOnSite,
       'landlordEndorsed': false,
       if (_ownerNameCtrl.text.trim().isNotEmpty)
@@ -536,64 +661,73 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         : (rawPhone.startsWith('+') ? rawPhone : '$dialCode$rawPhone');
 
     return Property(
-      title:        _titleCtrl.text.trim(),
+      title: _titleCtrl.text.trim(),
       buildingName: _buildingNameCtrl.text.trim().isEmpty
           ? null
           : _buildingNameCtrl.text.trim(),
-      description:  _descriptionCtrl.text.trim(),
-      location:     _locationCtrl.text.trim(),
-      price:        double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
-      bedrooms:     _bedrooms,
-      bathrooms:    _bathrooms,
-      type:         'RENTAL',
-      houseType:    _houseType,
+      description: _descriptionCtrl.text.trim(),
+      location: _locationCtrl.text.trim(),
+      price: double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      bedrooms: _bedrooms,
+      bathrooms: _bathrooms,
+      type: 'RENTAL',
+      houseType: _houseType,
       landlordPhone: fullPhone,
-      available:    _isEditing ? widget.editingProperty!.available : true,
-      verified:     _isEditing ? widget.editingProperty!.verified  : _isEarnedVerified,
-      gpsVerified:  _gpsVerified,
+      available: _isEditing ? widget.editingProperty!.available : true,
+      verified:
+          _isEditing ? widget.editingProperty!.verified : _isEarnedVerified,
+      gpsVerified: _gpsVerified,
       documentVerified: _hasDocUploaded,
       documentUrls: _documentUrls,
-      imageUrl:     _imageUrls.isNotEmpty ? _imageUrls.first : null,
-      imageUrls:    _imageUrls,
-      videoUrl:     _videoUrl,
-      latitude:     _latitude,
-      longitude:    _longitude,
-      furnished:    _amenityState['furnished']   ?? false,
-      parking:      _amenityState['parking']     ?? false,
-      water:        _amenityState['water']       ?? true,
-      wifi:         _amenityState['wifi']        ?? false,
-      security:     _amenityState['security']    ?? true,
-      balcony:      _amenityState['balcony']     ?? false,
-      petFriendly:  _amenityState['petFriendly'] ?? false,
-      ac:           _amenityState['ac']          ?? false,
-      heating:      _amenityState['heating']     ?? false,
-      laundry:      _amenityState['laundry']     ?? false,
-      dstv:         _amenityState['dstv']        ?? false,
-      fence:        _amenityState['fence']       ?? false,
-      intercom:     _amenityState['intercom']    ?? false,
-      elevator:     _amenityState['elevator']    ?? false,
-      caretaker:    _amenityState['caretaker']   ?? false,
-      rooftop:      _amenityState['rooftop']     ?? false,
-      garden:       _amenityState['garden']      ?? false,
-      storage:      _amenityState['storage']     ?? false,
-      pool:         _amenityState['pool']        ?? false,
-      gym:          _amenityState['gym']         ?? false,
-      playArea:     _amenityState['playArea']    ?? false,
-      cleaning:     _amenityState['cleaning']    ?? false,
-      garbage:      _amenityState['garbage']     ?? false,
-      wheelchair:   _amenityState['wheelchair']  ?? false,
-      solar:        _amenityState['solar']       ?? false,
-      generator:    _amenityState['generator']   ?? false,
-      deposit:      _depositCtrl.text.trim().isEmpty ? null : _depositCtrl.text.trim(),
-      moveInDate:   'Immediate',
-      country:      CountryService.config.code,
+      imageUrl: _imageUrls.isNotEmpty ? _imageUrls.first : null,
+      imageUrls: _imageUrls,
+      videoUrl: _videoUrl,
+      latitude: _latitude,
+      longitude: _longitude,
+      furnished: _amenityState['furnished'] ?? false,
+      parking: _amenityState['parking'] ?? false,
+      water: _amenityState['water'] ?? true,
+      wifi: _amenityState['wifi'] ?? false,
+      security: _amenityState['security'] ?? true,
+      balcony: _amenityState['balcony'] ?? false,
+      petFriendly: _amenityState['petFriendly'] ?? false,
+      ac: _amenityState['ac'] ?? false,
+      heating: _amenityState['heating'] ?? false,
+      laundry: _amenityState['laundry'] ?? false,
+      dstv: _amenityState['dstv'] ?? false,
+      fence: _amenityState['fence'] ?? false,
+      intercom: _amenityState['intercom'] ?? false,
+      elevator: _amenityState['elevator'] ?? false,
+      caretaker: _amenityState['caretaker'] ?? false,
+      rooftop: _amenityState['rooftop'] ?? false,
+      garden: _amenityState['garden'] ?? false,
+      storage: _amenityState['storage'] ?? false,
+      pool: _amenityState['pool'] ?? false,
+      gym: _amenityState['gym'] ?? false,
+      playArea: _amenityState['playArea'] ?? false,
+      cleaning: _amenityState['cleaning'] ?? false,
+      garbage: _amenityState['garbage'] ?? false,
+      wheelchair: _amenityState['wheelchair'] ?? false,
+      solar: _amenityState['solar'] ?? false,
+      generator: _amenityState['generator'] ?? false,
+      deposit:
+          _depositCtrl.text.trim().isEmpty ? null : _depositCtrl.text.trim(),
+      moveInDate: 'Immediate',
+      country: CountryService.config.code,
       customAmenities: _customAmenities,
-      managerRole:  _managerRole,
-      caretakerName: _managerRole != 'LANDLORD' ? _caretakerNameCtrl.text.trim() : null,
-      caretakerPhone: _managerRole != 'LANDLORD' ? _formatPhone(_caretakerPhoneCtrl.text.trim()) : null,
+      managerRole: _managerRole,
+      caretakerName:
+          _managerRole != 'LANDLORD' ? _caretakerNameCtrl.text.trim() : null,
+      caretakerPhone: _managerRole != 'LANDLORD'
+          ? _formatPhone(_caretakerPhoneCtrl.text.trim())
+          : null,
       caretakerLivesOnSite: _caretakerLivesOnSite,
-      ownerVerifyName: _ownerNameCtrl.text.trim().isEmpty ? null : _ownerNameCtrl.text.trim(),
-      ownerVerifyPhone: _ownerPhoneCtrl.text.trim().isEmpty ? null : _formatPhone(_ownerPhoneCtrl.text.trim()),
+      ownerVerifyName: _ownerNameCtrl.text.trim().isEmpty
+          ? null
+          : _ownerNameCtrl.text.trim(),
+      ownerVerifyPhone: _ownerPhoneCtrl.text.trim().isEmpty
+          ? null
+          : _formatPhone(_ownerPhoneCtrl.text.trim()),
     );
   }
 
@@ -613,18 +747,21 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       }
     }
     final result = await ApiService.post('/api/properties', payload);
-    final newId  = result is Map ? result['id'] as int? : null;
+    final newId = result is Map ? result['id'] as int? : null;
     if (newId != null) _draftId = newId;
     return _draftId;
   }
 
   void _autosaveDraft() async {
-    if (_titleCtrl.text.trim().isEmpty && _imageUrls.isEmpty && !_isEditing) return;
+    if (_titleCtrl.text.trim().isEmpty && _imageUrls.isEmpty && !_isEditing) {
+      return;
+    }
     if (_autosaving) return;
     if (mounted) setState(() => _autosaving = true);
     try {
       await _persist(_buildPayload(status: 'DRAFT'));
-    } catch (_) {} finally {
+    } catch (_) {
+    } finally {
       if (mounted) setState(() => _autosaving = false);
     }
   }
@@ -717,7 +854,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       await _persist(_buildPayload(status: 'DRAFT'));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Draft saved. Resume it anytime from your listings.')),
+        const SnackBar(
+            content:
+                Text('Draft saved. Resume it anytime from your listings.')),
       );
       Navigator.pop(context, true);
     } catch (e) {
@@ -771,8 +910,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     return FadeTransition(
                       opacity: animation,
                       child: SlideTransition(
-                        position: animation.drive(
-                            offsetTween.chain(CurveTween(curve: Curves.easeOutCubic))),
+                        position: animation.drive(offsetTween
+                            .chain(CurveTween(curve: Curves.easeOutCubic))),
                         child: child,
                       ),
                     );
@@ -801,7 +940,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       children: [
         Row(
           children: List.generate(_stepLabels.length, (idx) {
-            final active   = idx == _step;
+            final active = idx == _step;
             final complete = idx < _step;
             return Expanded(
               child: AnimatedContainer(
@@ -866,7 +1005,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   Widget _buildNavButtons() {
     final isLastStep = _step == _stepLabels.length - 1;
-    final nextLabel  = isLastStep
+    final nextLabel = isLastStep
         ? (_isEditing ? 'Save Changes' : 'Publish Listing')
         : 'Continue';
 
@@ -942,12 +1081,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   Widget _buildStepContent() {
     switch (_step) {
-      case 0:  return _buildPhotosStep();
-      case 1:  return _buildBasicsStep();
-      case 2:  return _buildLocationStep();
-      case 3:  return _buildAmenitiesStep();
-      case 4:  return _buildContactStep();
-      default: return _buildReviewStep();
+      case 0:
+        return _buildPhotosStep();
+      case 1:
+        return _buildBasicsStep();
+      case 2:
+        return _buildLocationStep();
+      case 3:
+        return _buildAmenitiesStep();
+      case 4:
+        return _buildContactStep();
+      default:
+        return _buildReviewStep();
     }
   }
 
@@ -986,7 +1131,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(
-                hasMin ? Icons.check_circle_outline : Icons.photo_camera_outlined,
+                hasMin
+                    ? Icons.check_circle_outline
+                    : Icons.photo_camera_outlined,
                 size: 14,
                 color: hasMin ? const Color(0xFF00C896) : Colors.amber,
               ),
@@ -1051,8 +1198,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     const SizedBox(width: 10),
                     Text(
                       'Uploading $_uploadDone of $_uploadTotal…',
-                      style:
-                          TextStyle(color: Colors.grey[300], fontSize: 13),
+                      style: TextStyle(color: Colors.grey[300], fontSize: 13),
                     ),
                   ],
                 ),
@@ -1077,8 +1223,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           const SizedBox(height: 16),
           Container(
             width: double.infinity,
-            padding:
-                const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+            padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
@@ -1143,8 +1288,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 curve: Curves.easeOutBack,
                 builder: (context, value, child) => Opacity(
                   opacity: value.clamp(0.0, 1.0),
-                  child: Transform.scale(
-                      scale: 0.8 + (0.2 * value), child: child),
+                  child:
+                      Transform.scale(scale: 0.8 + (0.2 * value), child: child),
                 ),
                 child: Stack(
                   fit: StackFit.expand,
@@ -1155,8 +1300,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                           fit: BoxFit.cover,
                           errorBuilder: (_, __, ___) => Container(
                                 color: const Color(0xFF1C1C1E),
-                                child: const Icon(
-                                    Icons.broken_image_outlined,
+                                child: const Icon(Icons.broken_image_outlined,
                                     color: Colors.grey),
                               )),
                     ),
@@ -1185,8 +1329,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         child: Container(
                           padding: const EdgeInsets.all(3),
                           decoration: const BoxDecoration(
-                              color: Colors.black87,
-                              shape: BoxShape.circle),
+                              color: Colors.black87, shape: BoxShape.circle),
                           child: const Icon(Icons.close,
                               color: Colors.white, size: 13),
                         ),
@@ -1215,8 +1358,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     fontWeight: FontWeight.w600)),
             const SizedBox(width: 8),
             Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
               decoration: BoxDecoration(
                   color: Colors.white12,
                   borderRadius: BorderRadius.circular(4)),
@@ -1259,12 +1401,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               const Expanded(
                   child: Text('Video attached',
                       style: TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w600))),
+                          color: Colors.white, fontWeight: FontWeight.w600))),
               GestureDetector(
                   onTap: _removeVideo,
-                  child: const Icon(Icons.close,
-                      color: Colors.grey, size: 20)),
+                  child: const Icon(Icons.close, color: Colors.grey, size: 20)),
             ]),
           )
         else
@@ -1304,7 +1444,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         TextField(
           controller: _titleCtrl,
           style: const TextStyle(color: Colors.white),
-          decoration: _inputDecoration('Listing title (e.g. Modern 2BR in Kilimani)',
+          decoration: _inputDecoration(
+              'Listing title (e.g. Modern 2BR in Kilimani)',
               errorText: _errors['title']),
           onChanged: (_) => _clearError('title'),
         ),
@@ -1318,8 +1459,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
         // House type chip selector
         Text('House Type',
-            style:
-                TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500)),
+            style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 10),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
@@ -1331,17 +1474,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.only(right: 10),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 10),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: selected
-                        ? Colors.white
-                        : const Color(0xFF1C1C1E),
+                    color: selected ? Colors.white : const Color(0xFF1C1C1E),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
-                        color: selected
-                            ? Colors.white
-                            : const Color(0xFF3A3A3C)),
+                        color:
+                            selected ? Colors.white : const Color(0xFF3A3A3C)),
                   ),
                   child: Text(
                     _houseTypeLabels[type] ?? type,
@@ -1391,8 +1531,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
         // Beds / Baths steppers
         Text('Rooms',
-            style:
-                TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500)),
+            style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 12,
+                fontWeight: FontWeight.w500)),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -1433,7 +1575,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _StepHeader(
           stepNumber: 3,
           title: 'Location',
-          subtitle: 'Neighbourhood + GPS confirmation earns your Verified badge',
+          subtitle:
+              'Neighbourhood + GPS confirmation earns your Verified badge',
         ),
         const SizedBox(height: 24),
         TextField(
@@ -1442,8 +1585,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           decoration: _inputDecoration(
               'Neighbourhood / street (e.g. Kilimani, Chania Ave)',
               errorText: _errors['locationText'],
-              prefixIcon:
-                  const Icon(Icons.location_on_outlined, color: Colors.white38, size: 18)),
+              prefixIcon: const Icon(Icons.location_on_outlined,
+                  color: Colors.white38, size: 18)),
           onChanged: (_) => _clearError('locationText'),
         ),
         const SizedBox(height: 20),
@@ -1498,18 +1641,24 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             children: [
               const Row(
                 children: [
-                  Icon(Icons.shield_outlined, color: Colors.greenAccent, size: 20),
+                  Icon(Icons.shield_outlined,
+                      color: Colors.greenAccent, size: 20),
                   SizedBox(width: 8),
                   Text(
                     'Earn Your VERIFIED Badge',
-                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: isEarned ? Colors.greenAccent.withValues(alpha: 0.2) : Colors.white.withValues(alpha: 0.08),
+                  color: isEarned
+                      ? Colors.greenAccent.withValues(alpha: 0.2)
+                      : Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
@@ -1529,7 +1678,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             child: LinearProgressIndicator(
               value: _verificationScore / 3.0,
               backgroundColor: Colors.white.withValues(alpha: 0.08),
-              valueColor: AlwaysStoppedAnimation<Color>(isEarned ? Colors.greenAccent : const Color(0xFF00C896)),
+              valueColor: AlwaysStoppedAnimation<Color>(
+                  isEarned ? Colors.greenAccent : const Color(0xFF00C896)),
               minHeight: 6,
             ),
           ),
@@ -1561,16 +1711,22 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               decoration: BoxDecoration(
                 color: Colors.greenAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
+                border: Border.all(
+                    color: Colors.greenAccent.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [
-                  Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 20),
+                  Icon(Icons.verified_rounded,
+                      color: Colors.greenAccent, size: 20),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
                       '🎉 All requirements met! This property will feature the official VERIFIED checkmark badge.',
-                      style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600, height: 1.3),
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.w600,
+                          height: 1.3),
                     ),
                   ),
                 ],
@@ -1579,7 +1735,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           else
             Text(
               'Complete all 3 verification checkpoints above to earn top feed placement and the official VERIFIED badge.',
-              style: TextStyle(color: Colors.grey[400], fontSize: 12, height: 1.3),
+              style:
+                  TextStyle(color: Colors.grey[400], fontSize: 12, height: 1.3),
             ),
         ],
       ),
@@ -1597,11 +1754,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         Container(
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
-            color: isComplete ? Colors.greenAccent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
+            color: isComplete
+                ? Colors.greenAccent.withValues(alpha: 0.15)
+                : Colors.white.withValues(alpha: 0.05),
             shape: BoxShape.circle,
           ),
           child: Icon(
-            isComplete ? Icons.check_circle_rounded : Icons.radio_button_unchecked_rounded,
+            isComplete
+                ? Icons.check_circle_rounded
+                : Icons.radio_button_unchecked_rounded,
             color: isComplete ? Colors.greenAccent : Colors.grey[500],
             size: 18,
           ),
@@ -1642,7 +1803,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       children: [
         const Text(
           'Upload Verification Documents',
-          style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+          style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text(
@@ -1666,7 +1828,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     style: TextStyle(
                       color: isSelected ? Colors.black : Colors.grey[300],
                       fontSize: 12,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+                      fontWeight:
+                          isSelected ? FontWeight.bold : FontWeight.w500,
                     ),
                   ),
                   selected: isSelected,
@@ -1675,7 +1838,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: BorderSide(
-                      color: isSelected ? Colors.white : Colors.white.withValues(alpha: 0.08),
+                      color: isSelected
+                          ? Colors.white
+                          : Colors.white.withValues(alpha: 0.08),
                     ),
                   ),
                   onSelected: (val) {
@@ -1695,15 +1860,19 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               ? const SizedBox(
                   width: 16,
                   height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: Colors.white),
                 )
               : const Icon(Icons.upload_file_rounded, size: 18),
-          label: Text(_uploadingDocument ? 'Uploading Document...' : 'Attach $_selectedDocType'),
+          label: Text(_uploadingDocument
+              ? 'Uploading Document...'
+              : 'Attach $_selectedDocType'),
           style: OutlinedButton.styleFrom(
             foregroundColor: Colors.white,
             side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
 
@@ -1717,15 +1886,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               final docTitle = url.split('/').last.replaceAll('_', ' ');
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C1C1E),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border:
+                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.picture_as_pdf_rounded, color: Colors.redAccent, size: 22),
+                    const Icon(Icons.picture_as_pdf_rounded,
+                        color: Colors.redAccent, size: 22),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Column(
@@ -1733,20 +1905,27 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         children: [
                           Text(
                             docTitle,
-                            style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 13,
+                                fontWeight: FontWeight.bold),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
                           const SizedBox(height: 2),
                           const Text(
                             'Verified Document Attached',
-                            style: TextStyle(color: Colors.greenAccent, fontSize: 11, fontWeight: FontWeight.w500),
+                            style: TextStyle(
+                                color: Colors.greenAccent,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500),
                           ),
                         ],
                       ),
                     ),
                     IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded, color: Colors.grey, size: 18),
+                      icon: const Icon(Icons.delete_outline_rounded,
+                          color: Colors.grey, size: 18),
                       onPressed: () => _removeVerificationDocument(idx),
                     ),
                   ],
@@ -1772,7 +1951,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         await Future.delayed(const Duration(milliseconds: 400));
         if (!mounted) return;
         setState(() {
-          _documentUrls.add('${_selectedDocType.replaceAll(' ', '_')}_${file.name}');
+          _documentUrls
+              .add('${_selectedDocType.replaceAll(' ', '_')}_${file.name}');
           _uploadingDocument = false;
         });
       }
@@ -1835,8 +2015,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 child: Row(
                   children: [
                     Icon(a.icon,
-                        size: 20,
-                        color: on ? a.color : Colors.grey[600]),
+                        size: 20, color: on ? a.color : Colors.grey[600]),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
@@ -1844,8 +2023,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         style: TextStyle(
                           color: on ? Colors.white : Colors.grey[400],
                           fontSize: 13,
-                          fontWeight:
-                              on ? FontWeight.w600 : FontWeight.normal,
+                          fontWeight: on ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -1871,7 +2049,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               children: [
                 const Text(
                   'Custom Amenities',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 4),
                 Text(
@@ -1883,11 +2064,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             GestureDetector(
               onTap: _showAddCustomAmenityDialog,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
                   color: const Color(0xFF6C63FF).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: const Color(0xFF6C63FF), width: 1.2),
+                  border:
+                      Border.all(color: const Color(0xFF6C63FF), width: 1.2),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1896,7 +2079,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     SizedBox(width: 4),
                     Text(
                       'Add Custom',
-                      style: TextStyle(color: Color(0xFF6C63FF), fontSize: 12, fontWeight: FontWeight.bold),
+                      style: TextStyle(
+                          color: Color(0xFF6C63FF),
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold),
                     ),
                   ],
                 ),
@@ -1931,20 +2117,27 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             runSpacing: 10,
             children: _customAmenities.map((custom) {
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   color: const Color(0xFFFFD700).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFFFD700).withValues(alpha: 0.6), width: 1.2),
+                  border: Border.all(
+                      color: const Color(0xFFFFD700).withValues(alpha: 0.6),
+                      width: 1.2),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.stars_rounded, size: 16, color: Color(0xFFFFD700)),
+                    const Icon(Icons.stars_rounded,
+                        size: 16, color: Color(0xFFFFD700)),
                     const SizedBox(width: 8),
                     Text(
                       custom,
-                      style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600),
                     ),
                     const SizedBox(width: 8),
                     GestureDetector(
@@ -1952,7 +2145,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         HapticFeedback.lightImpact();
                         setState(() => _customAmenities.remove(custom));
                       },
-                      child: Icon(Icons.close_rounded, size: 16, color: Colors.grey[400]),
+                      child: Icon(Icons.close_rounded,
+                          size: 16, color: Colors.grey[400]),
                     ),
                   ],
                 ),
@@ -1975,20 +2169,27 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           children: [
             Icon(Icons.stars_rounded, color: Color(0xFFFFD700), size: 22),
             SizedBox(width: 10),
-            Text('Add Custom Amenity', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+            Text('Add Custom Amenity',
+                style: TextStyle(
+                    color: Colors.white,
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold)),
           ],
         ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Enter any amenity or special feature available at your property:', style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+            Text(
+                'Enter any amenity or special feature available at your property:',
+                style: TextStyle(color: Colors.grey[400], fontSize: 13)),
             const SizedBox(height: 16),
             TextField(
               controller: ctrl,
               autofocus: true,
               style: const TextStyle(color: Colors.white),
-              decoration: _inputDecoration('Amenity Name (e.g. Sauna, EV Charger)'),
+              decoration:
+                  _inputDecoration('Amenity Name (e.g. Sauna, EV Charger)'),
             ),
           ],
         ),
@@ -2000,7 +2201,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           ElevatedButton(
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF6C63FF),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () {
               final text = ctrl.text.trim();
@@ -2010,7 +2212,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               }
               Navigator.pop(ctx);
             },
-            child: const Text('Add Amenity', style: TextStyle(color: Colors.white)),
+            child: const Text('Add Amenity',
+                style: TextStyle(color: Colors.white)),
           ),
         ],
       ),
@@ -2212,8 +2415,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   _ToggleRow(
                     label: 'Lives on the property',
                     value: _caretakerLivesOnSite,
-                    onChanged: (v) =>
-                        setState(() => _caretakerLivesOnSite = v),
+                    onChanged: (v) => setState(() => _caretakerLivesOnSite = v),
                   ),
                 ],
               ],
@@ -2228,7 +2430,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               color: const Color(0xFF0D1B2A),
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-              color: const Color(0xFF1B3A4B).withValues(alpha: 0.6)),
+                  color: const Color(0xFF1B3A4B).withValues(alpha: 0.6)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -2290,8 +2492,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         controller: _ownerPhoneCtrl,
                         keyboardType: TextInputType.phone,
                         style: const TextStyle(color: Colors.white),
-                        decoration:
-                            _inputDecoration('Owner / Landlord phone'),
+                        decoration: _inputDecoration('Owner / Landlord phone'),
                       ),
                     ),
                   ],
@@ -2347,8 +2548,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       const SizedBox(height: 2),
                       Text(
                         'I pledge never to charge tenants for property viewings',
-                        style: TextStyle(
-                            color: Colors.grey[500], fontSize: 11),
+                        style: TextStyle(color: Colors.grey[500], fontSize: 11),
                       ),
                     ],
                   ),
@@ -2368,8 +2568,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               maxLines: 5,
               maxLength: maxDesc,
               style: const TextStyle(color: Colors.white),
-              decoration:
-                  _inputDecoration('Describe the property (optional)', counterText: ''),
+              decoration: _inputDecoration('Describe the property (optional)',
+                  counterText: ''),
               onChanged: (_) => setState(() {}),
             ),
             Positioned(
@@ -2424,7 +2624,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _ReviewRow(
           icon: Icons.photo_library_outlined,
           title: 'Photos',
-          value: '${_imageUrls.length} photo${_imageUrls.length == 1 ? '' : 's'} added',
+          value:
+              '${_imageUrls.length} photo${_imageUrls.length == 1 ? '' : 's'} added',
           isOk: _imageUrls.length >= _minPhotos,
           onEdit: () => _jumpToStep(0),
         ),
@@ -2477,7 +2678,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           child: Text(
             'By publishing you agree to our listing guidelines and confirm\nthis property is available for rent.',
             textAlign: TextAlign.center,
-            style: TextStyle(color: Colors.grey[700], fontSize: 11, height: 1.5),
+            style:
+                TextStyle(color: Colors.grey[700], fontSize: 11, height: 1.5),
           ),
         ),
         const SizedBox(height: 8),
@@ -2554,18 +2756,15 @@ class _RoleChip extends StatelessWidget {
                 : const Color(0xFF1C1C1E),
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
-              color: selected
-                  ? const Color(0xFF6C63FF)
-                  : const Color(0xFF2A2A2A),
+              color:
+                  selected ? const Color(0xFF6C63FF) : const Color(0xFF2A2A2A),
               width: selected ? 1.5 : 1,
             ),
           ),
           child: Column(
             children: [
               Icon(icon,
-                  color: selected
-                      ? const Color(0xFF6C63FF)
-                      : Colors.grey[500],
+                  color: selected ? const Color(0xFF6C63FF) : Colors.grey[500],
                   size: 22),
               const SizedBox(height: 6),
               Text(
@@ -2602,8 +2801,7 @@ class _ToggleRow extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Text(label,
-            style: TextStyle(color: Colors.grey[400], fontSize: 13)),
+        Text(label, style: TextStyle(color: Colors.grey[400], fontSize: 13)),
         Switch.adaptive(
           value: value,
           onChanged: onChanged,
@@ -2621,6 +2819,7 @@ class _StepHeader extends StatelessWidget {
     required this.title,
     required this.subtitle,
   });
+
   final int stepNumber;
   final String title;
   final String subtitle;
@@ -2656,6 +2855,7 @@ class _ActionTile extends StatelessWidget {
     required this.label,
     required this.onTap,
   });
+
   final IconData icon;
   final String label;
   final VoidCallback onTap;
@@ -2698,6 +2898,7 @@ class _StepperField extends StatelessWidget {
     required this.max,
     required this.onChanged,
   });
+
   final String label;
   final int value;
   final int min;
@@ -2786,6 +2987,7 @@ class _GpsPromptCard extends StatelessWidget {
     required this.isChecking,
     required this.onTap,
   });
+
   final bool hasError;
   final bool isChecking;
   final VoidCallback onTap;
@@ -2812,8 +3014,7 @@ class _GpsPromptCard extends StatelessWidget {
             tween: Tween(begin: 0.9, end: 1.1),
             duration: const Duration(milliseconds: 900),
             curve: Curves.easeInOut,
-            builder: (_, v, child) =>
-                Transform.scale(scale: v, child: child),
+            builder: (_, v, child) => Transform.scale(scale: v, child: child),
             child: Container(
               width: 56,
               height: 56,
@@ -2821,8 +3022,8 @@ class _GpsPromptCard extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: Colors.amber.withValues(alpha: 0.12),
               ),
-              child: const Icon(Icons.my_location,
-                  color: Colors.amber, size: 28),
+              child:
+                  const Icon(Icons.my_location, color: Colors.amber, size: 28),
             ),
           ),
           const SizedBox(height: 16),
@@ -2830,16 +3031,14 @@ class _GpsPromptCard extends StatelessWidget {
             "Confirm your GPS location",
             textAlign: TextAlign.center,
             style: TextStyle(
-                color: Colors.white,
-                fontSize: 15,
-                fontWeight: FontWeight.w600),
+                color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
           ),
           const SizedBox(height: 6),
           Text(
             "Stand at the property and tap below.\nThis is what earns the Verified badge.",
             textAlign: TextAlign.center,
-            style: TextStyle(
-                color: Colors.grey[500], fontSize: 12.5, height: 1.4),
+            style:
+                TextStyle(color: Colors.grey[500], fontSize: 12.5, height: 1.4),
           ),
           if (hasError) ...[
             const SizedBox(height: 8),
@@ -2887,6 +3086,7 @@ class _GpsConfirmedCard extends StatelessWidget {
     required this.isChecking,
     required this.onUpdate,
   });
+
   final double latitude;
   final double longitude;
   final bool verified;
@@ -2924,7 +3124,9 @@ class _GpsConfirmedCard extends StatelessWidget {
             const SizedBox(width: 10),
             Expanded(
               child: Text(
-                verified ? "You're at this location — confirmed" : 'Location captured',
+                verified
+                    ? "You're at this location — confirmed"
+                    : 'Location captured',
                 style: TextStyle(
                     color: color, fontSize: 14, fontWeight: FontWeight.w600),
               ),
@@ -2969,6 +3171,7 @@ class _ReviewRow extends StatelessWidget {
     this.badge,
     this.badgeColor,
   });
+
   final IconData icon;
   final String title;
   final String value;
@@ -2990,9 +3193,7 @@ class _ReviewRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon,
-              size: 18,
-              color: isOk ? Colors.white60 : Colors.redAccent),
+          Icon(icon, size: 18, color: isOk ? Colors.white60 : Colors.redAccent),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
@@ -3006,9 +3207,7 @@ class _ReviewRow extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(value,
                     style: TextStyle(
-                        color: Colors.grey[400],
-                        fontSize: 12.5,
-                        height: 1.4)),
+                        color: Colors.grey[400], fontSize: 12.5, height: 1.4)),
                 if (badge != null) ...[
                   const SizedBox(height: 4),
                   Row(children: [
@@ -3050,6 +3249,7 @@ class _ReviewRow extends StatelessWidget {
 
 class _SuccessDialog extends StatefulWidget {
   const _SuccessDialog({required this.isEditing});
+
   final bool isEditing;
 
   @override
@@ -3070,7 +3270,7 @@ class _SuccessDialogState extends State<_SuccessDialog>
       duration: const Duration(milliseconds: 600),
     )..forward();
     _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
-    _fade  = CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.5));
+    _fade = CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.5));
   }
 
   @override
