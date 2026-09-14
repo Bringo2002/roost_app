@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
@@ -2053,8 +2054,27 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       if (result == null || result.files.isEmpty) return;
 
       final file = result.files.first;
-      final bytes = file.bytes;
-      if (bytes == null || !mounted) return;
+      Uint8List? bytes = file.bytes;
+
+      // On Android / Desktop / iOS, file.bytes may be null; read from file.path
+      if (bytes == null && file.path != null && file.path!.isNotEmpty) {
+        final ioFile = File(file.path!);
+        if (await ioFile.exists()) {
+          bytes = await ioFile.readAsBytes();
+        }
+      }
+
+      if (bytes == null || bytes.isEmpty) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Unable to read selected file. Please pick a valid image or PDF.'),
+            backgroundColor: Colors.orangeAccent,
+          ));
+        }
+        return;
+      }
+
+      if (!mounted) return;
 
       // ── Phase 1: Tier 1 client-side checks ──────────────────────────────
       setState(() => _uploadingDocument = true);
@@ -2111,12 +2131,17 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         }
         _analyzingDocument = false;
       });
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Error uploading document: $e');
       if (mounted) {
         setState(() {
           _uploadingDocument = false;
           _analyzingDocument = false;
         });
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Upload failed: $e'),
+          backgroundColor: Colors.redAccent,
+        ));
       }
     }
   }
