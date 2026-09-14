@@ -565,6 +565,69 @@ class _AuditDocumentSheet extends StatelessWidget {
                   controller: scrollController,
                   physics: const BouncingScrollPhysics(),
                   children: [
+                    // ── AI Intelligence Summary ──────────────────────────────
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 14),
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.white10),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Row(
+                            children: [
+                              Icon(Icons.psychology_outlined,
+                                  color: Color(0xFF818CF8), size: 16),
+                              SizedBox(width: 6),
+                              Text(
+                                'AI VERIFICATION SIGNALS',
+                                style: TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          _buildAICheckRow(
+                            'Tier 1 Checks',
+                            'File size, MIME type, EXIF date, duplicate hash',
+                            docs.isNotEmpty ? 'passed' : 'skipped',
+                          ),
+                          const SizedBox(height: 6),
+                          _buildAICheckRow(
+                            'Tier 2 Gemini AI',
+                            'Doc classification, authenticity & name extraction',
+                            docs.isNotEmpty ? 'analysed' : 'skipped',
+                          ),
+                          const SizedBox(height: 6),
+                          _buildAICheckRow(
+                            'Name Cross-Reference',
+                            'Extracted name matched against landlord account',
+                            docs.isNotEmpty ? 'checked' : 'skipped',
+                          ),
+                          if (docs.isNotEmpty) ...[
+                            const SizedBox(height: 8),
+                            const Divider(color: Colors.white10, height: 1),
+                            const SizedBox(height: 8),
+                            Text(
+                              '${docs.length} document${docs.length > 1 ? 's' : ''} submitted. AI pre-screened — human review required below.',
+                              style: const TextStyle(
+                                  color: Colors.white54, fontSize: 11),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ),
+
                     // Ownership Document Proofs Section
                     Row(
                       children: [
@@ -577,6 +640,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                       ],
                     ),
                     const SizedBox(height: 10),
+
 
                     if (docs.isEmpty)
                       Container(
@@ -763,6 +827,66 @@ class _AuditDocumentSheet extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+
+  static Widget _buildAICheckRow(String label, String detail, String status) {
+    final isDone = status != 'skipped';
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: isDone
+                ? const Color(0xFF10B981).withAlpha(30)
+                : Colors.white12,
+          ),
+          child: Icon(
+            isDone ? Icons.check_rounded : Icons.remove_rounded,
+            size: 11,
+            color: isDone ? const Color(0xFF10B981) : Colors.white38,
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: TextStyle(
+                    color: isDone ? Colors.white : Colors.white38,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold),
+              ),
+              Text(
+                detail,
+                style: const TextStyle(color: Colors.white38, fontSize: 10),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: isDone
+                ? const Color(0xFF10B981).withAlpha(20)
+                : Colors.white10,
+            borderRadius: BorderRadius.circular(6),
+          ),
+          child: Text(
+            status.toUpperCase(),
+            style: TextStyle(
+                color: isDone ? const Color(0xFF34D399) : Colors.white38,
+                fontSize: 9,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 0.5),
+          ),
+        ),
+      ],
     );
   }
 

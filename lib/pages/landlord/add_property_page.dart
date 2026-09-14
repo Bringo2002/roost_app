@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -8,6 +9,8 @@ import 'package:file_picker/file_picker.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/cloudinary_service.dart';
+import 'package:roost_app/services/doc_verification_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/country_service.dart';
@@ -265,8 +268,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   // Document Upload & Verification Checkpoints
   final List<String> _documentUrls = [];
+  final List<DocVerificationResult> _docResults = [];
   String _selectedDocType = 'Title Deed / Ownership';
   bool _uploadingDocument = false;
+  bool _analyzingDocument = false;
 
   bool get _hasPhoneVerified => _phoneCtrl.text.trim().isNotEmpty;
 
@@ -1874,7 +1879,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
         // Upload Button
         OutlinedButton.icon(
-          onPressed: _uploadingDocument ? null : _pickVerificationDocument,
+          onPressed: (_uploadingDocument || _analyzingDocument)
+              ? null
+              : _pickVerificationDocument,
           icon: _uploadingDocument
               ? const SizedBox(
                   width: 16,
@@ -1895,6 +1902,25 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           ),
         ),
 
+        // Analyzing spinner
+        if (_analyzingDocument) ...[
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              const SizedBox(
+                width: 14, height: 14,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Color(0xFF10B981)),
+              ),
+              const SizedBox(width: 8),
+              Text(
+                'AI analyzing document...',
+                style: TextStyle(color: Colors.grey[400], fontSize: 12),
+              ),
+            ],
+          ),
+        ],
+
         // Document List Cards
         if (_documentUrls.isNotEmpty) ...[
           const SizedBox(height: 14),
@@ -1903,6 +1929,33 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               final idx = entry.key;
               final url = entry.value;
               final docTitle = url.split('/').last.replaceAll('_', ' ');
+              final result = idx < _docResults.length ? _docResults[idx] : null;
+
+              // Colour-coded result display
+              Color chipColor;
+              Color chipBg;
+              IconData chipIcon;
+              String chipLabel;
+              if (result == null || result.riskLevel == DocRiskLevel.pendingReview) {
+                chipColor = Colors.grey;
+                chipBg = Colors.white10;
+                chipIcon = Icons.hourglass_empty_rounded;
+                chipLabel = 'Pending admin review';
+              } else if (result.riskLevel == DocRiskLevel.verified) {
+                chipColor = const Color(0xFF10B981);
+                chipBg = const Color(0xFF10B981);
+                chipIcon = Icons.verified_rounded;
+                chipLabel = 'AI verified — looks authentic';
+              } else {
+                // flagged
+                chipColor = Colors.amber;
+                chipBg = Colors.amber;
+                chipIcon = Icons.warning_amber_rounded;
+                chipLabel = result.flags.isEmpty
+                    ? 'Flagged — admin review'
+                    : 'Flagged: ${result.flagsReadable}';
+              }
+
               return Container(
                 margin: const EdgeInsets.only(bottom: 8),
                 padding:
@@ -1910,19 +1963,20 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 decoration: BoxDecoration(
                   color: const Color(0xFF1C1C1E),
                   borderRadius: BorderRadius.circular(12),
-                  border:
-                      Border.all(color: Colors.white.withValues(alpha: 0.08)),
+                  border: Border.all(
+                    color: chipBg.withValues(alpha: 0.25),
+                  ),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.picture_as_pdf_rounded,
-                        color: Colors.redAccent, size: 22),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
+                    Row(
+                      children: [
+                        const Icon(Icons.description_rounded,
+                            color: Color(0xFF38BDF8), size: 22),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
                             docTitle,
                             style: const TextStyle(
                                 color: Colors.white,
@@ -1931,22 +1985,54 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          const SizedBox(height: 2),
-                          const Text(
-                            'Verified Document Attached',
-                            style: TextStyle(
-                                color: Colors.greenAccent,
-                                fontSize: 11,
-                                fontWeight: FontWeight.w500),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete_outline_rounded,
+                              color: Colors.grey, size: 18),
+                          onPressed: () => _removeVerificationDocument(idx),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 6),
+                    // AI result chip
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: chipBg.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(
+                            color: chipBg.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(chipIcon, size: 12, color: chipColor),
+                          const SizedBox(width: 5),
+                          Flexible(
+                            child: Text(
+                              chipLabel,
+                              style: TextStyle(
+                                  color: chipColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                            ),
                           ),
                         ],
                       ),
                     ),
-                    IconButton(
-                      icon: const Icon(Icons.delete_outline_rounded,
-                          color: Colors.grey, size: 18),
-                      onPressed: () => _removeVerificationDocument(idx),
-                    ),
+                    // Name extracted by AI
+                    if (result?.extractedName != null &&
+                        result!.extractedName!.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        'Name on doc: ${result.extractedName}',
+                        style: TextStyle(
+                            color: Colors.grey[500], fontSize: 10),
+                      ),
+                    ],
                   ],
                 ),
               );
@@ -1964,20 +2050,73 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         allowedExtensions: ['pdf', 'png', 'jpg', 'jpeg'],
         withData: true,
       );
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-        setState(() => _uploadingDocument = true);
-        await Future.delayed(const Duration(milliseconds: 400));
-        if (!mounted) return;
-        setState(() {
-          _documentUrls
-              .add('${_selectedDocType.replaceAll(' ', '_')}_${file.name}');
-          _uploadingDocument = false;
-        });
+      if (result == null || result.files.isEmpty) return;
+
+      final file = result.files.first;
+      final bytes = file.bytes;
+      if (bytes == null || !mounted) return;
+
+      // ── Phase 1: Tier 1 client-side checks ──────────────────────────────
+      setState(() => _uploadingDocument = true);
+
+      final tier1 = await DocVerificationService.runTier1(
+        bytes: bytes,
+        fileName: file.name,
+        declaredDocType: _selectedDocType,
+      );
+
+      if (!mounted) return;
+
+      if (tier1.isHardRejected) {
+        setState(() => _uploadingDocument = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text('Document rejected: ${tier1.tier1RejectionReason}'),
+          backgroundColor: Colors.redAccent,
+          duration: const Duration(seconds: 5),
+        ));
+        return;
       }
+
+      // ── Phase 2: Upload to Cloudinary ────────────────────────────────────
+      final uploadedUrl = await CloudinaryService.uploadImage(
+        bytes,
+        fileName: '${_selectedDocType.replaceAll(' ', '_')}_${file.name}',
+      );
+
+      if (!mounted) return;
+
+      // Fallback: if Cloudinary not configured use local filename so flow continues
+      final docUrl = uploadedUrl ?? '${_selectedDocType.replaceAll(' ', '_')}_${file.name}';
+
+      setState(() {
+        _documentUrls.add(docUrl);
+        _docResults.add(tier1); // show tier1 result while Tier 2 runs
+        _uploadingDocument = false;
+        _analyzingDocument = true;
+      });
+
+      // ── Phase 3: Tier 2 Gemini AI analysis ──────────────────────────────
+      final currentUser = fb_auth.FirebaseAuth.instance.currentUser;
+      final tier2 = await DocVerificationService.runTier2(
+        imageBytes: bytes,
+        declaredDocType: _selectedDocType,
+        landlordName: currentUser?.displayName,
+      );
+
+      if (!mounted) return;
+      final idx = _documentUrls.length - 1;
+      setState(() {
+        if (idx < _docResults.length) {
+          _docResults[idx] = tier2;
+        }
+        _analyzingDocument = false;
+      });
     } catch (_) {
       if (mounted) {
-        setState(() => _uploadingDocument = false);
+        setState(() {
+          _uploadingDocument = false;
+          _analyzingDocument = false;
+        });
       }
     }
   }
@@ -1986,6 +2125,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (index >= 0 && index < _documentUrls.length) {
       setState(() {
         _documentUrls.removeAt(index);
+        if (index < _docResults.length) _docResults.removeAt(index);
       });
     }
   }
