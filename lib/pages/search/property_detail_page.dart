@@ -1,1454 +1,329 @@
-import 'dart:ui' as ui;
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:video_player/video_player.dart';
 import 'package:flutter/material.dart';
-import 'package:geolocator/geolocator.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:roost_app/config.dart';
-import 'package:roost_app/models/property.dart';
-import 'package:roost_app/services/api_service.dart';
-import 'package:roost_app/services/favorites_service.dart';
-import 'package:roost_app/services/country_service.dart';
-import 'package:roost_app/services/location_service.dart';
-import 'package:roost_app/pages/chat/chat_room_page.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
-import 'package:roost_app/pages/search/in_app_map_page.dart';
-import 'package:roost_app/theme/app_map_style.dart';
 
-import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
+import 'package:roost_app/config.dart';
+import 'package:roost_app/controllers/property_detail_controller.dart';
+import 'package:roost_app/models/property.dart';
+import 'package:roost_app/pages/chat/chat_room_page.dart';
+import 'package:roost_app/pages/search/in_app_map_page.dart';
+import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/theme/app_map_style.dart';
+import 'package:roost_app/widgets/property_detail/amenities_section.dart';
+import 'package:roost_app/widgets/property_detail/community_check_sheet.dart';
+import 'package:roost_app/widgets/property_detail/dual_contact_card.dart';
+import 'package:roost_app/widgets/property_detail/free_viewings_banner.dart';
+import 'package:roost_app/widgets/property_detail/glass_icon_button.dart';
+import 'package:roost_app/widgets/property_detail/hero_media_gallery.dart';
+import 'package:roost_app/widgets/property_detail/property_bottom_bar.dart';
+import 'package:roost_app/widgets/property_detail/quick_stats_row.dart';
+import 'package:roost_app/widgets/property_detail/report_sheet.dart';
+import 'package:roost_app/widgets/property_detail/section_header.dart';
+import 'package:roost_app/widgets/property_detail/trust_verification_card.dart';
+import 'package:roost_app/widgets/property_detail/verification_badges.dart';
 
 class PropertyDetailPage extends StatefulWidget {
-  final Property property;
-
   const PropertyDetailPage({super.key, required this.property});
+
+  final Property property;
 
   @override
   State<PropertyDetailPage> createState() => _PropertyDetailPageState();
 }
 
-class _PropertyDetailPageState extends State<PropertyDetailPage> {
-  bool _isFavorite = false;
-  int _currentImageIndex = 0;
-  Position? _userPosition;
-  bool _communityCheckEligible = false;
-  bool _communityCheckSubmitted = false;
+class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTickerProviderStateMixin {
+  late final PropertyDetailController _controller;
+  late final AnimationController _entranceController;
+  late final Animation<double> _entranceFade;
+  late final Animation<Offset> _entranceSlide;
+
+  Property get _property => widget.property;
 
   @override
   void initState() {
     super.initState();
-    _checkIfFavorite();
-    _incrementViewCount();
-    _loadUserPosition();
-    _checkCommunityCheckEligibility();
-  }
-
-  /// Only shows the "did this match?" prompt to tenants who actually
-  /// applied to this listing -- the closest concrete signal of genuine
-  /// engagement Roost has today (no scheduled-viewing tracking exists
-  /// yet). The backend re-checks this independently on submit; this
-  /// call is purely so the app knows whether to show the prompt at all.
-  Future<void> _checkCommunityCheckEligibility() async {
-    if (widget.property.id == null) return;
-    try {
-      final result = await ApiService.get('/api/properties/${widget.property.id}/community-check/eligible');
-      if (mounted) {
-        setState(() => _communityCheckEligible = result is Map && result['eligible'] == true);
-      }
-    } catch (_) {
-      // Not logged in, or the call failed -- just don't show the
-      // prompt rather than surfacing an error for a non-essential check.
-    }
-  }
-
-  Future<void> _loadUserPosition() async {
-    final position = await LocationService.getCurrentPosition();
-    if (mounted) setState(() => _userPosition = position);
-  }
-
-  Future<void> _incrementViewCount() async {
-    if (widget.property.id != null) {
-      try {
-        await ApiService.get('/api/properties/${widget.property.id}/view');
-      } catch (_) {}
-    }
-  }
-
-  Future<void> _checkIfFavorite() async {
-    if (widget.property.id != null) {
-      final fav = await FavoritesService.isFavorite(widget.property.id!);
-      if (mounted) setState(() => _isFavorite = fav);
-    }
-  }
-
-  Future<void> _toggleFavorite() async {
-    if (widget.property.id != null) {
-      await FavoritesService.toggle(widget.property.id!);
-      _checkIfFavorite();
-    }
-  }
-
-  /// "450 m away · ~6 min walk" / "3.2 km away · ~8 min drive", or null if
-  /// either the user's location or the property's coordinates are unknown.
-  String? get _distanceLabel {
-    final pos = _userPosition;
-    final lat = widget.property.latitude;
-    final lng = widget.property.longitude;
-    if (pos == null || lat == null || lng == null) return null;
-
-    final km = LocationService.distanceKm(pos.latitude, pos.longitude, lat, lng);
-    final walking = km < 1.5;
-    final speedKmh = walking ? 5.0 : 30.0;
-    final minutes = (km / speedKmh * 60).round().clamp(1, 999);
-    final mode = walking ? 'walk' : 'drive';
-    return '${LocationService.formatDistance(km)} · ~$minutes min $mode';
-  }
-
-  String _formatDepositText(String? raw) {
-    if (raw == null || raw.trim().isEmpty) return '';
-    final cleaned = raw.replaceAll(RegExp(r'[^0-9.]'), '');
-    final numVal = num.tryParse(cleaned);
-    if (numVal != null && numVal > 0) {
-      return 'Deposit: ${CountryService.price(numVal)}';
-    }
-    return 'Deposit: $raw';
-  }
-
-  void _navigateToMap() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (_) => InAppMapPage(property: widget.property)),
-    );
-  }
-
-  void _shareListing() {
-    final p = widget.property;
-    final link = p.id != null ? '${AppConfig.baseUrl}/api/properties/${p.id}' : AppConfig.baseUrl;
-    final shareText = 'Check out this listing on Roost:\n${p.title} — ${CountryService.pricePerMonth(p.price)} in ${p.location}\n$link';
-    Share.share(shareText, subject: p.title);
-  }
-
-  void _showCommunityCheckSheet() {
-    bool visited = true;
-    bool photosAccurate = true;
-    bool locationAccurate = true;
-    bool priceAccurate = true;
-    bool wouldRecommend = true;
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        bool isSubmitting = false;
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            Widget switchTile(String label, bool value, ValueChanged<bool> onChanged) {
-              return SwitchListTile(
-                title: Text(label, style: const TextStyle(color: Colors.white, fontSize: 14)),
-                value: value,
-                onChanged: isSubmitting ? null : onChanged,
-                activeThumbColor: Colors.white,
-                contentPadding: EdgeInsets.zero,
-              );
-            }
-
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Did this listing match?',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Since you applied to this listing, your answer helps other renters trust Roost.',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                    const SizedBox(height: 8),
-                    switchTile('I visited or contacted about this property', visited, (v) => setSheetState(() => visited = v)),
-                    if (visited) ...[
-                      switchTile('Photos were accurate', photosAccurate, (v) => setSheetState(() => photosAccurate = v)),
-                      switchTile('Location was accurate', locationAccurate, (v) => setSheetState(() => locationAccurate = v)),
-                      switchTile('Price was accurate', priceAccurate, (v) => setSheetState(() => priceAccurate = v)),
-                      switchTile('I would recommend this listing', wouldRecommend, (v) => setSheetState(() => wouldRecommend = v)),
-                    ],
-                    const SizedBox(height: 16),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: isSubmitting
-                            ? null
-                            : () async {
-                                setSheetState(() => isSubmitting = true);
-                                try {
-                                  await ApiService.post('/api/properties/${widget.property.id}/community-check', {
-                                    'visited': visited,
-                                    'photosAccurate': visited && photosAccurate,
-                                    'locationAccurate': visited && locationAccurate,
-                                    'priceAccurate': visited && priceAccurate,
-                                    'wouldRecommend': visited && wouldRecommend,
-                                  });
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (!mounted) return;
-                                  setState(() => _communityCheckSubmitted = true);
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('Thanks for helping keep Roost accurate.')),
-                                  );
-                                } catch (e) {
-                                  if (ctx.mounted) Navigator.pop(ctx);
-                                  if (!mounted) return;
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Could not submit: $e')),
-                                  );
-                                }
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: isSubmitting
-                            ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                            : const Text('Submit', style: TextStyle(fontWeight: FontWeight.bold)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  void _showReportBottomSheet() {
-    String selectedReason = 'Fake listing';
-    final List<String> reasons = [
-      'Fake listing',
-      'Incorrect price / hidden fees',
-      'Already taken / not available',
-      'Fraud or scam attempt',
-      'Inaccurate photos / location',
-      'Other',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-                  bool isSubmitting = false;
-                  return StatefulBuilder(
-                    builder: (sheetContext, setSheetState) {
-                      return Padding(
-                        padding: EdgeInsets.only(
-                          left: 20,
-                          right: 20,
-                          top: 20,
-                          bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-                        ),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                'Report Listing',
-                                style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                              ),
-                              const SizedBox(height: 6),
-                              Text(
-                                'Help us keep Roost safe and verified. Why are you reporting this property?',
-                                style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                              ),
-                              const SizedBox(height: 16),
-                              ...reasons.map((r) {
-                                return ListTile(
-                                  title: Text(r, style: TextStyle(color: selectedReason == r ? Colors.white : Colors.grey[400], fontSize: 14)),
-                                  trailing: Icon(
-                                    selectedReason == r ? Icons.radio_button_checked : Icons.radio_button_off,
-                                    color: selectedReason == r ? Colors.white : Colors.grey,
-                                    size: 20,
-                                  ),
-                                  contentPadding: EdgeInsets.zero,
-                                  onTap: isSubmitting ? null : () => setSheetState(() => selectedReason = r),
-                                );
-                              }),
-                              const SizedBox(height: 20),
-                              SizedBox(
-                                width: double.infinity,
-                                height: 52,
-                                child: ElevatedButton(
-                                  onPressed: isSubmitting
-                                      ? null
-                                      : () async {
-                                          setSheetState(() => isSubmitting = true);
-                                          try {
-                                            await ApiService.post('/api/properties/${widget.property.id}/report', {
-                                              'reason': selectedReason,
-                                            });
-                                            if (ctx.mounted) Navigator.pop(ctx);
-                                            if (!mounted) return;
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Listing report received. Thank you for keeping Roost safe!'),
-                                                duration: Duration(seconds: 4),
-                                              ),
-                                            );
-                                          } catch (e) {
-                                            if (ctx.mounted) Navigator.pop(ctx);
-                                            if (!mounted) return;
-                                            ScaffoldMessenger.of(context).showSnackBar(
-                                              const SnackBar(
-                                                content: Text('Report submitted. Thank you for keeping Roost safe!'),
-                                                duration: Duration(seconds: 4),
-                                              ),
-                                            );
-                                          }
-                                        },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.redAccent,
-                                    foregroundColor: Colors.white,
-                                    disabledBackgroundColor: Colors.redAccent.withValues(alpha: 0.5),
-                                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                  ),
-                                  child: isSubmitting
-                                      ? const SizedBox(
-                                          width: 20,
-                                          height: 20,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                                        )
-                                      : const Text('Submit Report', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  );
-      },
-    );
-  }
-
-  void _showReportViewingFeeSheet() {
-    String selectedDetail = 'Asked to pay before viewing';
-    final details = [
-      'Asked to pay before viewing',
-      'Charged during the viewing',
-      'Charged after the viewing',
-      'Deposit demanded before seeing the unit',
-      'Other fee requested',
-    ];
-
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (ctx) {
-        bool isSubmitting = false;
-        return StatefulBuilder(
-          builder: (sheetContext, setSheetState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                left: 20,
-                right: 20,
-                top: 20,
-                bottom: MediaQuery.of(sheetContext).viewInsets.bottom + 20,
-              ),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(8),
-                          decoration: BoxDecoration(
-                            color: Colors.redAccent.withValues(alpha: 0.15),
-                            borderRadius: BorderRadius.circular(10),
-                          ),
-                          child: const Icon(Icons.money_off_rounded,
-                              color: Colors.redAccent, size: 22),
-                        ),
-                        const SizedBox(width: 12),
-                        const Expanded(
-                          child: Text(
-                            'Report Viewing Fee',
-                            style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 18,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ),
-                      ],
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Property viewings on Roost are always free. '
-                      'If someone asked you to pay, let us know so we can take action.',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                    const SizedBox(height: 16),
-                    ...details.map((d) {
-                      return ListTile(
-                        title: Text(d,
-                            style: TextStyle(
-                                color: selectedDetail == d
-                                    ? Colors.white
-                                    : Colors.grey[400],
-                                fontSize: 14)),
-                        trailing: Icon(
-                          selectedDetail == d
-                              ? Icons.radio_button_checked
-                              : Icons.radio_button_off,
-                          color:
-                              selectedDetail == d ? Colors.white : Colors.grey,
-                          size: 20,
-                        ),
-                        contentPadding: EdgeInsets.zero,
-                        onTap: isSubmitting
-                            ? null
-                            : () =>
-                                setSheetState(() => selectedDetail = d),
-                      );
-                    }),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: isSubmitting
-                            ? null
-                            : () async {
-                                setSheetState(() => isSubmitting = true);
-                                try {
-                                  await ApiService.post(
-                                      '/api/properties/${widget.property.id}/report',
-                                      {
-                                        'reason': 'Viewing fee charged',
-                                        'detail': selectedDetail,
-                                      });
-                                } catch (_) {
-                                  // Silently succeed for now
-                                }
-                                if (ctx.mounted) Navigator.pop(ctx);
-                                if (!mounted) return;
-                                ScaffoldMessenger.of(context).showSnackBar(
-                                  const SnackBar(
-                                    content: Text(
-                                        'Report submitted. We take viewing fees very seriously.'),
-                                    duration: Duration(seconds: 4),
-                                  ),
-                                );
-                              },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
-                          foregroundColor: Colors.white,
-                          disabledBackgroundColor:
-                              Colors.redAccent.withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(12)),
-                        ),
-                        child: isSubmitting
-                            ? const SizedBox(
-                                width: 20,
-                                height: 20,
-                                child: CircularProgressIndicator(
-                                    strokeWidth: 2, color: Colors.white),
-                              )
-                            : const Text('Submit Report',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 16)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildHeroMedia() {
-    final List<String> urls = [];
-    if (widget.property.imageUrl != null && widget.property.imageUrl!.isNotEmpty) {
-      urls.add(widget.property.imageUrl!);
-    }
-    for (final url in widget.property.imageUrls) {
-      if (url.isNotEmpty && !urls.contains(url)) {
-        urls.add(url);
-      }
-    }
-
-    final hasVideo = widget.property.videoUrl != null && widget.property.videoUrl!.isNotEmpty;
-    // Video leads the gallery when present -- the walkthrough is the
-    // richest thing a renter can see before contacting the landlord,
-    // so it shouldn't be buried behind static photos.
-    final int slideCount = urls.length + (hasVideo ? 1 : 0);
-
-    if (slideCount == 0) {
-      return Container(
-        height: 320,
-        width: double.infinity,
-        color: Colors.grey[900],
-        child: const Center(
-          child: Icon(Icons.home_outlined, color: Colors.white30, size: 64),
-        ),
-      );
-    }
-
-    return SizedBox(
-      height: 320,
-      child: Stack(
-        children: [
-          PageView.builder(
-            itemCount: slideCount,
-            onPageChanged: (idx) => setState(() => _currentImageIndex = idx),
-            itemBuilder: (context, idx) {
-              if (hasVideo && idx == 0) {
-                return _HeroVideoSlide(url: widget.property.videoUrl!);
-              }
-              final photoIdx = hasVideo ? idx - 1 : idx;
-              return GestureDetector(
-                onTap: () => FullScreenImageGallery.open(
-                  context,
-                  urls,
-                  initialIndex: photoIdx,
-                ),
-                child: CachedNetworkImage(
-                  imageUrl: urls[photoIdx],
-                  height: 320,
-                  width: double.infinity,
-                  fit: BoxFit.cover,
-                  placeholder: (context, url) => Container(color: Colors.black),
-                  errorWidget: (context, url, error) => Container(
-                    color: Colors.grey[900],
-                    child: const Icon(Icons.broken_image, color: Colors.grey, size: 48),
-                  ),
-                ),
-              );
-            },
-          ),
-          if (slideCount > 1)
-            Positioned(
-              bottom: 24,
-              right: 16,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Text(
-                  '${_currentImageIndex + 1} / $slideCount',
-                  style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
+    _controller = PropertyDetailController(property: widget.property)..init();
+    _entranceController = AnimationController(vsync: this, duration: const Duration(milliseconds: 420));
+    _entranceFade = CurvedAnimation(parent: _entranceController, curve: Curves.easeOut);
+    _entranceSlide = Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero)
+        .animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOut));
+    _entranceController.forward();
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _entranceController.dispose();
+    super.dispose();
+  }
+
+  void _callPrimaryContact() {
+    final phone = _property.primaryViewingPhone;
+    if (phone.isNotEmpty) launchUrl(Uri.parse('tel:$phone'));
+  }
+
+  void _openChat() {
+    if (_property.owner != null) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomPage(partner: _property.owner!)));
+    }
+  }
+
+  void _navigateToMap() {
+    Navigator.push(context, MaterialPageRoute(builder: (_) => InAppMapPage(property: _property)));
+  }
+
+  void _shareListing() {
+    final p = _property;
+    final link = p.id != null ? '${AppConfig.baseUrl}/api/properties/${p.id}' : AppConfig.baseUrl;
+    final shareText =
+        'Check out this listing on Roost:\n${p.title} — ${CountryService.pricePerMonth(p.price)} in ${p.location}\n$link';
+    Share.share(shareText, subject: p.title);
+  }
+
+  void _showVerificationDetails() => TrustVerificationCard.showDetails(context, _property);
+
+  @override
   Widget build(BuildContext context) {
-    final landlordName = widget.property.landlordName ?? (widget.property.owner?.name ?? 'Landlord');
-    final firstLetter = landlordName.isNotEmpty ? landlordName[0].toUpperCase() : 'L';
-
     return Scaffold(
-      backgroundColor: Colors.black,
-
-      // --- FAANG Persistent Glassmorphic Bottom Action Bar ---
-      bottomNavigationBar: Container(
-        decoration: BoxDecoration(
-          color: const Color(0xEE121214),
-          border: Border(top: BorderSide(color: Colors.white.withValues(alpha: 0.1), width: 1)),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.6),
-              blurRadius: 20,
-              offset: const Offset(0, -6),
-            ),
-          ],
-        ),
-        child: ClipRect(
-          child: BackdropFilter(
-            filter: ui.ImageFilter.blur(sigmaX: 16, sigmaY: 16),
-            child: SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                child: Row(
-                  children: [
-                    // Price & Deposit info (fitted on 1 line so it never wraps awkwardly)
-                    Expanded(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              crossAxisAlignment: CrossAxisAlignment.baseline,
-                              textBaseline: TextBaseline.alphabetic,
-                              children: [
-                                Text(
-                                  CountryService.price(widget.property.price),
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.w900,
-                                    letterSpacing: -0.4,
-                                  ),
-                                ),
-                                const Text(
-                                  ' /mo',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w500,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          if (widget.property.deposit != null && widget.property.deposit!.trim().isNotEmpty) ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              _formatDepositText(widget.property.deposit),
-                              style: TextStyle(color: Colors.grey[400], fontSize: 11, fontWeight: FontWeight.w500),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ] else ...[
-                            const SizedBox(height: 2),
-                            Text(
-                              'Per month',
-                              style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                            ),
-                          ],
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(width: 12),
-
-                    // Call icon button
-                    Container(
-                      height: 46,
-                      width: 46,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF2C2C2E),
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-                      ),
-                      child: IconButton(
-                        icon: const Icon(Icons.phone_outlined, color: Colors.white, size: 20),
-                        onPressed: () {
-                          final phone = widget.property.primaryViewingPhone;
-                          if (phone.isNotEmpty) launchUrl(Uri.parse('tel:$phone'));
-                        },
-                        tooltip: 'Call ${widget.property.isDirectLandlord ? 'Landlord' : 'Caretaker'}',
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-
-                    // Chat CTA Button
-                    ElevatedButton.icon(
-                      onPressed: () {
-                        if (widget.property.owner != null) {
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(builder: (_) => ChatRoomPage(partner: widget.property.owner!)),
-                          );
-                        }
-                      },
-                      icon: const Icon(Icons.chat_bubble_outline, size: 17),
-                      label: const Text(
-                        'Chat with Host',
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13.5),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: Colors.black,
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        elevation: 0,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+      backgroundColor: AppColors.background,
+      bottomNavigationBar: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) => PropertyBottomBar(
+          property: _property,
+          onCall: _callPrimaryContact,
+          onChat: _openChat,
         ),
       ),
-
-      body: CustomScrollView(
-        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-        slivers: [
-          // --- FAANG Elastic Parallax Hero Header ---
-          SliverAppBar(
-            expandedHeight: 340,
-            pinned: true,
-            stretch: true,
-            backgroundColor: Colors.black,
-            elevation: 0,
-            leading: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: Container(
-                decoration: const BoxDecoration(
-                  color: Color(0x70000000),
-                  shape: BoxShape.circle,
+      body: AnimatedBuilder(
+        animation: _controller,
+        builder: (context, _) {
+          return CustomScrollView(
+            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+            slivers: [
+              SliverAppBar(
+                expandedHeight: kHeroMediaHeight,
+                pinned: true,
+                stretch: true,
+                backgroundColor: AppColors.background,
+                elevation: 0,
+                leading: Padding(
+                  padding: const EdgeInsets.all(8.0),
+                  child: GlassIconButton(icon: Icons.arrow_back, onTap: () => Navigator.pop(context)),
                 ),
-                child: IconButton(
-                  icon: const Icon(Icons.arrow_back, color: Colors.white, size: 20),
-                  onPressed: () => Navigator.pop(context),
+                actions: [
+                  if (_property.id != null)
+                    Padding(
+                      padding: const EdgeInsets.only(right: 6),
+                      child: GlassIconButton(
+                        icon: Icons.favorite_border,
+                        onTap: _controller.toggleFavorite,
+                        child: TweenAnimationBuilder<double>(
+                          key: ValueKey(_controller.isFavorite),
+                          tween: Tween(begin: 0.6, end: 1.0),
+                          duration: const Duration(milliseconds: 220),
+                          curve: Curves.elasticOut,
+                          builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+                          child: Icon(
+                            _controller.isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: _controller.isFavorite ? Colors.redAccent : AppColors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    ),
+                  Padding(
+                    padding: const EdgeInsets.only(right: 12),
+                    child: GlassIconButton(icon: Icons.share_outlined, onTap: _shareListing),
+                  ),
+                ],
+                flexibleSpace: FlexibleSpaceBar(
+                  stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+                  background: _property.id != null
+                      ? Hero(tag: 'property-image-${_property.id}', child: HeroMediaGallery(property: _property))
+                      : HeroMediaGallery(property: _property),
                 ),
               ),
-            ),
-            actions: [
-              if (widget.property.id != null)
-                Padding(
-                  padding: const EdgeInsets.only(right: 6),
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0x70000000),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      icon: Icon(
-                        _isFavorite ? Icons.favorite : Icons.favorite_border,
-                        color: _isFavorite ? Colors.redAccent : Colors.white,
-                        size: 20,
-                      ),
-                      onPressed: _toggleFavorite,
-                    ),
-                  ),
-                ),
-              Padding(
-                padding: const EdgeInsets.only(right: 12),
-                child: Container(
-                  decoration: const BoxDecoration(
-                    color: Color(0x70000000),
-                    shape: BoxShape.circle,
-                  ),
-                  child: IconButton(
-                    icon: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
-                    onPressed: _shareListing,
-                  ),
+              SliverToBoxAdapter(
+                child: FadeTransition(
+                  opacity: _entranceFade,
+                  child: SlideTransition(position: _entranceSlide, child: _buildBody()),
                 ),
               ),
             ],
-            flexibleSpace: FlexibleSpaceBar(
-              stretchModes: const [
-                StretchMode.zoomBackground,
-                StretchMode.blurBackground,
-              ],
-              background: _buildHeroMedia(),
-            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildBody() {
+    final p = _property;
+
+    return Padding(
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(p.title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.4)),
+          if (p.buildingName != null && p.buildingName!.trim().isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Text('at ${p.buildingName}', style: TextStyle(color: AppColors.grey400, fontSize: 15, fontStyle: FontStyle.italic)),
+          ],
+          const SizedBox(height: 8),
+
+          Row(
+            children: [
+              const Icon(Icons.location_on_outlined, color: AppColors.grey500, size: 16),
+              const SizedBox(width: 4),
+              Expanded(child: Text(p.location, style: TextStyle(color: AppColors.grey400, fontSize: 14))),
+            ],
           ),
-
-          // --- Body Content Slivers ---
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+          if (_controller.distanceLabel != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceRaised,
+                borderRadius: BorderRadius.circular(8),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Title & Building
-                  Text(
-                    widget.property.title,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  if (widget.property.buildingName != null && widget.property.buildingName!.trim().isNotEmpty) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      'at ${widget.property.buildingName}',
-                      style: TextStyle(color: Colors.grey[400], fontSize: 15, fontStyle: FontStyle.italic),
-                    ),
-                  ],
-                  const SizedBox(height: 8),
-
-                  // Location & Distance Row
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on_outlined, color: Colors.grey, size: 16),
-                      const SizedBox(width: 4),
-                      Expanded(
-                        child: Text(
-                          widget.property.location,
-                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
-                        ),
-                      ),
-                    ],
-                  ),
-                  if (_distanceLabel != null) ...[
-                    const SizedBox(height: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-                      ),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.near_me_outlined, color: Colors.white70, size: 13),
-                          const SizedBox(width: 6),
-                          Text(
-                            _distanceLabel!,
-                            style: const TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w500),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
-
-                  const SizedBox(height: 16),
-
-                  // Badges Row (Available / Verified / Community Verified)
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                        decoration: BoxDecoration(
-                          color: widget.property.available ? Colors.white : Colors.grey[900],
-                          borderRadius: BorderRadius.circular(20),
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Container(
-                              width: 6,
-                              height: 6,
-                              decoration: BoxDecoration(
-                                color: widget.property.available ? Colors.black : Colors.grey[500],
-                                shape: BoxShape.circle,
-                              ),
-                            ),
-                            const SizedBox(width: 6),
-                            Text(
-                              widget.property.available ? 'Available' : 'Taken',
-                              style: TextStyle(
-                                color: widget.property.available ? Colors.black : Colors.grey[400],
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      _buildTopBadges(),
-                      if (widget.property.communityVerified)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          decoration: BoxDecoration(
-                            color: Colors.greenAccent.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5)),
-                          ),
-                          child: const Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              Icon(Icons.groups_2_outlined, color: Colors.greenAccent, size: 14),
-                              SizedBox(width: 4),
-                              Text('Community Verified', style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                            ],
-                          ),
-                        ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // --- Key Quick Stats Grid (Beds, Baths, House Type) ---
-                  Row(
-                    children: [
-                      _buildQuickStatCard(
-                        icon: Icons.king_bed_outlined,
-                        title: widget.property.bedroomDisplay,
-                        subtitle: 'Bedrooms',
-                      ),
-                      const SizedBox(width: 10),
-                      _buildQuickStatCard(
-                        icon: Icons.bathtub_outlined,
-                        title: '${widget.property.bathrooms} Bath',
-                        subtitle: 'Bathrooms',
-                      ),
-                      const SizedBox(width: 10),
-                      _buildQuickStatCard(
-                        icon: Icons.home_work_outlined,
-                        title: widget.property.houseType.isNotEmpty ? widget.property.houseType : 'Apartment',
-                        subtitle: 'Type',
-                      ),
-                    ],
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Amenities Section
-                  const Text(
-                    'Amenities',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
-                  ),
-                  const SizedBox(height: 14),
-                  Wrap(
-                    spacing: 10,
-                    runSpacing: 10,
-                    children: [
-                      if (widget.property.parking) _buildAmenityChip(Icons.directions_car, 'Parking'),
-                      if (widget.property.wifi) _buildAmenityChip(Icons.wifi, 'WiFi'),
-                      if (widget.property.water) _buildAmenityChip(Icons.water_drop, '24hr Water'),
-                      if (widget.property.security) _buildAmenityChip(Icons.security, 'Security'),
-                      if (widget.property.balcony) _buildAmenityChip(Icons.balcony, 'Balcony'),
-                      if (widget.property.petFriendly) _buildAmenityChip(Icons.pets, 'Pet Friendly'),
-                      if (widget.property.furnished) _buildAmenityChip(Icons.single_bed, 'Furnished'),
-                      if (widget.property.ac) _buildAmenityChip(Icons.ac_unit, 'Air Conditioning'),
-                      if (widget.property.heating) _buildAmenityChip(Icons.thermostat, 'Heating'),
-                      if (widget.property.laundry) _buildAmenityChip(Icons.local_laundry_service, 'Laundry'),
-                      if (widget.property.dstv) _buildAmenityChip(Icons.tv, 'DSTV / Cable'),
-                      if (widget.property.fence) _buildAmenityChip(Icons.fence, 'Perimeter Fence'),
-                      if (widget.property.intercom) _buildAmenityChip(Icons.phone_in_talk, 'Intercom'),
-                      if (widget.property.elevator) _buildAmenityChip(Icons.elevator, 'Elevator'),
-                      if (widget.property.caretaker) _buildAmenityChip(Icons.badge, 'Caretaker'),
-                      if (widget.property.rooftop) _buildAmenityChip(Icons.deck, 'Rooftop Terrace'),
-                      if (widget.property.garden) _buildAmenityChip(Icons.yard, 'Garden / Lawn'),
-                      if (widget.property.storage) _buildAmenityChip(Icons.inventory_2, 'Storage Unit'),
-                      if (widget.property.pool) _buildAmenityChip(Icons.pool, 'Swimming Pool'),
-                      if (widget.property.gym) _buildAmenityChip(Icons.fitness_center, 'Gym / Fitness'),
-                      if (widget.property.playArea) _buildAmenityChip(Icons.child_care, 'Play Area'),
-                      if (widget.property.cleaning) _buildAmenityChip(Icons.cleaning_services, 'Cleaning Service'),
-                      if (widget.property.garbage) _buildAmenityChip(Icons.delete_outline, 'Garbage Collection'),
-                      if (widget.property.wheelchair) _buildAmenityChip(Icons.accessible, 'Wheelchair Access'),
-                      if (widget.property.solar) _buildAmenityChip(Icons.wb_sunny, 'Solar Power'),
-                      if (widget.property.generator) _buildAmenityChip(Icons.power, 'Backup Generator'),
-                      ...widget.property.customAmenities.map((custom) => _buildAmenityChip(Icons.stars_outlined, custom)),
-                    ],
-                  ),
-
-                  const SizedBox(height: 28),
-
-                  // Description
-                  if (widget.property.description.trim().isNotEmpty) ...[
-                    const Text(
-                      'About this home',
-                      style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
-                    ),
-                    const SizedBox(height: 10),
-                    Text(
-                      widget.property.description,
-                      style: TextStyle(color: Colors.grey[300], fontSize: 15, height: 1.6),
-                    ),
-                    const SizedBox(height: 28),
-                  ],
-
-                  // Map preview
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      const Text(
-                        'Location & Surroundings',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
-                      ),
-                      TextButton.icon(
-                        onPressed: _navigateToMap,
-                        icon: const Icon(Icons.fullscreen, color: Colors.white, size: 18),
-                        label: const Text('Fullscreen', style: TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.bold)),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 10),
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: Container(
-                      height: 200,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      child: Stack(
-                        children: [
-                          GoogleMap(
-                            initialCameraPosition: CameraPosition(
-                              target: LatLng(
-                                widget.property.latitude ?? -1.2921,
-                                widget.property.longitude ?? 36.8219,
-                              ),
-                              zoom: 14,
-                            ),
-                            style: AppMapStyle.darkMapStyle,
-                            zoomControlsEnabled: false,
-                            myLocationButtonEnabled: false,
-                            scrollGesturesEnabled: false,
-                            zoomGesturesEnabled: false,
-                            tiltGesturesEnabled: false,
-                            rotateGesturesEnabled: false,
-                            markers: {
-                              Marker(
-                                markerId: MarkerId('detail_prop_${widget.property.id}'),
-                                position: LatLng(
-                                  widget.property.latitude ?? -1.2921,
-                                  widget.property.longitude ?? 36.8219,
-                                ),
-                              ),
-                            },
-                          ),
-                          Positioned.fill(
-                            child: Material(
-                              color: Colors.transparent,
-                              child: InkWell(
-                                onTap: _navigateToMap,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            bottom: 12,
-                            right: 12,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                              decoration: BoxDecoration(
-                                color: Colors.black.withValues(alpha: 0.85),
-                                borderRadius: BorderRadius.circular(12),
-                                border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                              ),
-                              child: const Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.touch_app, color: Colors.white, size: 14),
-                                  SizedBox(width: 6),
-                                  Text('Tap to Explore Map', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-
-                  if (widget.property.nearbyFacilities.isNotEmpty) ...[
-                    const SizedBox(height: 16),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        for (final facility in widget.property.nearbyFacilities)
-                          Padding(
-                            padding: const EdgeInsets.only(bottom: 8),
-                            child: Row(
-                              children: [
-                                Icon(_nearbyFacilityIcon(facility.category), color: Colors.grey[400], size: 16),
-                                const SizedBox(width: 8),
-                                Text(
-                                  facility.label,
-                                  style: TextStyle(color: Colors.grey[300], fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                      ],
-                    ),
-                  ],
-
-                  const SizedBox(height: 28),
-
-                  // Landlord Profile Card
-                  const Text(
-                    'Hosted by',
-                    style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: -0.3),
-                  ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(18),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(
-                        color: widget.property.verified
-                            ? Colors.greenAccent.withValues(alpha: 0.3)
-                            : Colors.white.withValues(alpha: 0.08),
-                      ),
-                      boxShadow: [
-                        if (widget.property.verified)
-                          BoxShadow(
-                            color: Colors.greenAccent.withValues(alpha: 0.1),
-                            blurRadius: 16,
-                            spreadRadius: 1,
-                          ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            CircleAvatar(
-                              radius: 26,
-                              backgroundColor: Colors.white,
-                              child: Text(firstLetter, style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 22)),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Text(landlordName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
-                                      if (widget.property.verified) ...[
-                                        const SizedBox(width: 4),
-                                        const Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 18),
-                                      ],
-                                    ],
-                                  ),
-                                  const SizedBox(height: 4),
-                                  // Management role badge
-                                  Container(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                    decoration: BoxDecoration(
-                                      color: widget.property.isDirectLandlord
-                                          ? Colors.white.withValues(alpha: 0.08)
-                                          : const Color(0xFF6C63FF).withValues(alpha: 0.15),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                    child: Text(
-                                      widget.property.managementBadgeLabel,
-                                      style: TextStyle(
-                                        color: widget.property.isDirectLandlord
-                                            ? Colors.grey[400]
-                                            : const Color(0xFF9D97FF),
-                                        fontSize: 10,
-                                        fontWeight: FontWeight.w600,
-                                      ),
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      const Icon(Icons.bolt, color: Colors.amberAccent, size: 14),
-                                      const SizedBox(width: 4),
-                                      Text('Usually responds within 2 hours · 98% SLA', style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 16),
-                        Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
-                        const SizedBox(height: 14),
-
-                        // Verification Checkpoints Grid
-                        const Text(
-                          'Landlord Verification Proof',
-                          style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: _buildTrustBadgePill(
-                                icon: Icons.phone_android_rounded,
-                                title: 'Phone SMS',
-                                isVerified: true,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildTrustBadgePill(
-                                icon: Icons.my_location_rounded,
-                                title: 'GPS Location',
-                                isVerified: widget.property.gpsVerified || widget.property.verified,
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: _buildTrustBadgePill(
-                                icon: Icons.description_outlined,
-                                title: 'Doc Proof',
-                                isVerified: widget.property.documentVerified || widget.property.documentUrls.isNotEmpty || widget.property.verified,
-                              ),
-                            ),
-                          ],
-                        ),
-                        if (widget.property.verified) ...[
-                          const SizedBox(height: 14),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                            decoration: BoxDecoration(
-                              color: Colors.greenAccent.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(10),
-                              border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.3)),
-                            ),
-                            child: const Row(
-                              children: [
-                                Icon(Icons.verified_user_rounded, color: Colors.greenAccent, size: 16),
-                                SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    '100% Verified Listing & Landlord — All identity, location & document proofs confirmed.',
-                                    style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.w600),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  // ── Dual-Contact Trust Card ──
-                  if (!widget.property.isDirectLandlord && (widget.property.caretakerName?.isNotEmpty ?? false)) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Property Contacts',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Both contacts are shown for your trust and convenience',
-                            style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                          ),
-                          const SizedBox(height: 16),
-
-                          // Caretaker/Agent row
-                          _DualContactRow(
-                            roleLabel: widget.property.isCaretaker ? 'On-site Caretaker' : 'Authorized Agent',
-                            name: widget.property.caretakerName!,
-                            phone: widget.property.caretakerPhone ?? '',
-                            icon: widget.property.isCaretaker ? Icons.person_pin : Icons.support_agent,
-                            accentColor: const Color(0xFF6C63FF),
-                            livesOnSite: widget.property.isCaretaker && widget.property.caretakerLivesOnSite,
-                          ),
-
-                          Padding(
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            child: Divider(height: 1, color: Colors.white.withValues(alpha: 0.08)),
-                          ),
-
-                          // Landlord/Owner row
-                          _DualContactRow(
-                            roleLabel: 'Property Owner',
-                            name: landlordName,
-                            phone: widget.property.landlordPhone,
-                            icon: Icons.home_outlined,
-                            accentColor: const Color(0xFF00C896),
-                            endorsed: widget.property.landlordEndorsed,
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                  ],
-
-                  // ── Free Viewings Guarantee Banner ──
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF00C896).withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(14),
-                      border: Border.all(color: const Color(0xFF00C896).withValues(alpha: 0.25)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.shield_outlined, color: Color(0xFF00C896), size: 22),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text(
-                                '100% Free Viewings Guarantee',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w700,
-                                ),
-                              ),
-                              const SizedBox(height: 2),
-                              Text(
-                                'Roost prohibits charging for property viewings. Report any fees.',
-                                style: TextStyle(color: Colors.grey[400], fontSize: 10.5),
-                              ),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        GestureDetector(
-                          onTap: () => _showReportViewingFeeSheet(),
-                          child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                            decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFF00C896).withValues(alpha: 0.5)),
-                              borderRadius: BorderRadius.circular(8),
-                            ),
-                            child: const Text(
-                              'Report',
-                              style: TextStyle(color: Color(0xFF00C896), fontSize: 10, fontWeight: FontWeight.w600),
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-
-                  if (_communityCheckEligible && !_communityCheckSubmitted) ...[
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
-                        borderRadius: BorderRadius.circular(18),
-                        border: Border.all(color: Colors.white.withValues(alpha: 0.1)),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Did this listing match what was advertised?',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Since you applied to this property, your answer helps build trust for other renters.',
-                            style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                          ),
-                          const SizedBox(height: 14),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton(
-                              onPressed: _showCommunityCheckSheet,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: Colors.white,
-                                side: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                                padding: const EdgeInsets.symmetric(vertical: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              child: const Text('Confirm accuracy'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 20),
-                  ],
-
-                  // Report Button
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: _showReportBottomSheet,
-                      icon: const Icon(Icons.flag_outlined, color: Colors.grey, size: 16),
-                      label: const Text('Report an issue with this listing', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                    ),
-                  ),
-
-                  const SizedBox(height: 110),
+                  const Icon(Icons.near_me_outlined, color: AppColors.grey300, size: 13),
+                  const SizedBox(width: 6),
+                  Text(_controller.distanceLabel!, style: const TextStyle(color: AppColors.grey300, fontSize: 12, fontWeight: FontWeight.w500)),
                 ],
               ),
             ),
+          ],
+
+          const SizedBox(height: 16),
+          VerificationBadges(property: p, onTapVerification: _showVerificationDetails),
+
+          const SizedBox(height: 24),
+          QuickStatsRow(property: p),
+
+          const SizedBox(height: 28),
+          const SectionHeader('Amenities'),
+          const SizedBox(height: 14),
+          AmenitiesSection(property: p),
+
+          if (p.description.trim().isNotEmpty) ...[
+            const SizedBox(height: 28),
+            const SectionHeader('About this home'),
+            const SizedBox(height: 10),
+            Text(p.description, style: TextStyle(color: AppColors.grey300, fontSize: 15, height: 1.6)),
+          ],
+
+          const SizedBox(height: 28),
+          SectionHeader(
+            'Location & Surroundings',
+            trailing: TextButton.icon(
+              onPressed: _navigateToMap,
+              icon: const Icon(Icons.fullscreen, color: AppColors.white, size: 18),
+              label: const Text('Fullscreen', style: TextStyle(color: AppColors.white, fontSize: 13, fontWeight: FontWeight.bold)),
+            ),
           ),
+          const SizedBox(height: 10),
+          _buildMapPreview(p),
+
+          if (p.nearbyFacilities.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final facility in p.nearbyFacilities)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    child: Row(
+                      children: [
+                        Icon(_nearbyFacilityIcon(facility.category), color: AppColors.grey400, size: 16),
+                        const SizedBox(width: 8),
+                        Text(facility.label, style: TextStyle(color: AppColors.grey300, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ],
+
+          const SizedBox(height: 28),
+          const SectionHeader('Hosted by'),
+          const SizedBox(height: 12),
+          TrustVerificationCard(property: p),
+
+          const SizedBox(height: 16),
+          DualContactCard(property: p),
+
+          const SizedBox(height: 16),
+          const FreeViewingsBanner(),
+
+          const SizedBox(height: 24),
+          if (_controller.communityCheckEligible && !_controller.communityCheckSubmitted) ...[
+            _buildCommunityCheckPrompt(),
+            const SizedBox(height: 20),
+          ],
+
+          Center(
+            child: TextButton.icon(
+              onPressed: () => ReportSheet.show(context, _controller),
+              icon: const Icon(Icons.flag_outlined, color: AppColors.grey500, size: 16),
+              label: const Text('Report an issue with this listing', style: TextStyle(color: AppColors.grey500, fontSize: 13)),
+            ),
+          ),
+          const SizedBox(height: 100),
         ],
       ),
     );
   }
 
-  Widget _buildQuickStatCard({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-  }) {
-    return Expanded(
+  Widget _buildMapPreview(Property p) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(20),
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-        child: Column(
+        height: 200,
+        decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(20)),
+        child: Stack(
           children: [
-            Icon(icon, color: Colors.white, size: 22),
-            const SizedBox(height: 8),
-            Text(
-              title,
-              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
-              textAlign: TextAlign.center,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            GoogleMap(
+              initialCameraPosition: CameraPosition(target: LatLng(p.latitude ?? -1.2921, p.longitude ?? 36.8219), zoom: 14),
+              style: AppMapStyle.darkMapStyle,
+              zoomControlsEnabled: false,
+              myLocationButtonEnabled: false,
+              scrollGesturesEnabled: false,
+              zoomGesturesEnabled: false,
+              tiltGesturesEnabled: false,
+              rotateGesturesEnabled: false,
+              markers: {
+                Marker(markerId: MarkerId('detail_prop_${p.id}'), position: LatLng(p.latitude ?? -1.2921, p.longitude ?? 36.8219)),
+              },
             ),
-            const SizedBox(height: 2),
-            Text(
-              subtitle,
-              style: TextStyle(color: Colors.grey[500], fontSize: 11),
-              textAlign: TextAlign.center,
+            Positioned.fill(child: Material(color: Colors.transparent, child: InkWell(onTap: _navigateToMap))),
+            Positioned(
+              bottom: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.black.withValues(alpha: 0.85),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.touch_app, color: AppColors.white, size: 14),
+                    SizedBox(width: 6),
+                    Text('Tap to Explore Map', style: TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                  ],
+                ),
+              ),
             ),
           ],
         ),
-      ),
-    );
-  }
-
-  Widget _buildAmenityChip(IconData icon, String label) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey[900]!),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: Colors.white, size: 16),
-          const SizedBox(width: 6),
-          Text(label, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
-        ],
       ),
     );
   }
@@ -1466,495 +341,36 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> {
     }
   }
 
-  void _showVerificationDetailsModal() {
-    showModalBottomSheet(
-      context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+  Widget _buildCommunityCheckPrompt() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: AppColors.border),
       ),
-      builder: (ctx) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Center(
-              child: Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: Colors.white.withValues(alpha: 0.2),
-                  borderRadius: BorderRadius.circular(2),
-                ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Did this listing match what was advertised?', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
+          const SizedBox(height: 4),
+          Text('Since you applied to this property, your answer helps build trust for other renters.', style: TextStyle(color: AppColors.grey400, fontSize: 12)),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: () => CommunityCheckSheet.show(context, _controller),
+              style: OutlinedButton.styleFrom(
+                foregroundColor: AppColors.white,
+                side: const BorderSide(color: AppColors.grey700),
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
+              child: const Text('Confirm accuracy'),
             ),
-            const SizedBox(height: 20),
-            const Row(
-              children: [
-                Icon(Icons.shield_rounded, color: Colors.greenAccent, size: 26),
-                SizedBox(width: 10),
-                Text(
-                  'Roost Trust & Verification Proof',
-                  style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Roost protects tenants by verifying landlord identity, location, and property authorization.',
-              style: TextStyle(color: Colors.grey[400], fontSize: 13, height: 1.4),
-            ),
-            const SizedBox(height: 20),
-            _buildProofModalRow(
-              icon: Icons.phone_android_rounded,
-              title: 'Phone Authenticated',
-              subtitle: 'Landlord phone number verified via SMS OTP.',
-              isVerified: true,
-            ),
-            const SizedBox(height: 12),
-            _buildProofModalRow(
-              icon: Icons.my_location_rounded,
-              title: 'On-Site GPS Location',
-              subtitle: 'Landlord captured live coordinates physically at the property.',
-              isVerified: widget.property.gpsVerified || widget.property.verified,
-            ),
-            const SizedBox(height: 12),
-            _buildProofModalRow(
-              icon: Icons.description_outlined,
-              title: 'Ownership / Utility Proof',
-              subtitle: 'Title deed, utility bill or ID photo uploaded for review.',
-              isVerified: widget.property.documentVerified || widget.property.documentUrls.isNotEmpty || widget.property.verified,
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () => Navigator.pop(ctx),
-                child: const Text('Got It', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildProofModalRow({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required bool isVerified,
-  }) {
-    return Row(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isVerified ? Colors.greenAccent.withValues(alpha: 0.15) : Colors.white.withValues(alpha: 0.05),
-            borderRadius: BorderRadius.circular(10),
-          ),
-          child: Icon(icon, color: isVerified ? Colors.greenAccent : Colors.grey[500], size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 6),
-                  Icon(
-                    isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
-                    color: isVerified ? Colors.greenAccent : Colors.grey[500],
-                    size: 14,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(subtitle, style: TextStyle(color: Colors.grey[400], fontSize: 12)),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildTopBadges() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: [
-        if (widget.property.verified)
-          InkWell(
-            onTap: _showVerificationDetailsModal,
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: Colors.greenAccent.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.5)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 14),
-                  SizedBox(width: 4),
-                  Text('Verified Listing', style: TextStyle(color: Colors.greenAccent, fontSize: 12, fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          ),
-        if (widget.property.gpsVerified)
-          InkWell(
-            onTap: _showVerificationDetailsModal,
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.my_location_rounded, color: Colors.white70, size: 13),
-                  SizedBox(width: 4),
-                  Text('GPS Confirmed', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-        if (widget.property.documentVerified || widget.property.documentUrls.isNotEmpty)
-          InkWell(
-            onTap: _showVerificationDetailsModal,
-            borderRadius: BorderRadius.circular(20),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.15)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.description_outlined, color: Colors.white70, size: 13),
-                  SizedBox(width: 4),
-                  Text('Doc Attached', style: TextStyle(color: Colors.white70, fontSize: 12, fontWeight: FontWeight.w600)),
-                ],
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildTrustBadgePill({
-    required IconData icon,
-    required String title,
-    required bool isVerified,
-  }) {
-    return InkWell(
-      onTap: _showVerificationDetailsModal,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-        decoration: BoxDecoration(
-          color: isVerified ? Colors.greenAccent.withValues(alpha: 0.1) : Colors.white.withValues(alpha: 0.04),
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(
-            color: isVerified ? Colors.greenAccent.withValues(alpha: 0.3) : Colors.white.withValues(alpha: 0.08),
-          ),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
-              color: isVerified ? Colors.greenAccent : Colors.grey[500],
-              size: 13,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: isVerified ? Colors.white : Colors.grey[400],
-                  fontSize: 11,
-                  fontWeight: isVerified ? FontWeight.bold : FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// A single autoplay, looping, muted-by-default video slide for the
-/// gallery -- the vertical short-form feel the walkthrough is meant to
-/// have. Tap toggles sound, matching the muted-until-tapped convention
-/// most people already expect from short vertical video elsewhere.
-class _HeroVideoSlide extends StatefulWidget {
-  final String url;
-
-  const _HeroVideoSlide({required this.url});
-
-  @override
-  State<_HeroVideoSlide> createState() => _HeroVideoSlideState();
-}
-
-class _HeroVideoSlideState extends State<_HeroVideoSlide> {
-  VideoPlayerController? _controller;
-  bool _muted = true;
-  bool _failed = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = VideoPlayerController.networkUrl(Uri.parse(widget.url))
-      ..setLooping(true)
-      ..setVolume(0)
-      ..initialize().then((_) {
-        if (!mounted) return;
-        setState(() {});
-        _controller?.play();
-      }).catchError((_) {
-        if (mounted) setState(() => _failed = true);
-      });
-  }
-
-  @override
-  void dispose() {
-    _controller?.dispose();
-    super.dispose();
-  }
-
-  void _toggleMute() {
-    setState(() {
-      _muted = !_muted;
-      _controller?.setVolume(_muted ? 0 : 1);
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_failed) {
-      return Container(
-        height: 320,
-        width: double.infinity,
-        color: Colors.grey[900],
-        child: const Center(child: Icon(Icons.videocam_off_outlined, color: Colors.white38, size: 48)),
-      );
-    }
-
-    final controller = _controller;
-    if (controller == null || !controller.value.isInitialized) {
-      return Container(
-        height: 320,
-        width: double.infinity,
-        color: Colors.black,
-        child: const Center(child: CircularProgressIndicator(color: Colors.white54, strokeWidth: 2)),
-      );
-    }
-
-    return GestureDetector(
-      onTap: _toggleMute,
-      child: SizedBox(
-        height: 320,
-        width: double.infinity,
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            FittedBox(
-              fit: BoxFit.cover,
-              child: SizedBox(
-                width: controller.value.size.width,
-                height: controller.value.size.height,
-                child: VideoPlayer(controller),
-              ),
-            ),
-            Positioned(
-              bottom: 24,
-              left: 16,
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: BoxDecoration(color: Colors.black.withValues(alpha: 0.6), shape: BoxShape.circle),
-                child: Icon(_muted ? Icons.volume_off : Icons.volume_up, color: Colors.white, size: 18),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-// ─────────────────────────────────────────────────────────────────────────
-// Dual-Contact Row — used inside the Property Contacts trust card
-// ─────────────────────────────────────────────────────────────────────────
-
-class _DualContactRow extends StatelessWidget {
-  final String roleLabel;
-  final String name;
-  final String phone;
-  final IconData icon;
-  final Color accentColor;
-  final bool livesOnSite;
-  final bool endorsed;
-
-  const _DualContactRow({
-    required this.roleLabel,
-    required this.name,
-    required this.phone,
-    required this.icon,
-    required this.accentColor,
-    this.livesOnSite = false,
-    this.endorsed = false,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Icon avatar
-        Container(
-          width: 40,
-          height: 40,
-          decoration: BoxDecoration(
-            color: accentColor.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Icon(icon, color: accentColor, size: 20),
-        ),
-        const SizedBox(width: 12),
-
-        // Name + role + tags
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Flexible(
-                    child: Text(
-                      name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w600,
-                        fontSize: 13,
-                      ),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
-                  if (endorsed) ...[
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF00C896).withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                      child: const Text(
-                        'Endorsed',
-                        style: TextStyle(
-                          color: Color(0xFF00C896),
-                          fontSize: 9,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                    ),
-                  ],
-                ],
-              ),
-              const SizedBox(height: 3),
-              Row(
-                children: [
-                  Text(
-                    roleLabel,
-                    style: TextStyle(color: Colors.grey[500], fontSize: 11),
-                  ),
-                  if (livesOnSite) ...[
-                    const SizedBox(width: 6),
-                    Icon(Icons.location_on, color: Colors.grey[600], size: 11),
-                    const SizedBox(width: 2),
-                    Text(
-                      'Lives on-site',
-                      style: TextStyle(color: Colors.grey[500], fontSize: 10),
-                    ),
-                  ],
-                ],
-              ),
-            ],
-          ),
-        ),
-
-        // Call + Chat buttons
-        if (phone.isNotEmpty) ...[
-          _ContactIconButton(
-            icon: Icons.phone_outlined,
-            color: accentColor,
-            onTap: () => launchUrl(Uri.parse('tel:$phone')),
-            tooltip: 'Call $name',
-          ),
-          const SizedBox(width: 6),
-          _ContactIconButton(
-            icon: Icons.chat_bubble_outline,
-            color: accentColor,
-            onTap: () => launchUrl(
-                Uri.parse('https://wa.me/${phone.replaceAll('+', '')}')),
-            tooltip: 'WhatsApp $name',
           ),
         ],
-      ],
-    );
-  }
-}
-
-class _ContactIconButton extends StatelessWidget {
-  final IconData icon;
-  final Color color;
-  final VoidCallback onTap;
-  final String tooltip;
-
-  const _ContactIconButton({
-    required this.icon,
-    required this.color,
-    required this.onTap,
-    required this.tooltip,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Tooltip(
-      message: tooltip,
-      child: GestureDetector(
-        onTap: onTap,
-        child: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: color.withValues(alpha: 0.25)),
-          ),
-          child: Icon(icon, color: color, size: 16),
-        ),
       ),
     );
   }

@@ -63,4 +63,25 @@ class AppTextStyles {
     fontWeight: FontWeight.w400,
     height: 1.4,
   );
+
+  // Detail screens
+  static const TextStyle sectionHeader = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 16,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.1,
+  );
+
+  static const TextStyle caption = TextStyle(
+    color: AppColors.textTertiary,
+    fontSize: 12,
+    fontWeight: FontWeight.w500,
+    height: 1.3,
+  );
+
+  static const TextStyle badge = TextStyle(
+    color: AppColors.textPrimary,
+    fontSize: 12,
+    fontWeight: FontWeight.w700,
+  );
 }
