@@ -194,11 +194,22 @@ const _stepLabels = [
 // ─── Main widget ──────────────────────────────────────────────────────────
 
 class AddPropertyPage extends StatefulWidget {
-  const AddPropertyPage({super.key, this.editingProperty});
+  const AddPropertyPage({
+    super.key,
+    this.editingProperty,
+    this.initialStep,
+    this.autoPickDocument = false,
+  });
 
-  /// When set, the page opens pre-filled with this listing\'s data and
+  /// When set, the page opens pre-filled with this listing's data and
   /// submits as an update (PUT) instead of creating a new listing.
   final Property? editingProperty;
+
+  /// Optional step index to open the wizard at directly (e.g. 2 for Location & Docs).
+  final int? initialStep;
+
+  /// If true, automatically triggers the document picker upon opening.
+  final bool autoPickDocument;
 
   @override
   State<AddPropertyPage> createState() => _AddPropertyPageState();
@@ -295,6 +306,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   @override
   void initState() {
     super.initState();
+    if (widget.initialStep != null) {
+      _step = widget.initialStep!.clamp(0, _stepLabels.length - 1);
+    }
+    if (widget.autoPickDocument) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _pickVerificationDocument();
+      });
+    }
     _draftId = widget.editingProperty?.id;
     final p = widget.editingProperty;
     if (p == null) return;

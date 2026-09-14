@@ -355,6 +355,26 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
           statusText: '$_docVerifiedCount/${_properties.length} Uploaded',
           isDone: _docVerifiedCount > 0 && _docVerifiedCount == _properties.length,
           icon: Icons.description,
+          onTap: () async {
+            if (_properties.isEmpty) return;
+            final target = _properties.firstWhere(
+              (p) => !p.documentVerified,
+              orElse: () => _properties.first,
+            );
+            final result = await Navigator.push<bool>(
+              context,
+              MaterialPageRoute(
+                builder: (_) => AddPropertyPage(
+                  editingProperty: target,
+                  initialStep: 2,
+                  autoPickDocument: true,
+                ),
+              ),
+            );
+            if (result == true) {
+              _fetchVerificationData();
+            }
+          },
         ),
       ],
     );
@@ -366,8 +386,11 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     required String statusText,
     required bool isDone,
     required IconData icon,
+    VoidCallback? onTap,
   }) {
-    return Container(
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
         color: const Color(0xFF18181B),
@@ -422,8 +445,9 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 
   Widget _buildEmptyListingsCard() {
     return Container(
@@ -587,7 +611,11 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                   final result = await Navigator.push<bool>(
                     context,
                     MaterialPageRoute(
-                      builder: (_) => AddPropertyPage(editingProperty: property),
+                      builder: (_) => AddPropertyPage(
+                        editingProperty: property,
+                        initialStep: 2,
+                        autoPickDocument: !property.documentVerified,
+                      ),
                     ),
                   );
                   if (result == true) {
