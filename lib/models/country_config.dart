@@ -43,6 +43,15 @@ class CountryConfig {
     required this.browsingDesc,
   });
 
+  /// Returns a location-aware search placeholder (e.g. "Search rentals in Westlands, 2BR..."
+  /// or "Search rentals in Nairobi...") if a specific neighborhood/locality is provided.
+  String getDynamicSearchHint([String? locationName]) {
+    if (locationName != null && locationName.trim().isNotEmpty) {
+      return 'Search rentals in ${locationName.trim()}, 2BR...';
+    }
+    return searchHint;
+  }
+
   // ── Supported Countries ───────────────────────────────────────────
 
   static const kenya = CountryConfig(
@@ -56,7 +65,7 @@ class CountryConfig {
     priceMin: 5000,
     priceMax: 150000,
     priceDivisions: 29,
-    searchHint: 'Search Nairobi rentals, Kilimani, Westlands...',
+    searchHint: 'Search rentals by location, e.g. 2BR...',
     browsingDesc: 'Checking Nairobi market prices',
     budgets: [
       BudgetOption(title: 'Under KES 15,000', badge: 'Budget Friendly', desc: 'Affordable studio & bedsitter listings'),

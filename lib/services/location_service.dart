@@ -1,3 +1,4 @@
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
 /// Wraps device geolocation for "properties near me" features. Never
@@ -7,6 +8,42 @@ import 'package:geolocator/geolocator.dart';
 /// browsing properties.
 class LocationService {
   LocationService._();
+
+  static String? cachedNeighborhood;
+
+  /// Attempts to reverse geocode [position] or current device location to get
+  /// a human-readable neighborhood/locality name (e.g. "Kilimani", "Westlands", "Ruaka").
+  static Future<String?> getNeighborhoodName([Position? position]) async {
+    if (cachedNeighborhood != null && cachedNeighborhood!.isNotEmpty) {
+      return cachedNeighborhood;
+    }
+    try {
+      final pos = position ?? await getCurrentPosition();
+      if (pos == null) return null;
+
+      final placemarks = await placemarkFromCoordinates(
+        pos.latitude,
+        pos.longitude,
+      ).timeout(const Duration(seconds: 4));
+
+      if (placemarks.isEmpty) return null;
+
+      final place = placemarks.first;
+      final name = (place.subLocality != null && place.subLocality!.trim().isNotEmpty)
+          ? place.subLocality!.trim()
+          : ((place.locality != null && place.locality!.trim().isNotEmpty)
+              ? place.locality!.trim()
+              : place.subAdministrativeArea?.trim());
+
+      if (name != null && name.isNotEmpty) {
+        cachedNeighborhood = name;
+        return name;
+      }
+      return null;
+    } catch (_) {
+      return null;
+    }
+  }
 
   /// Returns the device's current position, or null if location services
   /// are disabled, permission is denied, or anything else goes wrong.

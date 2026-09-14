@@ -61,6 +61,7 @@ class _SearchPageState extends State<SearchPage> {
   bool _sortNewestFirst = false;
 
   Position? _userPosition;
+  String? _userNeighborhood;
   Timer? _debounceTimer;
 
   @override
@@ -128,8 +129,11 @@ class _SearchPageState extends State<SearchPage> {
   Future<void> _loadUserLocation() async {
     final position = await LocationService.getCurrentPosition();
     if (!mounted || position == null) return;
+    final neighborhood = await LocationService.getNeighborhoodName(position);
+    if (!mounted) return;
     setState(() {
       _userPosition = position;
+      _userNeighborhood = neighborhood;
     });
     // Distance-sorted paging depends on the server having lat/lng, which
     // it didn't for whatever's already loaded -- refetch from page 0
@@ -810,7 +814,7 @@ class _SearchPageState extends State<SearchPage> {
                                       _applyClientSideFilters();
                                     },
                                     decoration: InputDecoration(
-                                      hintText: CountryService.config.searchHint,
+                                      hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
                                       hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
                                       prefixIcon: const Icon(Icons.search, color: Colors.white),
                                       suffixIcon: ValueListenableBuilder<TextEditingValue>(

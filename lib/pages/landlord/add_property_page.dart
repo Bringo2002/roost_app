@@ -1445,7 +1445,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           controller: _titleCtrl,
           style: const TextStyle(color: Colors.white),
           decoration: _inputDecoration(
-              'Listing title (e.g. Modern 2BR in Kilimani)',
+              'Listing title (e.g. Modern 2BR Apartment)',
               errorText: _errors['title']),
           onChanged: (_) => _clearError('title'),
         ),
@@ -1583,7 +1583,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           controller: _locationCtrl,
           style: const TextStyle(color: Colors.white),
           decoration: _inputDecoration(
-              'Neighbourhood / street (e.g. Kilimani, Chania Ave)',
+              'Neighbourhood / street (e.g. Westlands, Main St)',
               errorText: _errors['locationText'],
               prefixIcon: const Icon(Icons.location_on_outlined,
                   color: Colors.white38, size: 18)),

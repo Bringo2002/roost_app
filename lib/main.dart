@@ -19,6 +19,7 @@ import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_map_style.dart';
@@ -385,6 +386,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   String? _prefTimeframe;
 
   Position? _userPosition;
+  String? _userNeighborhood;
 
   @override
   void initState() {
@@ -468,7 +470,12 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   Future<void> _loadUserPosition() async {
     final position = await LocationService.getCurrentPosition();
     if (!mounted || position == null) return;
-    setState(() => _userPosition = position);
+    final neighborhood = await LocationService.getNeighborhoodName(position);
+    if (!mounted) return;
+    setState(() {
+      _userPosition = position;
+      _userNeighborhood = neighborhood;
+    });
     _filterProperties();
   }
 
@@ -734,7 +741,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                                 style: const TextStyle(
                                     color: Colors.white, fontSize: 15),
                                 decoration: InputDecoration(
-                                  hintText: 'Search location or title...',
+                                  hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
                                   hintStyle: TextStyle(
                                     color: Colors.grey[600],
                                     fontSize: 15,
