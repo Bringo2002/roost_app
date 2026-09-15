@@ -419,8 +419,14 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   // in one unbounded call. That's fine at a few hundred listings and a
   // real scalability problem beyond that: payload size and load time
   // grow forever as the catalog grows. This now windows through
-  // /api/properties/filter the same way the dedicated Search page
-  // already does, 20 at a time.
+  // /api/properties (page/size params, opt-in on the backend) the same
+  // way the dedicated Search page's /api/properties/filter does --
+  // deliberately NOT /filter itself, since that endpoint hardcodes
+  // "available = true" and, once lat/lng are sent, "coordinates not
+  // null" -- both of which would silently drop listings this feed is
+  // supposed to still show (a "Taken" listing displays its own badge
+  // rather than disappearing; a listing without pinned coordinates yet
+  // still needs to appear, just without a distance label).
   static const int _pageSize = 20;
   int _nextPage = 0;
   bool _hasMore = true;
@@ -548,12 +554,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     return LocationService.distanceKm(pos.latitude, pos.longitude, lat, lng);
   }
 
-  /// Query string for GET /api/properties/filter -- mirrors
-  /// SearchPage._buildFilterQuery, minus the filter-sheet-only params
-  /// this feed doesn't have (price range, amenities, verified-only).
-  /// Sending lat/lng (once resolved) asks the server to order by
-  /// distance, matching what the client-side relevance pass already
-  /// weights most heavily.
+  /// Query string for GET /api/properties (paginated form) -- same
+  /// page/size/lat/lng params SearchPage sends to /api/properties/filter,
+  /// but against the plain feed endpoint so availability/coordinate
+  /// requirements from /filter don't apply here. See the field comment
+  /// above for why that distinction matters for this feed specifically.
   String _buildQuery(int page) {
     final params = <String, String>{'page': '$page', 'size': '$_pageSize'};
     final pos = _userPosition;
@@ -574,7 +579,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
 
     try {
       final query = _buildQuery(pageToFetch);
-      final jsonList = await ApiService.get('/api/properties/filter?$query');
+      final jsonList = await ApiService.get('/api/properties?$query');
       if (!mounted) return;
       final props = (jsonList as List).map((json) => Property.fromJson(json)).toList();
       setState(() {
