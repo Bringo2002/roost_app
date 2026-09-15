@@ -1,9 +1,8 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
-import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:roost_app/services/api_service.dart';
 
 // ─── Result model ─────────────────────────────────────────────────────────────
 
@@ -66,31 +65,6 @@ class DocVerificationResult {
 
 class DocVerificationService {
   DocVerificationService._();
-
-  static String get _apiKey {
-    const envKey = String.fromEnvironment('GEMINI_API_KEY', defaultValue: '');
-    if (envKey.isNotEmpty) return envKey;
-    try {
-      final sysKey = Platform.environment['GEMINI_API_KEY'];
-      if (sysKey != null && sysKey.isNotEmpty) return sysKey;
-    } catch (_) {}
-    try {
-      final home = Platform.environment['HOME'] ?? Platform.environment['USERPROFILE'];
-      if (home != null) {
-        final envFile = File('$home/.env');
-        if (envFile.existsSync()) {
-          final lines = envFile.readAsLinesSync();
-          for (final line in lines) {
-            final trimmed = line.trim();
-            if (trimmed.startsWith('GEMINI_API_KEY=')) {
-              return trimmed.substring('GEMINI_API_KEY='.length).trim();
-            }
-          }
-        }
-      }
-    } catch (_) {}
-    return '';
-  }
 
   static const int _maxFileSizeBytes = 10 * 1024 * 1024; // 10 MB
 
@@ -161,65 +135,28 @@ class DocVerificationService {
     );
   }
 
-  // ── Tier 2 (Google Cost-Optimized Vision Inference) ─────────────────────
-
+  // ── Tier 2 (server-side Gemini fraud-check) ─────────────────────────────
+  //
+  // This used to call Gemini directly from the client, with the API key
+  // baked into the app via --dart-define. That's readable straight out
+  // of a compiled release APK/IPA, so the actual call now lives on the
+  // backend (GeminiDocVerificationService) -- same prompt, same schema,
+  // same cost-optimized model choice, just called through our own
+  // authenticated endpoint instead of Google's directly. [landlordName]
+  // is accepted here only for call-site compatibility; the backend
+  // derives the real name from the authenticated session rather than
+  // trusting anything the client claims.
   static Future<DocVerificationResult> runTier2({
     required Uint8List imageBytes,
     required String declaredDocType,
     String? landlordName,
   }) async {
-    if (_apiKey.isEmpty) {
-      return const DocVerificationResult(
-        riskLevel: DocRiskLevel.pendingReview,
-        flags: ['NO_API_KEY'],
-      );
-    }
-
     try {
-      // 1. Google Cost Optimization Mechanics:
-      // - Model: Gemini 1.5 Flash ($0.075 / 1M input tokens vs GPT-4o $2.50 = ~33x cheaper)
-      // - System Instruction: Moved static rubric into system instruction for context caching benefit (75% savings)
-      // - Response Schema: Native JSON schema enforcement eliminates preamble/markdown tokens (60% output savings)
-      final model = GenerativeModel(
-        model: 'gemini-1.5-flash',
-        apiKey: _apiKey,
-        systemInstruction: Content.system(
-          'You are an expert document fraud detection AI for Kenyan rental real estate.\n'
-          'Verify title deeds (Ministry of Lands green/cream), National IDs, Utility Bills (KPLC/Nairobi Water), or Lease Agreements.\n'
-          'Check for photo manipulation, font mismatch, missing seals, or name discrepancy.'
-        ),
-        generationConfig: GenerationConfig(
-          responseMimeType: 'application/json',
-          responseSchema: Schema.object(
-            properties: {
-              'docType': Schema.string(description: 'Actual detected document type'),
-              'isAuthentic': Schema.boolean(description: 'True if document appears genuine'),
-              'confidence': Schema.number(description: 'Confidence score from 0.0 to 1.0'),
-              'extractedName': Schema.string(description: 'Full name on document or null'),
-              'flags': Schema.array(
-                items: Schema.string(),
-                description: 'List of fraud or anomaly flags',
-              ),
-              'summary': Schema.string(description: 'One sentence assessment'),
-            },
-            requiredProperties: ['docType', 'isAuthentic', 'confidence', 'flags'],
-          ),
-        ),
-      );
-
-      final prompt = 'Declared Document Type: $declaredDocType\n'
-          '${landlordName != null ? 'Registered Account Holder Name: "$landlordName"\n' : ''}'
-          'Inspect this image. Return the structured JSON evaluation.';
-
-      final content = [
-        Content.multi([
-          DataPart('image/jpeg', imageBytes),
-          TextPart(prompt),
-        ]),
-      ];
-      final response = await model.generateContent(content);
-      final rawText = response.text ?? '';
-      return _parseGeminiResponse(rawText, landlordName);
+      final response = await ApiService.post('/api/documents/verify', {
+        'data': base64Encode(imageBytes),
+        'declaredDocType': declaredDocType,
+      });
+      return _parseBackendResponse(response as Map<String, dynamic>);
     } catch (_) {
       return const DocVerificationResult(
         riskLevel: DocRiskLevel.pendingReview,
@@ -283,58 +220,23 @@ class DocVerificationService {
     return '${bytes.length}_${checksum}_$prefix';
   }
 
-  static DocVerificationResult _parseGeminiResponse(
-      String rawText, String? landlordName) {
-    try {
-      final cleaned = rawText
-          .replaceAll(RegExp(r'```json\s*'), '')
-          .replaceAll(RegExp(r'```\s*'), '')
-          .trim();
-      final json = jsonDecode(cleaned) as Map<String, dynamic>;
-
-      final isAuthentic = json['isAuthentic'] as bool? ?? false;
-      final confidence = (json['confidence'] as num?)?.toDouble() ?? 0.0;
-      final extractedName = json['extractedName'] as String?;
-      final aiDocType = json['docType'] as String?;
-      final flags = List<String>.from(json['flags'] as List? ?? []);
-
-      bool nameMismatch = flags.contains('NAME_MISMATCH');
-      if (!nameMismatch &&
-          landlordName != null &&
-          extractedName != null &&
-          extractedName.isNotEmpty) {
-        nameMismatch = !_fuzzyNameMatch(landlordName, extractedName);
-        if (nameMismatch) flags.add('NAME_MISMATCH');
-      }
-
-      final level = (!isAuthentic || confidence < 0.4 || flags.isNotEmpty)
-          ? DocRiskLevel.flagged
-          : DocRiskLevel.verified;
-
-      return DocVerificationResult(
-        riskLevel: level,
-        flags: flags,
-        extractedName: extractedName,
-        nameMismatch: nameMismatch,
-        confidence: confidence,
-        aiDocType: aiDocType,
-      );
-    } catch (_) {
-      return const DocVerificationResult(
-        riskLevel: DocRiskLevel.pendingReview,
-        flags: ['AI_PARSE_ERROR'],
-      );
-    }
-  }
-
-  static bool _fuzzyNameMatch(String nameA, String nameB) {
-    String norm(String s) =>
-        s.toLowerCase().replaceAll(RegExp(r"[^a-z\s]"), '').trim();
-    final a = norm(nameA).split(RegExp(r'\s+')).toSet();
-    final b = norm(nameB).split(RegExp(r'\s+')).toSet();
-    final intersection = a.intersection(b).length;
-    final smaller = a.length < b.length ? a.length : b.length;
-    if (smaller == 0) return false;
-    return intersection / smaller >= 0.6;
+  /// Reads the already-computed result straight off the backend's JSON
+  /// response -- riskLevel and nameMismatch are now decided server-side
+  /// (GeminiDocVerificationService), so this is just a straight mapping
+  /// rather than the parsing-plus-scoring the client used to do itself.
+  static DocVerificationResult _parseBackendResponse(Map<String, dynamic> json) {
+    final riskLevel = switch (json['riskLevel'] as String? ?? 'pendingReview') {
+      'flagged' => DocRiskLevel.flagged,
+      'verified' => DocRiskLevel.verified,
+      _ => DocRiskLevel.pendingReview,
+    };
+    return DocVerificationResult(
+      riskLevel: riskLevel,
+      flags: List<String>.from(json['flags'] as List? ?? []),
+      extractedName: json['extractedName'] as String?,
+      nameMismatch: json['nameMismatch'] as bool? ?? false,
+      confidence: (json['confidence'] as num?)?.toDouble() ?? 0.0,
+      aiDocType: json['aiDocType'] as String?,
+    );
   }
 }
