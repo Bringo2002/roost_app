@@ -368,6 +368,19 @@ class AuthService {
     return null;
   }
 
+  static Future<String?> getUserName() async {
+    final token = await getToken();
+    if (token != null) {
+      try {
+        final Map<String, dynamic> decodedToken = JwtDecoder.decode(token);
+        return decodedToken['name'] ?? decodedToken['userName'] ?? (decodedToken['sub'] is String ? (decodedToken['sub'] as String).split('@').first : null);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   static Future<void> logout() async {
     await _storage.delete(key: _tokenKey);
     try {

@@ -15,6 +15,8 @@ import 'package:roost_app/services/doc_verification_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:intl/intl.dart';
+import 'package:roost_app/services/rent_estimator_service.dart';
 
 // ─── Amenity descriptor ────────────────────────────────────────────────────
 
@@ -232,9 +234,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final _descriptionCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
 
-  final _waterFeeCtrl = TextEditingController(text: '1500');
-  final _garbageFeeCtrl = TextEditingController(text: '500');
-  final _serviceChargeCtrl = TextEditingController(text: '2500');
+  final _waterFeeCtrl = TextEditingController();
+  final _garbageFeeCtrl = TextEditingController();
+  final _serviceChargeCtrl = TextEditingController();
   int _depositMonths = 1;
   String _electricityType = 'tokens';
 
@@ -243,6 +245,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   int _bathrooms = 1;
 
   String _houseType = '1BR';
+  RentEstimate? _aiRentEstimate;
+  bool _loadingAiEstimate = false;
   double? _latitude;
   double? _longitude;
   bool _locationConfirmed = false;
@@ -336,9 +340,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _priceCtrl.text = p.price == p.price.roundToDouble()
         ? p.price.toInt().toString()
         : p.price.toString();
-    _waterFeeCtrl.text = p.waterFee.toInt().toString();
-    _garbageFeeCtrl.text = p.garbageFee.toInt().toString();
-    _serviceChargeCtrl.text = p.serviceCharge.toInt().toString();
+    _waterFeeCtrl.text = p.waterFee > 0 ? p.waterFee.toInt().toString() : '';
+    _garbageFeeCtrl.text = p.garbageFee > 0 ? p.garbageFee.toInt().toString() : '';
+    _serviceChargeCtrl.text = p.serviceCharge > 0 ? p.serviceCharge.toInt().toString() : '';
     _depositMonths = p.depositMonths;
     _electricityType = p.electricityType;
     _bedrooms = p.bedrooms;
@@ -442,6 +446,126 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         ..addAll(errors);
     });
     return errors.isEmpty;
+  }
+
+  Future<void> _fetchAiEstimate() async {
+    final location = _locationCtrl.text.trim();
+    if (location.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please enter a location first to get AI rent estimates.')),
+      );
+      return;
+    }
+    setState(() => _loadingAiEstimate = true);
+    try {
+      final draft = Property(
+        id: 0,
+        title: _titleCtrl.text.isEmpty ? 'Listing' : _titleCtrl.text,
+        description: _descriptionCtrl.text,
+        location: location,
+        price: double.tryParse(_priceCtrl.text.trim()) ?? 0,
+        bedrooms: _bedrooms,
+        type: _houseType,
+        houseType: _houseType,
+        landlordPhone: _phoneCtrl.text.isEmpty ? '+254700000000' : _phoneCtrl.text,
+        available: true,
+        bathrooms: _bathrooms,
+        imageUrls: const [],
+        parking: _amenityState['parking'] ?? false,
+        furnished: _amenityState['furnished'] ?? false,
+        wifi: _amenityState['wifi'] ?? false,
+        generator: _amenityState['generator'] ?? false,
+        pool: _amenityState['pool'] ?? false,
+        gym: _amenityState['gym'] ?? false,
+        elevator: _amenityState['elevator'] ?? false,
+        balcony: _amenityState['balcony'] ?? false,
+        security: _amenityState['security'] ?? false,
+        solar: _amenityState['solar'] ?? false,
+      );
+      final est = await RentEstimatorService.estimate(draft);
+      if (mounted) {
+        setState(() {
+          _aiRentEstimate = est;
+          _loadingAiEstimate = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) setState(() => _loadingAiEstimate = false);
+    }
+  }
+
+  Widget _buildAiRentRecommendationBanner() {
+    final est = _aiRentEstimate;
+    final currency = CountryService.config.currencySymbol;
+
+    return Container(
+      margin: const EdgeInsets.only(top: 14, bottom: 6),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0F2942),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: const Color(0xFF38BDF8).withAlpha(100)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('✨', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              const Expanded(
+                child: Text(
+                  'AI Market Pricing Advisor',
+                  style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+              if (_loadingAiEstimate)
+                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)))
+              else
+                InkWell(
+                  onTap: _fetchAiEstimate,
+                  child: const Text('Calculate', style: TextStyle(color: Colors.white70, fontSize: 12, decoration: TextDecoration.underline)),
+                ),
+            ],
+          ),
+          if (est != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              'Fair Market Range: $currency ${NumberFormat('#,###').format(est.minPrice)} – $currency ${NumberFormat('#,###').format(est.maxPrice)} / mo',
+              style: const TextStyle(color: Colors.white, fontSize: 13, fontWeight: FontWeight.w600),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              'Based on ${est.comparableCount} comparable listings in ${_locationCtrl.text.trim().isNotEmpty ? _locationCtrl.text.trim() : 'this area'}.',
+              style: TextStyle(color: Colors.grey[400], fontSize: 11),
+            ),
+            const SizedBox(height: 10),
+            ElevatedButton.icon(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF38BDF8),
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              onPressed: () {
+                setState(() {
+                  _priceCtrl.text = est.medianPrice.round().toString();
+                });
+              },
+              icon: const Icon(Icons.auto_fix_high, size: 14),
+              label: Text('Apply Recommended Rent ($currency ${NumberFormat('#,###').format(est.medianPrice)})', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+            ),
+          ] else if (!_loadingAiEstimate) ...[
+            const SizedBox(height: 6),
+            Text(
+              'Enter location above and tap Calculate for live market rate insights.',
+              style: TextStyle(color: Colors.grey[400], fontSize: 11),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   // ── Location ──────────────────────────────────────────────────────────
@@ -643,9 +767,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       'status': status,
       'customAmenities': _customAmenities,
       'depositMonths': _depositMonths,
-      'waterFee': double.tryParse(_waterFeeCtrl.text.trim()) ?? 1500.0,
-      'garbageFee': double.tryParse(_garbageFeeCtrl.text.trim()) ?? 500.0,
-      'serviceCharge': double.tryParse(_serviceChargeCtrl.text.trim()) ?? 2500.0,
+      'waterFee': double.tryParse(_waterFeeCtrl.text.trim()) ?? 0.0,
+      'garbageFee': double.tryParse(_garbageFeeCtrl.text.trim()) ?? 0.0,
+      'serviceCharge': double.tryParse(_serviceChargeCtrl.text.trim()) ?? 0.0,
       'electricityType': _electricityType,
       'managerRole': _managerRole,
       if (_managerRole != 'LANDLORD')
@@ -768,6 +892,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       ownerVerifyPhone: _ownerPhoneCtrl.text.trim().isEmpty
           ? null
           : _formatPhone(_ownerPhoneCtrl.text.trim()),
+      depositMonths: _depositMonths,
+      waterFee: double.tryParse(_waterFeeCtrl.text.trim()) ?? 0.0,
+      garbageFee: double.tryParse(_garbageFeeCtrl.text.trim()) ?? 0.0,
+      serviceCharge: double.tryParse(_serviceChargeCtrl.text.trim()) ?? 0.0,
+      electricityType: _electricityType,
     );
   }
 
@@ -1566,6 +1695,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             ),
           ],
         ),
+
+        _buildAiRentRecommendationBanner(),
 
         const SizedBox(height: 20),
 

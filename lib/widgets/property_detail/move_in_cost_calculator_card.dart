@@ -24,6 +24,12 @@ class _MoveInCostCalculatorCardState extends State<MoveInCostCalculatorCard> {
     return '$symbol ${_currencyFormat.format(amount)}';
   }
 
+  /// Returns formatted currency if amount > 0, otherwise 'Not specified'.
+  String _formatOrNotSpecified(double amount, {int months = 1}) {
+    if (amount <= 0) return 'Not specified';
+    return _formatCurrency(amount * months);
+  }
+
   void _copySummaryToClipboard() {
     final p = widget.property;
     final initialTotal = p.totalInitialMoveInCost;
@@ -214,7 +220,7 @@ Calculated via Roost App 📱
             iconColor: Colors.blueAccent,
             title: 'Water & Sewage Fee',
             subtitle: 'Monthly water estimate',
-            amount: _formatCurrency(p.waterFee * (_leaseDurationMonths == 1 ? 1 : _leaseDurationMonths)),
+            amount: _formatOrNotSpecified(p.waterFee, months: _leaseDurationMonths == 1 ? 1 : _leaseDurationMonths),
           ),
           const Divider(height: 1, color: AppColors.border),
 
@@ -223,7 +229,7 @@ Calculated via Roost App 📱
             iconColor: Colors.orangeAccent,
             title: 'Garbage Collection',
             subtitle: 'Sanitation & waste pickup',
-            amount: _formatCurrency(p.garbageFee * (_leaseDurationMonths == 1 ? 1 : _leaseDurationMonths)),
+            amount: _formatOrNotSpecified(p.garbageFee, months: _leaseDurationMonths == 1 ? 1 : _leaseDurationMonths),
           ),
           const Divider(height: 1, color: AppColors.border),
 
@@ -232,7 +238,7 @@ Calculated via Roost App 📱
             iconColor: const Color(0xFF10B981),
             title: 'Service Charge',
             subtitle: 'Security, compound & common lighting',
-            amount: _formatCurrency(p.serviceCharge * (_leaseDurationMonths == 1 ? 1 : _leaseDurationMonths)),
+            amount: _formatOrNotSpecified(p.serviceCharge, months: _leaseDurationMonths == 1 ? 1 : _leaseDurationMonths),
           ),
           const Divider(height: 1, color: AppColors.border),
 

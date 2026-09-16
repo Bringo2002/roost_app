@@ -205,9 +205,9 @@ class Property {
     this.ownerVerifyName,
     this.ownerVerifyPhone,
     this.depositMonths = 1,
-    this.waterFee = 1500.0,
-    this.garbageFee = 500.0,
-    this.serviceCharge = 2500.0,
+    this.waterFee = 0.0,
+    this.garbageFee = 0.0,
+    this.serviceCharge = 0.0,
     this.electricityType = 'tokens',
   });
 
@@ -285,6 +285,11 @@ class Property {
     String? endorsementToken,
     String? ownerVerifyName,
     String? ownerVerifyPhone,
+    int? depositMonths,
+    double? waterFee,
+    double? garbageFee,
+    double? serviceCharge,
+    String? electricityType,
   }) {
     return Property(
       id: id ?? this.id,
@@ -360,6 +365,11 @@ class Property {
       endorsementToken: endorsementToken ?? this.endorsementToken,
       ownerVerifyName: ownerVerifyName ?? this.ownerVerifyName,
       ownerVerifyPhone: ownerVerifyPhone ?? this.ownerVerifyPhone,
+      depositMonths: depositMonths ?? this.depositMonths,
+      waterFee: waterFee ?? this.waterFee,
+      garbageFee: garbageFee ?? this.garbageFee,
+      serviceCharge: serviceCharge ?? this.serviceCharge,
+      electricityType: electricityType ?? this.electricityType,
     );
   }
 
@@ -443,9 +453,9 @@ class Property {
       ownerVerifyName: json['ownerVerifyName']?.toString(),
       ownerVerifyPhone: json['ownerVerifyPhone']?.toString(),
       depositMonths: (json['depositMonths'] as num?)?.toInt() ?? 1,
-      waterFee: (json['waterFee'] as num?)?.toDouble() ?? 1500.0,
-      garbageFee: (json['garbageFee'] as num?)?.toDouble() ?? 500.0,
-      serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 2500.0,
+      waterFee: (json['waterFee'] as num?)?.toDouble() ?? 0.0,
+      garbageFee: (json['garbageFee'] as num?)?.toDouble() ?? 0.0,
+      serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 0.0,
       electricityType: json['electricityType']?.toString() ?? 'tokens',
     );
   }
@@ -534,6 +544,11 @@ class Property {
       if (endorsementToken != null) 'endorsementToken': endorsementToken,
       if (ownerVerifyName != null) 'ownerVerifyName': ownerVerifyName,
       if (ownerVerifyPhone != null) 'ownerVerifyPhone': ownerVerifyPhone,
+      'depositMonths': depositMonths,
+      'waterFee': waterFee,
+      'garbageFee': garbageFee,
+      'serviceCharge': serviceCharge,
+      'electricityType': electricityType,
     };
   }
 
