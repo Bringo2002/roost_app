@@ -1,0 +1,47 @@
+diff --git a/lib/main.dart b/lib/main.dart
+index fc135d1..926544b 100644
+--- a/lib/main.dart
++++ b/lib/main.dart
+@@ -20,6 +20,7 @@ import 'package:roost_app/services/favorites_service.dart';
+ import 'package:shared_preferences/shared_preferences.dart';
+ import 'package:roost_app/services/location_service.dart';
+ import 'package:roost_app/theme/app_theme.dart';
++import 'package:roost_app/theme/app_colors.dart';
+ import 'package:roost_app/theme/app_map_style.dart';
+ import 'package:roost_app/widgets/property/property_card.dart';
+ 
+@@ -334,14 +335,14 @@ class _HomePageState extends State<HomePage> {
+       child: Container(
+         padding: const EdgeInsets.all(2),
+         decoration: BoxDecoration(
+-          color: Colors.red,
++          color: AppColors.white,
+           borderRadius: BorderRadius.circular(8),
+         ),
+         constraints: const BoxConstraints(minWidth: 16, minHeight: 16),
+         child: Text(
+           '$count',
+           style: const TextStyle(
+-            color: Colors.white,
++            color: AppColors.black,
+             fontSize: 10,
+             fontWeight: FontWeight.bold,
+           ),
+@@ -646,7 +647,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
+                       child: Container(
+                         padding: const EdgeInsets.all(4),
+                         decoration: const BoxDecoration(
+-                          color: Colors.redAccent,
++                          color: AppColors.white,
+                           shape: BoxShape.circle,
+                         ),
+                         constraints: const BoxConstraints(
+@@ -656,7 +657,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
+                         child: Text(
+                           unreadCount > 9 ? '9+' : '$unreadCount',
+                           style: const TextStyle(
+-                            color: Colors.white,
++                            color: AppColors.black,
+                             fontSize: 9,
+                             fontWeight: FontWeight.bold,
+                           ),

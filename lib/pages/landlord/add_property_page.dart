@@ -232,6 +232,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final _descriptionCtrl = TextEditingController();
   final _phoneCtrl = TextEditingController();
 
+  final _waterFeeCtrl = TextEditingController(text: '1500');
+  final _garbageFeeCtrl = TextEditingController(text: '500');
+  final _serviceChargeCtrl = TextEditingController(text: '2500');
+  int _depositMonths = 1;
+  String _electricityType = 'tokens';
+
   // Stepper-based instead of raw text fields
   int _bedrooms = 1;
   int _bathrooms = 1;
@@ -330,7 +336,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _priceCtrl.text = p.price == p.price.roundToDouble()
         ? p.price.toInt().toString()
         : p.price.toString();
-    _depositCtrl.text = p.deposit ?? '';
+    _waterFeeCtrl.text = p.waterFee.toInt().toString();
+    _garbageFeeCtrl.text = p.garbageFee.toInt().toString();
+    _serviceChargeCtrl.text = p.serviceCharge.toInt().toString();
+    _depositMonths = p.depositMonths;
+    _electricityType = p.electricityType;
     _bedrooms = p.bedrooms;
     _bathrooms = p.bathrooms;
     _descriptionCtrl.text = p.description;
@@ -632,6 +642,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       'country': CountryService.config.code,
       'status': status,
       'customAmenities': _customAmenities,
+      'depositMonths': _depositMonths,
+      'waterFee': double.tryParse(_waterFeeCtrl.text.trim()) ?? 1500.0,
+      'garbageFee': double.tryParse(_garbageFeeCtrl.text.trim()) ?? 500.0,
+      'serviceCharge': double.tryParse(_serviceChargeCtrl.text.trim()) ?? 2500.0,
+      'electricityType': _electricityType,
       'managerRole': _managerRole,
       if (_managerRole != 'LANDLORD')
         'caretakerName': _caretakerNameCtrl.text.trim(),
@@ -1554,6 +1569,69 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
         const SizedBox(height: 20),
 
+        // Utility Breakdown Section
+        Text(
+          'Utility Breakdown & Additional Fees',
+          style: TextStyle(
+            color: Colors.grey[400],
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: TextField(
+                controller: _waterFeeCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('Water fee/mo'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _garbageFeeCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('Garbage fee/mo'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: TextField(
+                controller: _serviceChargeCtrl,
+                keyboardType: TextInputType.number,
+                style: const TextStyle(color: Colors.white),
+                decoration: _inputDecoration('Service charge'),
+              ),
+            ),
+          ],
+        ),
+
+        const SizedBox(height: 14),
+
+        Text(
+          'Electricity Billing',
+          style: TextStyle(color: Colors.grey[500], fontSize: 12, fontWeight: FontWeight.w500),
+        ),
+        const SizedBox(height: 8),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              _buildElectricityChip('tokens', 'Prepaid Tokens'),
+              const SizedBox(width: 8),
+              _buildElectricityChip('postpaid', 'Postpaid Bill'),
+              const SizedBox(width: 8),
+              _buildElectricityChip('included', 'Included in Rent'),
+            ],
+          ),
+        ),
+
+        const SizedBox(height: 20),
+
         // Beds / Baths steppers
         Text('Rooms',
             style: TextStyle(
@@ -1584,8 +1662,33 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             ),
           ],
         ),
-        const SizedBox(height: 8),
       ],
+    );
+  }
+
+  Widget _buildElectricityChip(String type, String label) {
+    final isSelected = _electricityType == type;
+    return GestureDetector(
+      onTap: () => setState(() => _electricityType = type),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        decoration: BoxDecoration(
+          color: isSelected ? Colors.white : const Color(0xFF1C1C1E),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: isSelected ? Colors.white : const Color(0xFF3A3A3C),
+          ),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isSelected ? Colors.black : Colors.white,
+            fontWeight: FontWeight.w600,
+            fontSize: 12,
+          ),
+        ),
+      ),
     );
   }
 

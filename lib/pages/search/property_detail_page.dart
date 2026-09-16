@@ -24,6 +24,7 @@ import 'package:roost_app/widgets/property_detail/report_sheet.dart';
 import 'package:roost_app/widgets/property_detail/section_header.dart';
 import 'package:roost_app/widgets/property_detail/trust_verification_card.dart';
 import 'package:roost_app/widgets/property_detail/verification_badges.dart';
+import 'package:roost_app/widgets/property_detail/move_in_cost_calculator_card.dart';
 
 class PropertyDetailPage extends StatefulWidget {
   const PropertyDetailPage({super.key, required this.property});
@@ -216,6 +217,9 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
           const SectionHeader('Amenities'),
           const SizedBox(height: 14),
           AmenitiesSection(property: p),
+
+          const SizedBox(height: 28),
+          MoveInCostCalculatorCard(property: p),
 
           if (p.description.trim().isNotEmpty) ...[
             const SizedBox(height: 28),

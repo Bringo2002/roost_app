@@ -114,6 +114,22 @@ class Property {
   final String? ownerVerifyName;
   final String? ownerVerifyPhone;
 
+  // Utility & Move-in breakdown fields
+  final int depositMonths;
+  final double waterFee;
+  final double garbageFee;
+  final double serviceCharge;
+  final String electricityType;
+
+  double get totalInitialMoveInCost {
+    final depositAmount = price * depositMonths;
+    return price + depositAmount + waterFee + garbageFee + serviceCharge;
+  }
+
+  double get totalMonthlyUtilityCost {
+    return price + waterFee + garbageFee + serviceCharge;
+  }
+
   Property({
     this.id,
     required this.title,
@@ -188,6 +204,11 @@ class Property {
     this.endorsementToken,
     this.ownerVerifyName,
     this.ownerVerifyPhone,
+    this.depositMonths = 1,
+    this.waterFee = 1500.0,
+    this.garbageFee = 500.0,
+    this.serviceCharge = 2500.0,
+    this.electricityType = 'tokens',
   });
 
   Property copyWith({
@@ -421,6 +442,11 @@ class Property {
       endorsementToken: json['endorsementToken']?.toString(),
       ownerVerifyName: json['ownerVerifyName']?.toString(),
       ownerVerifyPhone: json['ownerVerifyPhone']?.toString(),
+      depositMonths: (json['depositMonths'] as num?)?.toInt() ?? 1,
+      waterFee: (json['waterFee'] as num?)?.toDouble() ?? 1500.0,
+      garbageFee: (json['garbageFee'] as num?)?.toDouble() ?? 500.0,
+      serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 2500.0,
+      electricityType: json['electricityType']?.toString() ?? 'tokens',
     );
   }
 
