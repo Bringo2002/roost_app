@@ -221,6 +221,43 @@ class _PropertyCardState extends State<PropertyCard> {
                         ),
                       ),
                     ),
+                  // Caution indicator -- lighter than the detail page's
+                  // full ListingCautionCard on purpose: this needs to
+                  // catch attention before the tenant even taps in,
+                  // without turning the whole feed into a wall of
+                  // warnings. Bottom-left avoids colliding with the
+                  // verified badge (top-left) and favorite button
+                  // (top-right). Same monochrome caution language as
+                  // the detail page: a firmer border and a warning icon,
+                  // no red.
+                  if (property.riskFlags.isNotEmpty)
+                    Positioned(
+                      bottom: 10,
+                      left: 10,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(999),
+                          border: Border.all(color: AppColors.grey600, width: 1),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.error_outline, color: AppColors.white, size: 14),
+                            SizedBox(width: 4),
+                            Text(
+                              'Worth checking',
+                              style: TextStyle(
+                                color: AppColors.white,
+                                fontSize: 11,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
                 ],
               ),
 
