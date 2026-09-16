@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property_detail/roost_bottom_sheet.dart';
+import 'package:roost_app/pages/profile/public_host_profile_page.dart';
 
 /// The "Hosted by" card: avatar, name, management-role badge (Direct
 /// Owner / Caretaker Managed / Authorized Agent, with an "Endorsed"
@@ -37,54 +38,77 @@ class TrustVerificationCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(2),
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: AppColors.grey700, width: 1.5),
+          InkWell(
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => PublicHostProfilePage(
+                    hostId: property.landlordId?.toString() ?? property.id?.toString() ?? 'host_123',
+                    hostName: _name,
+                    hostPhone: property.landlordPhone,
+                    hostRole: 'LANDLORD',
+                    isTitleDeedVerified: property.documentVerified || property.verified,
+                    isPhoneVerified: true,
+                    isOwnerEndorsed: property.landlordEndorsed,
+                  ),
                 ),
-                child: CircleAvatar(
-                  radius: 24,
-                  backgroundColor: AppColors.white,
-                  child: Text(firstLetter, style: const TextStyle(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 20)),
-                ),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
+              );
+            },
+            borderRadius: BorderRadius.circular(12),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      border: Border.all(color: AppColors.grey700, width: 1.5),
+                    ),
+                    child: CircleAvatar(
+                      radius: 24,
+                      backgroundColor: AppColors.white,
+                      child: Text(firstLetter, style: const TextStyle(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 20)),
+                    ),
+                  ),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Flexible(
-                          child: Text(
-                            _name,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
-                          ),
+                        Row(
+                          children: [
+                            Flexible(
+                              child: Text(
+                                _name,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ),
+                            if (property.verified) ...[
+                              const SizedBox(width: 4),
+                              const Icon(Icons.verified, color: AppColors.white, size: 16),
+                            ],
+                          ],
                         ),
-                        if (property.verified) ...[
-                          const SizedBox(width: 4),
-                          const Icon(Icons.verified, color: AppColors.white, size: 16),
-                        ],
+                        const SizedBox(height: 4),
+                        _ManagementRoleBadge(property: property),
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.bolt, color: AppColors.grey500, size: 14),
+                            const SizedBox(width: 4),
+                            Text('Usually responds within 2 hours', style: TextStyle(color: AppColors.grey500, fontSize: 12)),
+                          ],
+                        ),
                       ],
                     ),
-                    const SizedBox(height: 4),
-                    _ManagementRoleBadge(property: property),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Icon(Icons.bolt, color: AppColors.grey500, size: 14),
-                        const SizedBox(width: 4),
-                        Text('Usually responds within 2 hours', style: TextStyle(color: AppColors.grey500, fontSize: 12)),
-                      ],
-                    ),
-                  ],
-                ),
+                  ),
+                  const Icon(Icons.chevron_right, color: AppColors.grey400, size: 20),
+                ],
               ),
-            ],
+            ),
           ),
           const SizedBox(height: 16),
           Divider(height: 1, color: AppColors.divider),
