@@ -51,6 +51,7 @@ class Property {
   final bool gpsVerified;
   final bool documentVerified;
   final bool communityVerified;
+  final List<String> riskFlags;
   final String status;
   final double? latitude;
   final double? longitude;
@@ -131,6 +132,7 @@ class Property {
     this.gpsVerified = false,
     this.documentVerified = false,
     this.communityVerified = false,
+    this.riskFlags = const [],
     this.status = 'PUBLISHED',
     this.latitude,
     this.longitude,
@@ -206,6 +208,7 @@ class Property {
     bool? gpsVerified,
     bool? documentVerified,
     bool? communityVerified,
+    List<String>? riskFlags,
     String? status,
     double? latitude,
     double? longitude,
@@ -280,6 +283,7 @@ class Property {
       gpsVerified: gpsVerified ?? this.gpsVerified,
       documentVerified: documentVerified ?? this.documentVerified,
       communityVerified: communityVerified ?? this.communityVerified,
+      riskFlags: riskFlags ?? this.riskFlags,
       status: status ?? this.status,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
@@ -406,6 +410,9 @@ class Property {
       customAmenities: json['customAmenities'] is List
           ? (json['customAmenities'] as List).map((e) => e.toString()).toList()
           : [],
+      riskFlags: json['riskFlags'] is List
+          ? (json['riskFlags'] as List).map((e) => e.toString()).toList()
+          : [],
       managerRole: json['managerRole']?.toString() ?? 'LANDLORD',
       caretakerName: json['caretakerName']?.toString(),
       caretakerPhone: json['caretakerPhone']?.toString(),
@@ -455,6 +462,7 @@ class Property {
       'gpsVerified': gpsVerified,
       'documentVerified': documentVerified,
       'communityVerified': communityVerified,
+      'riskFlags': riskFlags,
       'status': status,
       'latitude': latitude,
       'longitude': longitude,
