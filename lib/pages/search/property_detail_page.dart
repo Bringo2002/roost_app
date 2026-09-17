@@ -17,6 +17,7 @@ import 'package:roost_app/widgets/property_detail/dual_contact_card.dart';
 import 'package:roost_app/widgets/property_detail/free_viewings_banner.dart';
 import 'package:roost_app/widgets/property_detail/glass_icon_button.dart';
 import 'package:roost_app/widgets/property_detail/hero_media_gallery.dart';
+import 'package:roost_app/widgets/property_detail/fair_price_indicator.dart';
 import 'package:roost_app/widgets/property_detail/listing_caution_card.dart';
 import 'package:roost_app/widgets/property_detail/property_bottom_bar.dart';
 import 'package:roost_app/widgets/property_detail/quick_stats_row.dart';
@@ -206,6 +207,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
 
           const SizedBox(height: 16),
           VerificationBadges(property: p, onTapVerification: _showVerificationDetails),
+          FairPriceIndicator(property: p),
 
           if (p.riskFlags.isNotEmpty) ...[
             const SizedBox(height: 16),

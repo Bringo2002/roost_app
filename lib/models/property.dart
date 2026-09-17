@@ -52,6 +52,14 @@ class Property {
   final bool documentVerified;
   final bool communityVerified;
   final List<String> riskFlags;
+
+  /// "Is this a fair price?" comparison -- only populated when fetched
+  /// via the single-property detail endpoint (see the backend's
+  /// PropertyController.getPropertyById); always null on list/search
+  /// results, which never compute this to avoid a query per card.
+  final double? priceComparisonAverage;
+  final int? priceComparisonSampleSize;
+  final double? priceComparisonPercentDiff;
   final String status;
   final double? latitude;
   final double? longitude;
@@ -149,6 +157,9 @@ class Property {
     this.documentVerified = false,
     this.communityVerified = false,
     this.riskFlags = const [],
+    this.priceComparisonAverage,
+    this.priceComparisonSampleSize,
+    this.priceComparisonPercentDiff,
     this.status = 'PUBLISHED',
     this.latitude,
     this.longitude,
@@ -230,6 +241,9 @@ class Property {
     bool? documentVerified,
     bool? communityVerified,
     List<String>? riskFlags,
+    double? priceComparisonAverage,
+    int? priceComparisonSampleSize,
+    double? priceComparisonPercentDiff,
     String? status,
     double? latitude,
     double? longitude,
@@ -310,6 +324,9 @@ class Property {
       documentVerified: documentVerified ?? this.documentVerified,
       communityVerified: communityVerified ?? this.communityVerified,
       riskFlags: riskFlags ?? this.riskFlags,
+      priceComparisonAverage: priceComparisonAverage ?? this.priceComparisonAverage,
+      priceComparisonSampleSize: priceComparisonSampleSize ?? this.priceComparisonSampleSize,
+      priceComparisonPercentDiff: priceComparisonPercentDiff ?? this.priceComparisonPercentDiff,
       status: status ?? this.status,
       latitude: latitude ?? this.latitude,
       longitude: longitude ?? this.longitude,
@@ -444,6 +461,9 @@ class Property {
       riskFlags: json['riskFlags'] is List
           ? (json['riskFlags'] as List).map((e) => e.toString()).toList()
           : [],
+      priceComparisonAverage: (json['priceComparisonAverage'] as num?)?.toDouble(),
+      priceComparisonSampleSize: json['priceComparisonSampleSize'] as int?,
+      priceComparisonPercentDiff: (json['priceComparisonPercentDiff'] as num?)?.toDouble(),
       managerRole: json['managerRole']?.toString() ?? 'LANDLORD',
       caretakerName: json['caretakerName']?.toString(),
       caretakerPhone: json['caretakerPhone']?.toString(),
@@ -499,6 +519,9 @@ class Property {
       'documentVerified': documentVerified,
       'communityVerified': communityVerified,
       'riskFlags': riskFlags,
+      'priceComparisonAverage': priceComparisonAverage,
+      'priceComparisonSampleSize': priceComparisonSampleSize,
+      'priceComparisonPercentDiff': priceComparisonPercentDiff,
       'status': status,
       'latitude': latitude,
       'longitude': longitude,
