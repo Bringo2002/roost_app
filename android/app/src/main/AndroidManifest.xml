@@ -4,7 +4,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.CAMERA"/>
     <!-- Required on Android 13+ (API 33+) before the app can even ask for
-         notification permission, let alone show one -- without this,
+         notification permission, let alone show one; without this,
          FirebaseMessaging.instance.requestPermission() silently no-ops
          and notifications never appear, regardless of how correctly
          everything else (FCM, backend triggers) is wired up. -->
@@ -21,7 +21,7 @@
             android:value="${MAPS_API_KEY}" />
         <!-- Without these, FCM falls back to a generic default icon in
              the status bar (often an ugly white square/blob) and no
-             dedicated channel -- these make notifications look like a
+             dedicated channel; these make notifications look like a
              deliberate part of the app instead of a platform afterthought. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
