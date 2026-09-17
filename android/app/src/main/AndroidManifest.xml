@@ -3,6 +3,12 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION"/>
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
     <uses-permission android:name="android.permission.CAMERA"/>
+    <!-- Required on Android 13+ (API 33+) before the app can even ask for
+         notification permission, let alone show one -- without this,
+         FirebaseMessaging.instance.requestPermission() silently no-ops
+         and notifications never appear, regardless of how correctly
+         everything else (FCM, backend triggers) is wired up. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
     <application
         android:label="Roost"
@@ -13,6 +19,19 @@
         <meta-data
             android:name="com.google.android.geo.API_KEY"
             android:value="${MAPS_API_KEY}" />
+        <!-- Without these, FCM falls back to a generic default icon in
+             the status bar (often an ugly white square/blob) and no
+             dedicated channel -- these make notifications look like a
+             deliberate part of the app instead of a platform afterthought. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_notification" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_color"
+            android:resource="@color/notification_color" />
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="roost_default_channel" />
         <activity
             android:name=".MainActivity"
             android:exported="true"
