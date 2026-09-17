@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -6,6 +8,7 @@ import 'package:roost_app/models/move_in_inspection.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/cloudinary_service.dart';
+import 'package:roost_app/services/move_in_inspection_api_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 
 /// A full-screen room-by-room Move-in Inspection wizard allowing tenants
@@ -26,6 +29,15 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
   bool _showingSummary = false;
   bool _uploading = false;
 
+  // Persistence state -- see MoveInInspectionApiService. _initializing
+  // covers the initial "resume or create" round trip; _saveFailed
+  // means every subsequent autosave has been failing, worth telling
+  // the tenant about since it means their progress isn't actually
+  // being recorded despite the wizard working fine locally.
+  bool _initializing = true;
+  bool _saveFailed = false;
+  Timer? _autosaveDebounce;
+
   final _meterElectricityCtrl = TextEditingController();
   final _meterWaterCtrl = TextEditingController();
   final _picker = ImagePicker();
@@ -39,6 +51,84 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
       tenantName: 'Tenant',
     );
     _loadUserName();
+    _initializeServerRecord();
+  }
+
+  /// Resumes an existing in-progress inspection for this property if
+  /// one exists, rather than silently starting a duplicate every time
+  /// the tenant reopens the wizard -- otherwise every accidental back-
+  /// swipe would orphan a fresh inspection record. Creates a new one
+  /// server-side only when nothing resumable is found.
+  ///
+  /// If the property has no id, or the network call fails, the wizard
+  /// still works locally (same as before this feature existed) -- it
+  /// just can't save, which _saveFailed surfaces to the tenant rather
+  /// than silently losing their work a second time.
+  Future<void> _initializeServerRecord() async {
+    final propertyId = widget.property.id;
+    if (propertyId == null) {
+      if (mounted) setState(() { _initializing = false; _saveFailed = true; });
+      return;
+    }
+    try {
+      final mine = await MoveInInspectionApiService.mine();
+      final resumable = mine.where((i) => i.propertyId == propertyId && i.completedAt == null);
+      if (resumable.isNotEmpty) {
+        final toResume = resumable.first;
+        if (!mounted) return;
+        setState(() {
+          _inspection = toResume;
+          _currentRoomIndex = 0;
+          _meterElectricityCtrl.text = toResume.meterElectricity ?? '';
+          _meterWaterCtrl.text = toResume.meterWater ?? '';
+          _initializing = false;
+        });
+        return;
+      }
+
+      final created = await MoveInInspectionApiService.create(
+        propertyId: propertyId,
+        rooms: _inspection.rooms,
+      );
+      if (!mounted) return;
+      setState(() {
+        _inspection = created;
+        _initializing = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() { _initializing = false; _saveFailed = true; });
+    }
+  }
+
+  /// Fires an autosave after a discrete action (condition set, photo
+  /// added, room transition) immediately, or after typing pauses
+  /// (notes) with a short debounce -- same debounce pattern the search
+  /// bar already uses, so a fast typist doesn't fire a request per
+  /// keystroke.
+  void _autosave({bool immediate = false}) {
+    if (_inspection.id == null) return; // server record isn't ready yet
+    _autosaveDebounce?.cancel();
+    if (immediate) {
+      _performAutosave();
+    } else {
+      _autosaveDebounce = Timer(const Duration(milliseconds: 800), _performAutosave);
+    }
+  }
+
+  Future<void> _performAutosave() async {
+    final id = _inspection.id;
+    if (id == null) return;
+    try {
+      await MoveInInspectionApiService.update(id, rooms: _inspection.rooms);
+      if (mounted && _saveFailed) setState(() => _saveFailed = false);
+    } catch (_) {
+      // Silent on any single failure -- the next successful autosave
+      // catches up, and surfacing a snackbar on every transient
+      // network hiccup during a multi-minute inspection would be more
+      // annoying than helpful. _saveFailed still gets set so a
+      // persistent outage is visible rather than silently invisible.
+      if (mounted) setState(() => _saveFailed = true);
+    }
   }
 
   Future<void> _loadUserName() async {
@@ -65,6 +155,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
 
   @override
   void dispose() {
+    _autosaveDebounce?.cancel();
     _meterElectricityCtrl.dispose();
     _meterWaterCtrl.dispose();
     super.dispose();
@@ -86,6 +177,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
           : _meterWaterCtrl.text.trim();
       setState(() => _showingSummary = true);
     }
+    _autosave(immediate: true);
   }
 
   void _prevRoom() {
@@ -101,13 +193,20 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     HapticFeedback.selectionClick();
     setState(() {
       _currentRoom.items[itemIndex].condition = condition;
+      // Setting a condition is the act of reviewing that item --
+      // without this, isInspected (and everything derived from it:
+      // RoomInspection.isComplete, completionPercentage) stayed false
+      // forever, since nothing else in this wizard ever set it.
+      _currentRoom.items[itemIndex].isInspected = true;
     });
+    _autosave(immediate: true);
   }
 
   void _setNotes(int itemIndex, String notes) {
     setState(() {
       _currentRoom.items[itemIndex].notes = notes;
     });
+    _autosave();
   }
 
   Future<void> _attachPhoto(int itemIndex) async {
@@ -122,6 +221,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
         setState(() {
           _currentRoom.items[itemIndex].photoUrls.add(url);
         });
+        _autosave(immediate: true);
       }
     } catch (_) {
       if (mounted) {
@@ -134,7 +234,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     }
   }
 
-  void _copyReport() {
+  Future<void> _copyReport() async {
     _inspection.completedAt = DateTime.now();
     _inspection.meterElectricity = _meterElectricityCtrl.text.trim().isEmpty
         ? null
@@ -142,8 +242,28 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     _inspection.meterWater = _meterWaterCtrl.text.trim().isEmpty
         ? null
         : _meterWaterCtrl.text.trim();
+
+    final id = _inspection.id;
+    if (id != null) {
+      try {
+        await MoveInInspectionApiService.update(
+          id,
+          rooms: _inspection.rooms,
+          meterElectricity: _inspection.meterElectricity,
+          meterWater: _inspection.meterWater,
+          markComplete: true,
+        );
+      } catch (_) {
+        // Still generate and copy the report locally even if the
+        // final save failed -- the tenant's evidence isn't only
+        // useful once it's synced, and blocking the copy action on a
+        // network call would be worse than a best-effort save.
+      }
+    }
+
     final report = _inspection.generateReport();
     Clipboard.setData(ClipboardData(text: report));
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Deposit Protection Report copied to clipboard!'),
@@ -180,6 +300,27 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
           ),
         ),
         actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: Center(
+              child: _initializing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.grey400),
+                    )
+                  : Tooltip(
+                      message: _saveFailed
+                          ? "Not saved -- check your connection. Your work stays on this screen until you retry."
+                          : 'Saved',
+                      child: Icon(
+                        _saveFailed ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
+                        color: _saveFailed ? AppColors.grey400 : AppColors.grey600,
+                        size: 18,
+                      ),
+                    ),
+            ),
+          ),
           if (!_showingSummary)
             Center(
               child: Padding(
