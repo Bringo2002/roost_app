@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
@@ -25,6 +26,7 @@ class TrustVerificationCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final firstLetter = _name.isNotEmpty ? _name[0].toUpperCase() : 'L';
+    final avatarUrl = property.owner?.avatarUrl;
     final gpsOk = property.gpsVerified || property.verified;
     final docOk = property.documentVerified || property.documentUrls.isNotEmpty || property.verified;
 
@@ -67,10 +69,59 @@ class TrustVerificationCard extends StatelessWidget {
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.grey700, width: 1.5),
                     ),
-                    child: CircleAvatar(
-                      radius: 24,
-                      backgroundColor: AppColors.white,
-                      child: Text(firstLetter, style: const TextStyle(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 20)),
+                    child: ClipOval(
+                      child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                          ? CachedNetworkImage(
+                              imageUrl: avatarUrl,
+                              width: 48,
+                              height: 48,
+                              fit: BoxFit.cover,
+                              placeholder: (context, url) => Container(
+                                width: 48,
+                                height: 48,
+                                color: AppColors.white,
+                                child: Center(
+                                  child: Text(
+                                    firstLetter,
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                              errorWidget: (context, url, error) => Container(
+                                width: 48,
+                                height: 48,
+                                color: AppColors.white,
+                                child: Center(
+                                  child: Text(
+                                    firstLetter,
+                                    style: const TextStyle(
+                                      color: AppColors.black,
+                                      fontWeight: FontWeight.bold,
+                                      fontSize: 20,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            )
+                          : Container(
+                              width: 48,
+                              height: 48,
+                              color: AppColors.white,
+                              child: Center(
+                                child: Text(
+                                  firstLetter,
+                                  style: const TextStyle(
+                                    color: AppColors.black,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
                     ),
                   ),
                   const SizedBox(width: 14),

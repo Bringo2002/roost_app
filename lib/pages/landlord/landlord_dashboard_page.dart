@@ -395,7 +395,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
               backgroundColor: Colors.grey[900],
               onRefresh: _loadListings,
               child: ListView(
-                padding: const EdgeInsets.all(16),
+                padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
                 children: [
                   _buildVerificationCenterBanner(),
                   _buildStatsHeader(),
