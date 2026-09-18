@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -172,34 +173,50 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                     ),
                     child: Column(
                       children: [
-                        Stack(
-                          children: [
-                            Container(
-                              width: 86,
-                              height: 86,
-                              decoration: BoxDecoration(
-                                shape: BoxShape.circle,
-                                color: const Color(0xFF2C2C2E),
-                                border: Border.all(color: const Color(0xFF38BDF8), width: 2),
-                              ),
-                              child: ClipOval(
-                                child: (displayAvatar != null && displayAvatar.isNotEmpty)
-                                    ? CachedNetworkImage(
-                                        imageUrl: displayAvatar,
-                                        fit: BoxFit.cover,
-                                        width: 86,
-                                        height: 86,
-                                        placeholder: (context, url) => const Center(
-                                          child: SizedBox(
-                                            width: 28,
-                                            height: 28,
-                                            child: CircularProgressIndicator(
-                                              strokeWidth: 2,
-                                              color: Color(0xFF38BDF8),
+                        GestureDetector(
+                          behavior: HitTestBehavior.opaque,
+                          onTap: (displayAvatar != null && displayAvatar.isNotEmpty)
+                              ? () => FullScreenImageGallery.open(context, [displayAvatar])
+                              : null,
+                          child: Stack(
+                            children: [
+                              Container(
+                                width: 86,
+                                height: 86,
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: const Color(0xFF2C2C2E),
+                                  border: Border.all(color: const Color(0xFF38BDF8), width: 2),
+                                ),
+                                child: ClipOval(
+                                  child: (displayAvatar != null && displayAvatar.isNotEmpty)
+                                      ? CachedNetworkImage(
+                                          imageUrl: displayAvatar,
+                                          fit: BoxFit.cover,
+                                          width: 86,
+                                          height: 86,
+                                          placeholder: (context, url) => const Center(
+                                            child: SizedBox(
+                                              width: 28,
+                                              height: 28,
+                                              child: CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: Color(0xFF38BDF8),
+                                              ),
                                             ),
                                           ),
-                                        ),
-                                        errorWidget: (context, url, error) => Center(
+                                          errorWidget: (context, url, error) => Center(
+                                            child: Text(
+                                              initials,
+                                              style: const TextStyle(
+                                                color: Colors.white,
+                                                fontSize: 30,
+                                                fontWeight: FontWeight.bold,
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : Center(
                                           child: Text(
                                             initials,
                                             style: const TextStyle(
@@ -209,32 +226,22 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                                             ),
                                           ),
                                         ),
-                                      )
-                                    : Center(
-                                        child: Text(
-                                          initials,
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 30,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                              ),
-                            ),
-                            Positioned(
-                              bottom: 0,
-                              right: 0,
-                              child: Container(
-                                padding: const EdgeInsets.all(3),
-                                decoration: const BoxDecoration(
-                                  color: Color(0xFF38BDF8),
-                                  shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.verified_rounded, color: Colors.black, size: 18),
                               ),
-                            ),
-                          ],
+                              Positioned(
+                                bottom: 0,
+                                right: 0,
+                                child: Container(
+                                  padding: const EdgeInsets.all(3),
+                                  decoration: const BoxDecoration(
+                                    color: Color(0xFF38BDF8),
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(Icons.verified_rounded, color: Colors.black, size: 18),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 14),
                         Text(

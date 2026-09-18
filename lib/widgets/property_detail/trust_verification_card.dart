@@ -2,6 +2,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/widgets/property_detail/roost_bottom_sheet.dart';
 import 'package:roost_app/pages/profile/public_host_profile_page.dart';
 
@@ -63,65 +64,96 @@ class TrustVerificationCard extends StatelessWidget {
               padding: const EdgeInsets.symmetric(vertical: 4),
               child: Row(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.grey700, width: 1.5),
-                    ),
-                    child: ClipOval(
-                      child: (avatarUrl != null && avatarUrl.isNotEmpty)
-                          ? CachedNetworkImage(
-                              imageUrl: avatarUrl,
-                              width: 48,
-                              height: 48,
-                              fit: BoxFit.cover,
-                              placeholder: (context, url) => Container(
-                                width: 48,
-                                height: 48,
-                                color: AppColors.white,
-                                child: Center(
-                                  child: Text(
-                                    firstLetter,
-                                    style: const TextStyle(
-                                      color: AppColors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20,
+                  // ── Avatar — tappable to view full-screen when a photo exists ──
+                  GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: (avatarUrl != null && avatarUrl.isNotEmpty)
+                        ? () => FullScreenImageGallery.open(context, [avatarUrl])
+                        : null,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(2),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(color: AppColors.grey700, width: 1.5),
+                          ),
+                          child: ClipOval(
+                            child: (avatarUrl != null && avatarUrl.isNotEmpty)
+                                ? CachedNetworkImage(
+                                    imageUrl: avatarUrl,
+                                    width: 48,
+                                    height: 48,
+                                    fit: BoxFit.cover,
+                                    placeholder: (context, url) => Container(
+                                      width: 48,
+                                      height: 48,
+                                      color: AppColors.white,
+                                      child: Center(
+                                        child: Text(
+                                          firstLetter,
+                                          style: const TextStyle(
+                                            color: AppColors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                    errorWidget: (context, url, error) => Container(
+                                      width: 48,
+                                      height: 48,
+                                      color: AppColors.white,
+                                      child: Center(
+                                        child: Text(
+                                          firstLetter,
+                                          style: const TextStyle(
+                                            color: AppColors.black,
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 20,
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  )
+                                : Container(
+                                    width: 48,
+                                    height: 48,
+                                    color: AppColors.white,
+                                    child: Center(
+                                      child: Text(
+                                        firstLetter,
+                                        style: const TextStyle(
+                                          color: AppColors.black,
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 20,
+                                        ),
+                                      ),
                                     ),
                                   ),
-                                ),
+                          ),
+                        ),
+                        // Expand hint badge — only shown when a real photo is set
+                        if (avatarUrl != null && avatarUrl.isNotEmpty)
+                          Positioned(
+                            bottom: -2,
+                            right: -2,
+                            child: Container(
+                              padding: const EdgeInsets.all(3),
+                              decoration: BoxDecoration(
+                                color: AppColors.grey800,
+                                shape: BoxShape.circle,
+                                border: Border.all(color: AppColors.grey600, width: 0.8),
                               ),
-                              errorWidget: (context, url, error) => Container(
-                                width: 48,
-                                height: 48,
+                              child: const Icon(
+                                Icons.open_in_full_rounded,
                                 color: AppColors.white,
-                                child: Center(
-                                  child: Text(
-                                    firstLetter,
-                                    style: const TextStyle(
-                                      color: AppColors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 20,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            )
-                          : Container(
-                              width: 48,
-                              height: 48,
-                              color: AppColors.white,
-                              child: Center(
-                                child: Text(
-                                  firstLetter,
-                                  style: const TextStyle(
-                                    color: AppColors.black,
-                                    fontWeight: FontWeight.bold,
-                                    fontSize: 20,
-                                  ),
-                                ),
+                                size: 9,
                               ),
                             ),
+                          ),
+                      ],
                     ),
                   ),
                   const SizedBox(width: 14),
