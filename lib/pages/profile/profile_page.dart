@@ -625,7 +625,7 @@ class _ProfilePageState extends State<ProfilePage> {
           Positioned(
             left: 0,
             right: 0,
-            bottom: 24,
+            bottom: 24 + MediaQuery.paddingOf(context).bottom,
             child: Center(
               child: GestureDetector(
                 onTap: () {

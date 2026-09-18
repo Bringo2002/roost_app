@@ -38,11 +38,28 @@ class PublicHostProfilePage extends StatefulWidget {
 class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
   List<Property> _hostProperties = [];
   bool _loading = true;
+  String? _loadedAvatarUrl;
 
   @override
   void initState() {
     super.initState();
+    _loadedAvatarUrl = widget.hostAvatarUrl;
     _loadHostProperties();
+    _loadHostUserData();
+  }
+
+  Future<void> _loadHostUserData() async {
+    try {
+      final res = await ApiService.get('/api/users/${widget.hostId}');
+      if (res != null && mounted) {
+        final avatar = res['avatarUrl']?.toString();
+        if (avatar != null && avatar.isNotEmpty) {
+          setState(() {
+            _loadedAvatarUrl = avatar;
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   Future<void> _loadHostProperties() async {
@@ -54,6 +71,16 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
         if (p.landlordId != null && p.landlordId == widget.hostId) return true;
         return true; // Show all properties in demo mode if single host
       }).toList();
+
+      // Check if any property owner object contains avatarUrl
+      for (final p in hostProps) {
+        if (_loadedAvatarUrl == null || _loadedAvatarUrl!.isEmpty) {
+          if (p.owner?.avatarUrl != null && p.owner!.avatarUrl!.isNotEmpty) {
+            _loadedAvatarUrl = p.owner!.avatarUrl;
+            break;
+          }
+        }
+      }
 
       if (!mounted) return;
       setState(() {
@@ -99,6 +126,8 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
             .join()
             .toUpperCase()
         : 'H';
+
+    final displayAvatar = _loadedAvatarUrl ?? widget.hostAvatarUrl;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -154,9 +183,9 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                                 border: Border.all(color: const Color(0xFF38BDF8), width: 2),
                               ),
                               child: ClipOval(
-                                child: (widget.hostAvatarUrl != null && widget.hostAvatarUrl!.isNotEmpty)
+                                child: (displayAvatar != null && displayAvatar.isNotEmpty)
                                     ? CachedNetworkImage(
-                                        imageUrl: widget.hostAvatarUrl!,
+                                        imageUrl: displayAvatar,
                                         fit: BoxFit.cover,
                                         width: 86,
                                         height: 86,
@@ -385,41 +414,45 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
             ),
 
       // ── Contact Host Bottom Bar ────────────────────────────────────────────
-      bottomSheet: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: const BoxDecoration(
-          color: Color(0xFF1C1C1E),
-          border: Border(top: BorderSide(color: Color(0xFF2C2C2E))),
-        ),
+      bottomNavigationBar: Container(
+        color: const Color(0xFF1C1C1E),
         child: SafeArea(
-          child: Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: _callHost,
-                  icon: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
-                  label: const Text('Call Host', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Colors.white),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          top: false,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: const BoxDecoration(
+              color: Color(0xFF1C1C1E),
+              border: Border(top: BorderSide(color: Color(0xFF2C2C2E))),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: _callHost,
+                    icon: const Icon(Icons.phone_rounded, color: Colors.white, size: 18),
+                    label: const Text('Call Host', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: Colors.white),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: _contactWhatsApp,
-                  icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.black, size: 18),
-                  label: const Text('WhatsApp', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF25D366),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    onPressed: _contactWhatsApp,
+                    icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.black, size: 18),
+                    label: const Text('WhatsApp', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF25D366),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

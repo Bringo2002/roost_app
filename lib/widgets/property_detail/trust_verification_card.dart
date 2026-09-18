@@ -48,6 +48,7 @@ class TrustVerificationCard extends StatelessWidget {
                     hostName: _name,
                     hostPhone: property.landlordPhone,
                     hostRole: 'LANDLORD',
+                    hostAvatarUrl: property.owner?.avatarUrl,
                     isTitleDeedVerified: property.documentVerified || property.verified,
                     isPhoneVerified: true,
                     isOwnerEndorsed: property.landlordEndorsed,
