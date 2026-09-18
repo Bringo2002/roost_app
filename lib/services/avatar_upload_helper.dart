@@ -13,15 +13,14 @@ class AvatarUploadHelper {
 
   /// Prompts the user to pick an image from [source] (camera or gallery).
   ///
-  /// Images are resized to a maximum of 500 × 500 px and compressed to
-  /// 80 % JPEG quality on-device before any bytes leave the device.
-  /// Returns the compressed bytes, or `null` if the user cancelled.
+  /// Preserves ultra high-definition clarity (up to 2048 × 2048 px at 98% quality).
+  /// Returns the image bytes, or `null` if the user cancelled.
   static Future<Uint8List?> pickAndCompress(ImageSource source) async {
     final XFile? file = await _picker.pickImage(
       source: source,
-      maxWidth: 500,
-      maxHeight: 500,
-      imageQuality: 80,
+      maxWidth: 2048,
+      maxHeight: 2048,
+      imageQuality: 98,
     );
     if (file == null) return null;
     return file.readAsBytes();

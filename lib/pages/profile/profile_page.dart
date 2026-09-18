@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/avatar_upload_helper.dart';
+import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
 import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
@@ -112,6 +113,11 @@ class _ProfilePageState extends State<ProfilePage> {
               if (hasAvatar) ...[
                 const Divider(color: Color(0xFF2C2C2E)),
                 ListTile(
+                  leading: const Icon(Icons.fullscreen_rounded, color: Color(0xFF38BDF8)),
+                  title: const Text('View full screen photo', style: TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(ctx, 'view'),
+                ),
+                ListTile(
                   leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
                   title: const Text('Remove profile photo', style: TextStyle(color: Colors.redAccent)),
                   onTap: () => Navigator.pop(ctx, 'remove'),
@@ -124,6 +130,13 @@ class _ProfilePageState extends State<ProfilePage> {
     );
 
     if (action == null || !mounted) return;
+
+    if (action == 'view') {
+      if (currentAvatar != null && currentAvatar.isNotEmpty) {
+        FullScreenImageGallery.open(context, [currentAvatar]);
+      }
+      return;
+    }
 
     setState(() => _isUploadingAvatar = true);
     try {
