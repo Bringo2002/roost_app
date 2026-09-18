@@ -11,6 +11,9 @@ class User {
   /// summary uses its own separate landlordPhone field instead).
   final String? phone;
 
+  /// Profile picture / avatar URL. Null if user has not uploaded one yet.
+  final String? avatarUrl;
+
   /// Last time this user made an authenticated request, refreshed
   /// automatically server-side. Used to derive online / last-seen status;
   /// null if the user has never made an authenticated request yet.
@@ -22,6 +25,7 @@ class User {
     required this.email,
     required this.role,
     this.phone,
+    this.avatarUrl,
     this.lastActiveAt,
   });
 
@@ -38,6 +42,7 @@ class User {
       email: json['email']?.toString() ?? '',
       role: json['role']?.toString() ?? '',
       phone: json['phone']?.toString(),
+      avatarUrl: json['avatarUrl']?.toString() ?? json['profilePicUrl']?.toString(),
       lastActiveAt: parseServerDateTime(json['lastActiveAt']?.toString()),
     );
   }

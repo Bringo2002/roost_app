@@ -7,9 +7,9 @@ import 'package:roost_app/config.dart';
 class CloudinaryService {
   CloudinaryService._();
 
-  // Cloudinary upload preset and cloud name (default public demo or custom roost config)
-  static const String _cloudName = 'roost-app';
-  static const String _uploadPreset = 'roost_unsigned';
+  // Cloudinary upload preset and cloud name configured from user console
+  static const String _cloudName = 'roost-media';
+  static const String _uploadPreset = 'Roost_avatars';
 
   /// Uploads binary file bytes to Cloudinary unsigned preset and returns the secure URL.
   /// Falls back to backend upload endpoint if Cloudinary is unreachable or fails.

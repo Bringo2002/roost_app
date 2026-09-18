@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
@@ -152,15 +153,44 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                                 color: const Color(0xFF2C2C2E),
                                 border: Border.all(color: const Color(0xFF38BDF8), width: 2),
                               ),
-                              child: Center(
-                                child: Text(
-                                  initials,
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 30,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
+                              child: ClipOval(
+                                child: (widget.hostAvatarUrl != null && widget.hostAvatarUrl!.isNotEmpty)
+                                    ? CachedNetworkImage(
+                                        imageUrl: widget.hostAvatarUrl!,
+                                        fit: BoxFit.cover,
+                                        width: 86,
+                                        height: 86,
+                                        placeholder: (context, url) => const Center(
+                                          child: SizedBox(
+                                            width: 28,
+                                            height: 28,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                              color: Color(0xFF38BDF8),
+                                            ),
+                                          ),
+                                        ),
+                                        errorWidget: (context, url, error) => Center(
+                                          child: Text(
+                                            initials,
+                                            style: const TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 30,
+                                              fontWeight: FontWeight.bold,
+                                            ),
+                                          ),
+                                        ),
+                                      )
+                                    : Center(
+                                        child: Text(
+                                          initials,
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 30,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                        ),
+                                      ),
                               ),
                             ),
                             Positioned(

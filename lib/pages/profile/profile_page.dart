@@ -1,6 +1,9 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/services/avatar_upload_helper.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
 import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
@@ -32,6 +35,7 @@ class _ProfilePageState extends State<ProfilePage> {
   bool _loading = true;
   String? _error;
   bool _notificationsEnabled = true;
+  bool _isUploadingAvatar = false;
 
   @override
   void initState() {
@@ -60,6 +64,95 @@ class _ProfilePageState extends State<ProfilePage> {
         _error = e.toString();
         _loading = false;
       });
+    }
+  }
+
+  /// Shows a bottom sheet to choose Camera, Gallery, or Remove Photo,
+  /// then executes the upload or removal flow.
+  Future<void> _onEditAvatarTapped() async {
+    final currentAvatar = _user?['avatarUrl']?.toString();
+    final hasAvatar = currentAvatar != null && currentAvatar.isNotEmpty;
+
+    final String? action = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3A3A3C),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              const Text(
+                'Change Profile Photo',
+                style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 8),
+              ListTile(
+                leading: const Icon(Icons.photo_camera_rounded, color: Color(0xFF38BDF8)),
+                title: const Text('Take a photo', style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(ctx, 'camera'),
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF38BDF8)),
+                title: const Text('Choose from gallery', style: TextStyle(color: Colors.white)),
+                onTap: () => Navigator.pop(ctx, 'gallery'),
+              ),
+              if (hasAvatar) ...[
+                const Divider(color: Color(0xFF2C2C2E)),
+                ListTile(
+                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
+                  title: const Text('Remove profile photo', style: TextStyle(color: Colors.redAccent)),
+                  onTap: () => Navigator.pop(ctx, 'remove'),
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+
+    if (action == null || !mounted) return;
+
+    setState(() => _isUploadingAvatar = true);
+    try {
+      if (action == 'remove') {
+        await AvatarUploadHelper.removeAvatar();
+        await _loadProfile();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile picture removed.')),
+          );
+        }
+      } else {
+        final source = action == 'camera' ? ImageSource.camera : ImageSource.gallery;
+        await AvatarUploadHelper.pickUploadAndSave(source);
+        await _loadProfile();
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Profile picture updated!')),
+          );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toUserMessage('Failed to update profile picture.'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
     }
   }
 
@@ -97,6 +190,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final phone = _user?['phone'] ?? '+254 712 345 678';
     final role = _user?['role'] ?? 'LANDLORD';
     final id = _user?['_id'] ?? _user?['id'] ?? 'user_123';
+    final avatarUrl = _user?['avatarUrl']?.toString();
 
     Navigator.push(
       context,
@@ -107,6 +201,7 @@ class _ProfilePageState extends State<ProfilePage> {
           hostEmail: email.toString(),
           hostPhone: phone.toString(),
           hostRole: role.toString(),
+          hostAvatarUrl: avatarUrl,
           isTitleDeedVerified: true,
           isPhoneVerified: true,
           isOwnerEndorsed: true,
@@ -150,6 +245,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final role = _user?['role'] ?? 'TENANT';
     final isLandlord = role.toString().toUpperCase() == 'LANDLORD';
     final isAdmin = role.toString().toUpperCase() == 'ADMIN';
+    final avatarUrl = _user?['avatarUrl']?.toString();
     final initials = name.isNotEmpty
         ? name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
         : 'R';
@@ -221,25 +317,7 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   child: Row(
                     children: [
-                      Container(
-                        width: 64,
-                        height: 64,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: const Color(0xFF2C2C2E),
-                          border: Border.all(color: const Color(0xFF38BDF8), width: 2),
-                        ),
-                        child: Center(
-                          child: Text(
-                            initials,
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
+                      _buildAvatarWidget(avatarUrl, initials),
                       const SizedBox(width: 14),
                       Expanded(
                         child: Column(
@@ -596,7 +674,103 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
+  /// Tappable avatar circle that shows the user's profile photo or their
+  /// initials if no photo has been uploaded yet.
+  ///
+  /// While an upload is in-flight [_isUploadingAvatar] replaces the content
+  /// with a [CircularProgressIndicator] so the user gets instant feedback.
+  Widget _buildAvatarWidget(String? avatarUrl, String initials) {
+    final userName = _user?['name'] ?? 'User';
+    return Semantics(
+      label: 'Profile picture of $userName',
+      hint: 'Double tap to change profile picture',
+      button: true,
+      child: GestureDetector(
+        onTap: _isUploadingAvatar ? null : _onEditAvatarTapped,
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            Container(
+              width: 68,
+              height: 68,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: const Color(0xFF2C2C2E),
+                border: Border.all(color: const Color(0xFF38BDF8), width: 2),
+              ),
+              child: ClipOval(
+                child: _isUploadingAvatar
+                    ? const Center(
+                        child: SizedBox(
+                          width: 28,
+                          height: 28,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: Color(0xFF38BDF8),
+                          ),
+                        ),
+                      )
+                    : (avatarUrl != null && avatarUrl.isNotEmpty)
+                        ? CachedNetworkImage(
+                            imageUrl: avatarUrl,
+                            fit: BoxFit.cover,
+                            width: 68,
+                            height: 68,
+                            placeholder: (context, url) => const Center(
+                              child: SizedBox(
+                                width: 24,
+                                height: 24,
+                                child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF38BDF8),
+                                ),
+                              ),
+                            ),
+                            errorWidget: (context, url, error) => Center(
+                              child: Text(
+                                initials,
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Center(
+                            child: Text(
+                              initials,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 24,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+              ),
+            ),
+            // Camera badge overlay
+            Positioned(
+              bottom: 0,
+              right: -2,
+              child: Container(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF38BDF8),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black, width: 1.5),
+                ),
+                child: const Icon(Icons.camera_alt_rounded, color: Colors.black, size: 12),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildHeroCard(bool isLandlord) {
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
