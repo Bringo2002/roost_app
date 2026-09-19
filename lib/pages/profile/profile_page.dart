@@ -286,7 +286,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Failed to load profile', style: TextStyle(color: Colors.redAccent, fontSize: 16)),
+              Text('Failed to load profile', style: TextStyle(color: AppColors.grey400, fontSize: 16)),
               const SizedBox(height: 12),
               ElevatedButton(
                 onPressed: _loadProfile,
@@ -339,12 +339,12 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Container(
                         padding: const EdgeInsets.all(4),
                         decoration: const BoxDecoration(
-                          color: Colors.redAccent,
+                          color: AppColors.white,
                           shape: BoxShape.circle,
                         ),
                         child: Text(
                           '$unreadCount',
-                          style: const TextStyle(color: Colors.white, fontSize: 9, fontWeight: FontWeight.bold),
+                          style: const TextStyle(color: AppColors.black, fontSize: 9, fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -371,9 +371,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.surfaceRaised,
                     borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: const Color(0xFF2C2C2E)),
+                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Row(
                     children: [
@@ -392,12 +392,12 @@ class _ProfilePageState extends State<ProfilePage> {
                             const SizedBox(height: 2),
                             Text(
                               phone,
-                              style: TextStyle(color: Colors.grey[400], fontSize: 13, fontWeight: FontWeight.w500),
+                              style: TextStyle(color: AppColors.grey400, fontSize: 13, fontWeight: FontWeight.w500),
                             ),
                             const SizedBox(height: 2),
                             Text(
                               email,
-                              style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                              style: TextStyle(color: AppColors.grey500, fontSize: 12),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -418,9 +418,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.surfaceRaised,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF2C2C2E)),
+                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Column(
                     children: [
@@ -429,12 +429,12 @@ class _ProfilePageState extends State<ProfilePage> {
                         title: const Text('View Public Profile', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                         subtitle: Text(
                           isLandlord ? 'Preview how tenants view your trust badges & listings' : 'Preview your user profile',
-                          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+                          style: TextStyle(color: AppColors.grey500, fontSize: 12),
                         ),
                         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                         onTap: _openPublicProfile,
                       ),
-                      const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                      const Divider(height: 1, color: AppColors.divider),
                       ListTile(
                         leading: const Icon(Icons.favorite_border_rounded, color: Colors.white),
                         title: const Text('Saved Properties', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -443,7 +443,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const SavedPage()));
                         },
                       ),
-                      const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                      const Divider(height: 1, color: AppColors.divider),
                       ListTile(
                         leading: const Icon(Icons.assignment_outlined, color: Colors.white),
                         title: const Text('My Inspections', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -456,7 +456,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           );
                         },
                       ),
-                      const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                      const Divider(height: 1, color: AppColors.divider),
                       ListTile(
                         leading: const Icon(Icons.lock_outline_rounded, color: Colors.white),
                         title: const Text('Change Password', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -479,15 +479,15 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.surfaceRaised,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF2C2C2E)),
+                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Column(
                     children: [
                       if (isLandlord) ...[
                         ListTile(
-                          leading: const Icon(Icons.shield_outlined, color: Color(0xFF38BDF8)),
+                          leading: const Icon(Icons.shield_outlined, color: AppColors.white),
                           title: const Text('Landlord Verification Center', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                           subtitle: const Text('Upload title deeds & AI verification', style: TextStyle(color: Colors.grey, fontSize: 12)),
                           trailing: const Icon(Icons.chevron_right, color: Colors.grey),
@@ -495,7 +495,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordVerificationHubPage()));
                           },
                         ),
-                        const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                        const Divider(height: 1, color: AppColors.divider),
                         ListTile(
                           leading: const Icon(Icons.holiday_village_outlined, color: Colors.white),
                           title: const Text('My Listed Properties', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -504,7 +504,7 @@ class _ProfilePageState extends State<ProfilePage> {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordDashboardPage()));
                           },
                         ),
-                        const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                        const Divider(height: 1, color: AppColors.divider),
                         ListTile(
                           leading: const Icon(Icons.link_rounded, color: Colors.white),
                           title: const Text('Endorse a Caretaker / Agent', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -515,7 +515,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                       ] else ...[
                         ListTile(
-                          leading: const Icon(Icons.add_home_work_outlined, color: Color(0xFF38BDF8)),
+                          leading: const Icon(Icons.add_home_work_outlined, color: AppColors.white),
                           title: const Text('Become a Host / List Property', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                           subtitle: const Text('Enable hosting mode to list properties on Roost', style: TextStyle(color: Colors.grey, fontSize: 12)),
                           trailing: const Icon(Icons.chevron_right, color: Colors.grey),
@@ -524,18 +524,18 @@ class _ProfilePageState extends State<ProfilePage> {
                       ],
 
                       if (isAdmin) ...[
-                        const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                        const Divider(height: 1, color: AppColors.divider),
                         ListTile(
-                          leading: const Icon(Icons.verified_outlined, color: Colors.amber),
+                          leading: const Icon(Icons.verified_outlined, color: AppColors.white),
                           title: const Text('Pending Admin Verifications', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                           trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                           onTap: () {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPendingVerificationsPage()));
                           },
                         ),
-                        const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                        const Divider(height: 1, color: AppColors.divider),
                         ListTile(
-                          leading: const Icon(Icons.flag_outlined, color: Colors.redAccent),
+                          leading: const Icon(Icons.flag_outlined, color: AppColors.grey400),
                           title: const Text('Flagged Listings Audit', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
                           trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                           onTap: () {
@@ -557,9 +557,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.surfaceRaised,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF2C2C2E)),
+                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Column(
                     children: [
@@ -581,7 +581,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           );
                         },
                       ),
-                      const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                      const Divider(height: 1, color: AppColors.divider),
                       ListTile(
                         leading: const Icon(Icons.language_outlined, color: Colors.white),
                         title: const Text('Country / Region', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -598,11 +598,11 @@ class _ProfilePageState extends State<ProfilePage> {
                         ),
                         onTap: () => _showCountryPickerBottomSheet(context),
                       ),
-                      const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                      const Divider(height: 1, color: AppColors.divider),
                       ListTile(
                         leading: const Icon(Icons.location_on_outlined, color: Colors.white),
                         title: const Text('Location Access', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                        trailing: Text('Enabled', style: TextStyle(color: Colors.grey[400], fontSize: 13, fontWeight: FontWeight.bold)),
+                        trailing: Text('Enabled', style: TextStyle(color: AppColors.grey400, fontSize: 13, fontWeight: FontWeight.bold)),
                       ),
                     ],
                   ),
@@ -618,9 +618,9 @@ class _ProfilePageState extends State<ProfilePage> {
                 const SizedBox(height: 8),
                 Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.surfaceRaised,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: const Color(0xFF2C2C2E)),
+                    border: Border.all(color: AppColors.divider),
                   ),
                   child: Column(
                     children: [
@@ -632,7 +632,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const PrivacyPolicyPage()));
                         },
                       ),
-                      const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                      const Divider(height: 1, color: AppColors.divider),
                       ListTile(
                         leading: const Icon(Icons.info_outline, color: Colors.white),
                         title: const Text('About Roost', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
@@ -654,10 +654,10 @@ class _ProfilePageState extends State<ProfilePage> {
                   height: 52,
                   child: TextButton.icon(
                     onPressed: _logout,
-                    icon: const Icon(Icons.logout, color: Colors.redAccent, size: 20),
+                    icon: const Icon(Icons.logout, color: AppColors.grey400, size: 20),
                     label: const Text(
                       'Log Out',
-                      style: TextStyle(color: Colors.redAccent, fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(color: AppColors.grey400, fontSize: 16, fontWeight: FontWeight.bold),
                     ),
                   ),
                 ),
@@ -821,17 +821,19 @@ class _ProfilePageState extends State<ProfilePage> {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: isLandlord
-              ? [const Color(0xFF0F2027), const Color(0xFF203A43), const Color(0xFF2C5364)]
-              : [const Color(0xFF1F1C2C), const Color(0xFF928DAB)],
+        // A single monochrome gradient regardless of role -- role is
+        // already conveyed by the badge/label inside this card, so a
+        // differently-colored background per role added a visual
+        // distinction that carried no extra information.
+        gradient: const LinearGradient(
+          colors: [AppColors.black, AppColors.grey900],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: (isLandlord ? const Color(0xFF38BDF8) : Colors.purpleAccent).withValues(alpha: 0.15),
+            color: AppColors.white.withValues(alpha: 0.06),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -912,7 +914,7 @@ class _ProfilePageState extends State<ProfilePage> {
   void _showCountryPickerBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: AppColors.surfaceRaised,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),

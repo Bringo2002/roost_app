@@ -186,9 +186,9 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(20),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
+                      color: AppColors.surfaceRaised,
                       borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF2C2C2E)),
+                      border: Border.all(color: AppColors.divider),
                     ),
                     child: Column(
                       children: [
@@ -275,19 +275,19 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF38BDF8).withValues(alpha: 0.15),
+                            color: AppColors.grey800,
                             borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: const Color(0xFF38BDF8).withValues(alpha: 0.3)),
+                            border: Border.all(color: AppColors.border),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Icon(Icons.shield_outlined, color: Color(0xFF38BDF8), size: 14),
+                              const Icon(Icons.shield_outlined, color: AppColors.white, size: 14),
                               const SizedBox(width: 5),
                               Text(
                                 roleTitle,
                                 style: const TextStyle(
-                                  color: Color(0xFF38BDF8),
+                                  color: AppColors.white,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                 ),
@@ -298,7 +298,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                         const SizedBox(height: 12),
                         Text(
                           'Hosting on Roost since ${widget.memberSince}',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                          style: const TextStyle(color: AppColors.grey400, fontSize: 13),
                         ),
                       ],
                     ),
@@ -307,12 +307,16 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                   const SizedBox(height: 20),
 
                   // ── Performance & Trust Stats Row ──────────────────────────
+                  // One color for all three stat icons -- previously
+                  // amber/blue/green, a purely decorative distinction
+                  // the icon shapes themselves (a bolt, a village, a
+                  // shield) already carry.
                   Row(
                     children: [
                       Expanded(
                         child: _buildStatTile(
                           icon: Icons.flash_on_rounded,
-                          iconColor: Colors.amber,
+                          iconColor: AppColors.white,
                           value: '< 30 min',
                           label: 'Response Time',
                         ),
@@ -321,7 +325,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                       Expanded(
                         child: _buildStatTile(
                           icon: Icons.holiday_village_rounded,
-                          iconColor: const Color(0xFF38BDF8),
+                          iconColor: AppColors.white,
                           value: '${_hostProperties.length}',
                           label: 'Active Listings',
                         ),
@@ -330,7 +334,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                       Expanded(
                         child: _buildStatTile(
                           icon: Icons.verified_user_rounded,
-                          iconColor: const Color(0xFF10B981),
+                          iconColor: AppColors.white,
                           value: '3 Badges',
                           label: 'Trust Score',
                         ),
@@ -353,9 +357,9 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                   const SizedBox(height: 10),
                   Container(
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
+                      color: AppColors.surfaceRaised,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: const Color(0xFF2C2C2E)),
+                      border: Border.all(color: AppColors.divider),
                     ),
                     child: Column(
                       children: [
@@ -365,14 +369,14 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                           subtitle: 'Verified authentic via Gemini AI Vision',
                           isVerified: widget.isTitleDeedVerified,
                         ),
-                        const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                        const Divider(height: 1, color: AppColors.divider),
                         _buildTrustBadgeRow(
                           icon: Icons.phone_android_rounded,
                           title: 'Phone Number Verified',
                           subtitle: 'Direct SMS & WhatsApp confirmed',
                           isVerified: widget.isPhoneVerified,
                         ),
-                        const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                        const Divider(height: 1, color: AppColors.divider),
                         _buildTrustBadgeRow(
                           icon: Icons.link_rounded,
                           title: 'Landlord Endorsed Listing',
@@ -402,7 +406,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                       ),
                       Text(
                         '${_hostProperties.length} rentals',
-                        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                        style: TextStyle(color: AppColors.grey400, fontSize: 12),
                       ),
                     ],
                   ),
@@ -413,13 +417,13 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
+                        color: AppColors.surfaceRaised,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Center(
                         child: Text(
                           'No active listings at the moment.',
-                          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+                          style: TextStyle(color: AppColors.grey400, fontSize: 14),
                         ),
                       ),
                     )
@@ -494,9 +498,9 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
     return Container(
       padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C2C2E)),
+        border: Border.all(color: AppColors.divider),
       ),
       child: Column(
         children: [
@@ -509,7 +513,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
           const SizedBox(height: 2),
           Text(
             label,
-            style: TextStyle(color: Colors.grey[500], fontSize: 10),
+            style: TextStyle(color: AppColors.grey500, fontSize: 10),
             textAlign: TextAlign.center,
           ),
         ],
@@ -527,10 +531,10 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: (isVerified ? const Color(0xFF38BDF8) : Colors.grey).withValues(alpha: 0.15),
+          color: isVerified ? AppColors.grey800 : AppColors.surface,
           shape: BoxShape.circle,
         ),
-        child: Icon(icon, color: isVerified ? const Color(0xFF38BDF8) : Colors.grey, size: 20),
+        child: Icon(icon, color: isVerified ? AppColors.white : AppColors.grey500, size: 20),
       ),
       title: Text(
         title,
@@ -538,11 +542,11 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
       ),
       subtitle: Text(
         subtitle,
-        style: TextStyle(color: Colors.grey[400], fontSize: 12),
+        style: const TextStyle(color: AppColors.grey400, fontSize: 12),
       ),
       trailing: isVerified
-          ? const Icon(Icons.check_circle_rounded, color: Color(0xFF38BDF8), size: 20)
-          : const Icon(Icons.hourglass_empty_rounded, color: Colors.amber, size: 20),
+          ? const Icon(Icons.check_circle_rounded, color: AppColors.white, size: 20)
+          : const Icon(Icons.hourglass_empty_rounded, color: AppColors.grey500, size: 20),
     );
   }
 }
