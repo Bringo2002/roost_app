@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:intl/intl.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:roost_app/models/move_in_inspection.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/cloudinary_service.dart';
 import 'package:roost_app/services/move_in_inspection_api_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/property_detail/signature_pad_sheet.dart';
 
 /// A full-screen room-by-room Move-in Inspection wizard allowing tenants
 /// to document property condition, attach photo evidence, record meter
@@ -234,6 +236,67 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     }
   }
 
+  Future<void> _signAs({required bool isTenant}) async {
+    final bytes = await SignaturePadSheet.show(context, signerLabel: isTenant ? 'Tenant' : 'Landlord');
+    if (bytes == null || !mounted) return;
+
+    setState(() => _uploading = true);
+    try {
+      final url = await CloudinaryService.uploadImage(
+        bytes,
+        fileName: '${isTenant ? 'tenant' : 'landlord'}_signature_${DateTime.now().millisecondsSinceEpoch}.png',
+      );
+      if (url != null && mounted) {
+        setState(() {
+          if (isTenant) {
+            _inspection.tenantSignature = url;
+          } else {
+            _inspection.landlordSignature = url;
+          }
+        });
+        _autosave(immediate: true);
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to save signature')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _uploading = false);
+    }
+  }
+
+  Future<void> _shareReport() async {
+    _inspection.completedAt = DateTime.now();
+    _inspection.meterElectricity = _meterElectricityCtrl.text.trim().isEmpty
+        ? null
+        : _meterElectricityCtrl.text.trim();
+    _inspection.meterWater = _meterWaterCtrl.text.trim().isEmpty
+        ? null
+        : _meterWaterCtrl.text.trim();
+
+    final id = _inspection.id;
+    if (id != null) {
+      try {
+        await MoveInInspectionApiService.update(
+          id,
+          rooms: _inspection.rooms,
+          meterElectricity: _inspection.meterElectricity,
+          meterWater: _inspection.meterWater,
+          markComplete: true,
+        );
+      } catch (_) {
+        // Still share the report locally even if the final save
+        // failed -- see _copyReport's identical reasoning.
+      }
+    }
+
+    final report = _inspection.generateReport();
+    if (!mounted) return;
+    await Share.share(report, subject: 'Move-in Inspection Report — ${widget.property.title}');
+  }
+
   Future<void> _copyReport() async {
     _inspection.completedAt = DateTime.now();
     _inspection.meterElectricity = _meterElectricityCtrl.text.trim().isEmpty
@@ -365,7 +428,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(2),
                 color: isDone
-                    ? const Color(0xFF10B981)
+                    ? AppColors.grey300
                     : isActive
                         ? AppColors.white
                         : AppColors.grey700,
@@ -407,9 +470,9 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: item.condition == ItemCondition.damaged
-              ? Colors.redAccent.withValues(alpha: 0.5)
+              ? AppColors.grey500
               : item.condition == ItemCondition.minorWear
-                  ? Colors.amber.withValues(alpha: 0.5)
+                  ? AppColors.grey700
                   : AppColors.border,
         ),
       ),
@@ -440,10 +503,10 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                     ),
                     padding: const EdgeInsets.symmetric(vertical: 8),
                     decoration: BoxDecoration(
-                      color: selected ? _conditionColor(c).withValues(alpha: 0.2) : AppColors.black,
+                      color: selected ? AppColors.white.withValues(alpha: 0.12) : AppColors.black,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(
-                        color: selected ? _conditionColor(c) : AppColors.border,
+                        color: selected ? AppColors.white : AppColors.border,
                         width: selected ? 1.5 : 1,
                       ),
                     ),
@@ -454,7 +517,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                         Text(
                           c.label,
                           style: TextStyle(
-                            color: selected ? _conditionColor(c) : AppColors.grey500,
+                            color: selected ? AppColors.white : AppColors.grey500,
                             fontSize: 9,
                             fontWeight: FontWeight.bold,
                           ),
@@ -480,7 +543,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
               maxLines: 2,
               decoration: InputDecoration(
                 hintText: 'Describe the issue...',
-                hintStyle: TextStyle(color: Colors.grey[600], fontSize: 13),
+                hintStyle: const TextStyle(color: AppColors.grey600, fontSize: 13),
                 filled: true,
                 fillColor: AppColors.black,
                 contentPadding: const EdgeInsets.all(12),
@@ -535,12 +598,12 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    color: AppColors.grey800,
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     '${item.photoUrls.length} photo${item.photoUrls.length > 1 ? 's' : ''}',
-                    style: const TextStyle(color: Color(0xFF10B981), fontSize: 11, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: AppColors.grey300, fontSize: 11, fontWeight: FontWeight.bold),
                   ),
                 ),
             ],
@@ -589,12 +652,16 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
       padding: const EdgeInsets.all(20),
       physics: const BouncingScrollPhysics(),
       children: [
-        // Property info header
+        // Property info header -- monochrome grayscale gradient
+        // (black -> grey900) for depth, matching the move-in cost
+        // calculator card, instead of the purple-toned one this used.
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFF1F1C2C), Color(0xFF2A2A36)],
+              colors: [AppColors.black, AppColors.grey900],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.grey700),
@@ -613,12 +680,12 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
               const SizedBox(height: 4),
               Text(
                 widget.property.location,
-                style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                style: const TextStyle(color: AppColors.grey400, fontSize: 13),
               ),
               const SizedBox(height: 12),
               Text(
                 'Inspected on ${DateFormat('MMM d, yyyy – h:mm a').format(DateTime.now())}',
-                style: TextStyle(color: Colors.grey[500], fontSize: 11),
+                style: const TextStyle(color: AppColors.grey500, fontSize: 11),
               ),
             ],
           ),
@@ -626,16 +693,19 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
 
         const SizedBox(height: 20),
 
-        // Stats row
+        // Stats row -- severity conveyed by icon, not color: a plain
+        // check for "Good", a warning triangle for "Wear", an error
+        // icon for "Damaged", all rendered in the same white/grey
+        // hierarchy used everywhere else in the app.
         Row(
           children: [
-            _buildSummaryStat('Total', '$totalItems', AppColors.white),
+            _buildSummaryStat('Total', '$totalItems', null),
             const SizedBox(width: 8),
-            _buildSummaryStat('Good', '$goodCount', const Color(0xFF10B981)),
+            _buildSummaryStat('Good', '$goodCount', Icons.check_circle_outline),
             const SizedBox(width: 8),
-            _buildSummaryStat('Wear', '$wearCount', Colors.amber),
+            _buildSummaryStat('Wear', '$wearCount', Icons.warning_amber_rounded),
             const SizedBox(width: 8),
-            _buildSummaryStat('Damaged', '$dmgCount', Colors.redAccent),
+            _buildSummaryStat('Damaged', '$dmgCount', Icons.error_outline),
           ],
         ),
 
@@ -643,13 +713,8 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
 
         // Meter readings section
         Text(
-          'METER READINGS',
-          style: TextStyle(
-            color: Colors.grey[500],
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-          ),
+          'Meter readings',
+          style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         Row(
@@ -678,19 +743,37 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
 
         // Room-by-room breakdown
         Text(
-          'ROOM BREAKDOWN',
-          style: TextStyle(
-            color: Colors.grey[500],
-            fontSize: 11,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 1,
-          ),
+          'Room breakdown',
+          style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 10),
         for (final room in _inspection.rooms) ...[
           _buildRoomSummaryCard(room),
           const SizedBox(height: 10),
         ],
+
+        const SizedBox(height: 24),
+
+        // Digital sign-off -- both parties sign on the same device,
+        // handed over physically (matching how this is used in
+        // practice: the tenant signs, then hands the phone to the
+        // landlord to sign in turn).
+        Text(
+          'Sign-off',
+          style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold),
+        ),
+        const SizedBox(height: 10),
+        _buildSignatureRow(
+          label: 'Tenant signature',
+          signatureUrl: _inspection.tenantSignature,
+          onTap: () => _signAs(isTenant: true),
+        ),
+        const SizedBox(height: 8),
+        _buildSignatureRow(
+          label: 'Landlord signature',
+          signatureUrl: _inspection.landlordSignature,
+          onTap: () => _signAs(isTenant: false),
+        ),
 
         const SizedBox(height: 20),
 
@@ -704,13 +787,13 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
           ),
           child: Row(
             children: [
-              const Icon(Icons.verified_user_outlined, color: Color(0xFF38BDF8), size: 16),
+              const Icon(Icons.verified_user_outlined, color: AppColors.white, size: 16),
               const SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'This report serves as evidence of property condition at move-in. '
                   'Share it with your host for mutual agreement.',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                  style: TextStyle(color: AppColors.grey400, fontSize: 11),
                 ),
               ),
             ],
@@ -722,7 +805,42 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     );
   }
 
-  Widget _buildSummaryStat(String label, String value, Color color) {
+  Widget _buildSignatureRow({required String label, required String? signatureUrl, required VoidCallback onTap}) {
+    final signed = signatureUrl != null && signatureUrl.isNotEmpty;
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: signed ? AppColors.white : AppColors.border),
+        ),
+        child: Row(
+          children: [
+            Icon(
+              signed ? Icons.check_circle : Icons.draw_outlined,
+              color: signed ? AppColors.white : AppColors.grey400,
+              size: 20,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                label,
+                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+              ),
+            ),
+            Text(
+              signed ? 'Signed · tap to redo' : 'Tap to sign',
+              style: TextStyle(color: signed ? AppColors.grey400 : AppColors.grey500, fontSize: 11.5),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSummaryStat(String label, String value, IconData? icon) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(12),
@@ -733,10 +851,14 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
         ),
         child: Column(
           children: [
+            if (icon != null) ...[
+              Icon(icon, color: AppColors.white, size: 16),
+              const SizedBox(height: 2),
+            ],
             Text(
               value,
-              style: TextStyle(
-                color: color,
+              style: const TextStyle(
+                color: AppColors.white,
                 fontSize: 22,
                 fontWeight: FontWeight.bold,
               ),
@@ -744,7 +866,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
             const SizedBox(height: 2),
             Text(
               label,
-              style: TextStyle(color: Colors.grey[500], fontSize: 11),
+              style: const TextStyle(color: AppColors.grey500, fontSize: 11),
             ),
           ],
         ),
@@ -760,9 +882,9 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: room.issueCount > 0
-              ? Colors.redAccent.withValues(alpha: 0.4)
+              ? AppColors.grey500
               : room.wearCount > 0
-                  ? Colors.amber.withValues(alpha: 0.4)
+                  ? AppColors.grey600
                   : AppColors.border,
         ),
       ),
@@ -787,36 +909,36 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withValues(alpha: 0.15),
+                    color: AppColors.white,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '${room.issueCount} issue${room.issueCount > 1 ? 's' : ''}',
-                    style: const TextStyle(color: Colors.redAccent, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: AppColors.black, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 )
               else if (room.wearCount > 0)
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withValues(alpha: 0.15),
+                    color: AppColors.grey800,
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     '${room.wearCount} wear',
-                    style: const TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
+                    style: const TextStyle(color: AppColors.grey300, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 )
               else
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF10B981).withValues(alpha: 0.15),
+                    color: AppColors.grey900,
                     borderRadius: BorderRadius.circular(6),
                   ),
-                  child: const Text(
+                  child: Text(
                     'All Good',
-                    style: TextStyle(color: Color(0xFF10B981), fontSize: 10, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: AppColors.grey500, fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ),
             ],
@@ -828,7 +950,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
             children: room.items.map((item) {
               return Text(
                 '${item.condition.emoji} ${item.name}',
-                style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                style: const TextStyle(color: AppColors.grey400, fontSize: 11),
               );
             }).toList(),
           ),
@@ -861,13 +983,27 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                     ),
                   ),
                 ),
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
+                Container(
+                  height: 48,
+                  width: 48,
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.grey700),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: IconButton(
+                    onPressed: _copyReport,
+                    icon: const Icon(Icons.copy_rounded, color: AppColors.white, size: 18),
+                    tooltip: 'Copy to clipboard',
+                  ),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   flex: 2,
                   child: ElevatedButton.icon(
-                    onPressed: _copyReport,
-                    icon: const Icon(Icons.copy_rounded, size: 18),
-                    label: const Text('Copy Report'),
+                    onPressed: _shareReport,
+                    icon: const Icon(Icons.ios_share_rounded, size: 18),
+                    label: const Text('Share Report'),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.white,
                       foregroundColor: AppColors.black,
@@ -931,7 +1067,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
   InputDecoration _meterDecoration(String label) {
     return InputDecoration(
       labelText: label,
-      labelStyle: TextStyle(color: Colors.grey[500], fontSize: 13),
+      labelStyle: const TextStyle(color: AppColors.grey500, fontSize: 13),
       filled: true,
       fillColor: AppColors.black,
       contentPadding: const EdgeInsets.all(14),
@@ -948,18 +1084,5 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
         borderSide: const BorderSide(color: AppColors.grey400),
       ),
     );
-  }
-
-  Color _conditionColor(ItemCondition c) {
-    switch (c) {
-      case ItemCondition.good:
-        return const Color(0xFF10B981);
-      case ItemCondition.minorWear:
-        return Colors.amber;
-      case ItemCondition.damaged:
-        return Colors.redAccent;
-      case ItemCondition.notApplicable:
-        return AppColors.grey500;
-    }
   }
 }

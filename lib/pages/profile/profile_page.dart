@@ -22,8 +22,7 @@ import 'package:roost_app/pages/profile/notifications_page.dart';
 import 'package:roost_app/pages/profile/privacy_policy_page.dart';
 import 'package:roost_app/pages/profile/about_page.dart';
 import 'package:roost_app/pages/profile/change_password_page.dart';
-import 'package:roost_app/models/property.dart';
-import 'package:roost_app/pages/search/move_in_inspection_page.dart';
+import 'package:roost_app/pages/profile/my_inspections_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -446,28 +445,14 @@ class _ProfilePageState extends State<ProfilePage> {
                       ),
                       const Divider(height: 1, color: Color(0xFF2C2C2E)),
                       ListTile(
-                        leading: const Icon(Icons.assignment_outlined, color: Color(0xFF10B981)),
-                        title: const Text('Move-in Inspection Wizard', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
-                        subtitle: const Text('Deposit protection audit & room checklist', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                        leading: const Icon(Icons.assignment_outlined, color: Colors.white),
+                        title: const Text('My Inspections', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                        subtitle: const Text('Move-in condition reports & deposit protection', style: TextStyle(color: Colors.grey, fontSize: 12)),
                         trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                         onTap: () {
-                          final dummyProp = Property(
-                            id: 0,
-                            title: 'Sample Rental Home',
-                            description: 'Sample description',
-                            location: 'Nairobi',
-                            price: 35000,
-                            bedrooms: 2,
-                            type: '2BR',
-                            houseType: '2BR',
-                            landlordPhone: '+254700000000',
-                            available: true,
-                            bathrooms: 2,
-                            imageUrls: const [],
-                          );
                           Navigator.push(
                             context,
-                            MaterialPageRoute(builder: (_) => MoveInInspectionPage(property: dummyProp)),
+                            MaterialPageRoute(builder: (_) => const MyInspectionsPage()),
                           );
                         },
                       ),
