@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:roost_app/config.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:share_plus/share_plus.dart';
@@ -203,8 +204,8 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                                 height: 86,
                                 decoration: BoxDecoration(
                                   shape: BoxShape.circle,
-                                  color: const Color(0xFF2C2C2E),
-                                  border: Border.all(color: const Color(0xFF38BDF8), width: 2),
+                                  color: AppColors.grey800,
+                                  border: Border.all(color: AppColors.grey600, width: 2),
                                 ),
                                 child: ClipOval(
                                   child: (displayAvatar != null && displayAvatar.isNotEmpty)
@@ -219,7 +220,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                                               height: 28,
                                               child: CircularProgressIndicator(
                                                 strokeWidth: 2,
-                                                color: Color(0xFF38BDF8),
+                                                color: AppColors.white,
                                               ),
                                             ),
                                           ),
@@ -252,7 +253,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                                 child: Container(
                                   padding: const EdgeInsets.all(3),
                                   decoration: const BoxDecoration(
-                                    color: Color(0xFF38BDF8),
+                                    color: AppColors.white,
                                     shape: BoxShape.circle,
                                   ),
                                   child: const Icon(Icons.verified_rounded, color: Colors.black, size: 18),
@@ -440,14 +441,14 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
 
       // ── Contact Host Bottom Bar ────────────────────────────────────────────
       bottomNavigationBar: Container(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.background,
         child: SafeArea(
           top: false,
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: const BoxDecoration(
-              color: Color(0xFF1C1C1E),
-              border: Border(top: BorderSide(color: Color(0xFF2C2C2E))),
+              color: AppColors.background,
+              border: Border(top: BorderSide(color: AppColors.divider)),
             ),
             child: Row(
               children: [

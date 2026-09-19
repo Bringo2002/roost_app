@@ -4,6 +4,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/avatar_upload_helper.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
@@ -76,7 +77,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final String? action = await showModalBottomSheet<String>(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: AppColors.surfaceRaised,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -91,7 +92,7 @@ class _ProfilePageState extends State<ProfilePage> {
                 height: 4,
                 margin: const EdgeInsets.only(bottom: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3A3A3C),
+                  color: AppColors.grey700,
                   borderRadius: BorderRadius.circular(2),
                 ),
               ),
@@ -101,25 +102,30 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(height: 8),
               ListTile(
-                leading: const Icon(Icons.photo_camera_rounded, color: Color(0xFF38BDF8)),
+                leading: const Icon(Icons.photo_camera_rounded, color: AppColors.white),
                 title: const Text('Take a photo', style: TextStyle(color: Colors.white)),
                 onTap: () => Navigator.pop(ctx, 'camera'),
               ),
               ListTile(
-                leading: const Icon(Icons.photo_library_rounded, color: Color(0xFF38BDF8)),
+                leading: const Icon(Icons.photo_library_rounded, color: AppColors.white),
                 title: const Text('Choose from gallery', style: TextStyle(color: Colors.white)),
                 onTap: () => Navigator.pop(ctx, 'gallery'),
               ),
               if (hasAvatar) ...[
-                const Divider(color: Color(0xFF2C2C2E)),
+                const Divider(color: AppColors.divider),
                 ListTile(
-                  leading: const Icon(Icons.fullscreen_rounded, color: Color(0xFF38BDF8)),
+                  leading: const Icon(Icons.fullscreen_rounded, color: AppColors.white),
                   title: const Text('View full screen photo', style: TextStyle(color: Colors.white)),
                   onTap: () => Navigator.pop(ctx, 'view'),
                 ),
                 ListTile(
-                  leading: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-                  title: const Text('Remove profile photo', style: TextStyle(color: Colors.redAccent)),
+                  // Destructive action styled the same grey/white way
+                  // as everywhere else in the app (e.g.
+                  // RoostSheetSubmitButton.isDestructive) rather than
+                  // red, which doesn't appear anywhere else in Roost's
+                  // action styling.
+                  leading: const Icon(Icons.delete_outline_rounded, color: AppColors.grey400),
+                  title: const Text('Remove profile photo', style: TextStyle(color: AppColors.grey400)),
                   onTap: () => Navigator.pop(ctx, 'remove'),
                 ),
               ],
@@ -158,10 +164,52 @@ class _ProfilePageState extends State<ProfilePage> {
           );
         }
       }
+    } on AvatarSaveException catch (e) {
+      // The photo already made it to the CDN -- offer to retry just
+      // the save step (reusing e.uploadedUrl) instead of forcing a
+      // full re-upload, which would leave a second orphaned file
+      // behind on a second failure.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.message),
+            action: SnackBarAction(
+              label: 'Retry',
+              onPressed: () => _retrySaveAvatar(e.uploadedUrl),
+            ),
+            duration: const Duration(seconds: 6),
+          ),
+        );
+      }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(e.toUserMessage('Failed to update profile picture.'))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isUploadingAvatar = false);
+    }
+  }
+
+  Future<void> _retrySaveAvatar(String uploadedUrl) async {
+    setState(() => _isUploadingAvatar = true);
+    try {
+      await AvatarUploadHelper.saveToProfile(uploadedUrl);
+      await _loadProfile();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated!')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(e.toUserMessage('Still could not save your photo.')),
+            action: SnackBarAction(label: 'Retry', onPressed: () => _retrySaveAvatar(uploadedUrl)),
+            duration: const Duration(seconds: 6),
+          ),
         );
       }
     } finally {
@@ -708,8 +756,8 @@ class _ProfilePageState extends State<ProfilePage> {
               height: 68,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: const Color(0xFF2C2C2E),
-                border: Border.all(color: const Color(0xFF38BDF8), width: 2),
+                color: AppColors.grey800,
+                border: Border.all(color: AppColors.grey600, width: 2),
               ),
               child: ClipOval(
                 child: _isUploadingAvatar
@@ -719,7 +767,7 @@ class _ProfilePageState extends State<ProfilePage> {
                           height: 28,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: Color(0xFF38BDF8),
+                            color: AppColors.white,
                           ),
                         ),
                       )
@@ -735,7 +783,7 @@ class _ProfilePageState extends State<ProfilePage> {
                                 height: 24,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Color(0xFF38BDF8),
+                                  color: AppColors.white,
                                 ),
                               ),
                             ),
@@ -769,7 +817,7 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Container(
                 padding: const EdgeInsets.all(5),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF38BDF8),
+                  color: AppColors.white,
                   shape: BoxShape.circle,
                   border: Border.all(color: Colors.black, width: 1.5),
                 ),
