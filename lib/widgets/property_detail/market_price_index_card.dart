@@ -5,7 +5,7 @@ import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/rent_estimator_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 
-/// Displays an interactive AI-driven market price index gauge for a property,
+/// Displays an interactive market price index gauge for a property,
 /// showing where the listing price falls relative to comparable rentals in
 /// the same area and house type.
 class MarketPriceIndexCard extends StatefulWidget {
@@ -97,7 +97,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
             Icon(Icons.analytics_outlined, color: AppColors.white, size: 22),
             SizedBox(width: 8),
             Text(
-              'AI Market Analysis',
+              'Market Price Analysis',
               style: TextStyle(
                 color: AppColors.textPrimary,
                 fontSize: 16,
@@ -112,13 +112,13 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           width: 24,
           child: CircularProgressIndicator(
             strokeWidth: 2,
-            color: Colors.grey[400],
+            color: AppColors.grey400,
           ),
         ),
         const SizedBox(height: 12),
         Text(
           'Analyzing comparable listings...',
-          style: TextStyle(color: Colors.grey[500], fontSize: 12),
+          style: TextStyle(color: AppColors.grey500, fontSize: 12),
         ),
         const SizedBox(height: 8),
       ],
@@ -134,7 +134,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
             Icon(Icons.analytics_outlined, color: AppColors.grey500, size: 22),
             SizedBox(width: 8),
             Text(
-              'AI Market Analysis',
+              'Market Price Analysis',
               style: TextStyle(
                 color: AppColors.grey400,
                 fontSize: 16,
@@ -158,7 +158,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
               Expanded(
                 child: Text(
                   'Not enough comparable listings in this area yet to generate a market estimate.',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                  style: TextStyle(color: AppColors.grey400, fontSize: 12),
                 ),
               ),
             ],
@@ -184,7 +184,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
                 Icon(Icons.analytics_outlined, color: AppColors.white, size: 22),
                 SizedBox(width: 8),
                 Text(
-                  'AI Market Analysis',
+                  'Market Price Analysis',
                   style: TextStyle(
                     color: AppColors.textPrimary,
                     fontSize: 16,
@@ -202,7 +202,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
               ),
               child: Text(
                 '${est.comparableCount} comps',
-                style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                style: TextStyle(color: AppColors.grey400, fontSize: 11),
               ),
             ),
           ],
@@ -245,7 +245,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
                     const SizedBox(height: 2),
                     Text(
                       _ratingSubtitle(est),
-                      style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                      style: TextStyle(color: AppColors.grey400, fontSize: 12),
                     ),
                   ],
                 ),
@@ -267,11 +267,11 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         // ── Market Range Stats ──────────────────────────────────────────────
         Row(
           children: [
-            _buildStatChip('Low', _fmtPrice(est.minPrice), const Color(0xFF10B981)),
+            _buildStatChip('Low', _fmtPrice(est.minPrice), AppColors.grey400),
             const SizedBox(width: 8),
-            _buildStatChip('Median', _fmtPrice(est.medianPrice), const Color(0xFF38BDF8)),
+            _buildStatChip('Median', _fmtPrice(est.medianPrice), AppColors.grey400),
             const SizedBox(width: 8),
-            _buildStatChip('High', _fmtPrice(est.maxPrice), Colors.amber),
+            _buildStatChip('High', _fmtPrice(est.maxPrice), AppColors.grey400),
           ],
         ),
 
@@ -281,7 +281,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           Text(
             'VALUE DRIVERS',
             style: TextStyle(
-              color: Colors.grey[500],
+              color: AppColors.grey500,
               fontSize: 11,
               fontWeight: FontWeight.bold,
               letterSpacing: 1,
@@ -304,7 +304,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         Text(
           'PRICE POSITION',
           style: TextStyle(
-            color: Colors.grey[500],
+            color: AppColors.grey500,
             fontSize: 11,
             fontWeight: FontWeight.bold,
             letterSpacing: 1,
@@ -332,9 +332,9 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
                         borderRadius: BorderRadius.circular(4),
                         gradient: const LinearGradient(
                           colors: [
-                            Color(0xFF10B981), // Green (great deal)
-                            Color(0xFF38BDF8), // Blue (fair)
-                            Color(0xFFFBBF24), // Amber (above market)
+                            AppColors.grey300, // Low price
+                            AppColors.grey600, // Median
+                            AppColors.grey800, // High price
                           ],
                         ),
                       ),
@@ -388,9 +388,9 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text('Lower', style: TextStyle(color: Colors.grey[600], fontSize: 10)),
-            Text('Neighborhood Average', style: TextStyle(color: Colors.grey[600], fontSize: 10)),
-            Text('Higher', style: TextStyle(color: Colors.grey[600], fontSize: 10)),
+            Text('Lower', style: TextStyle(color: AppColors.grey600, fontSize: 10)),
+            Text('Neighborhood Average', style: TextStyle(color: AppColors.grey600, fontSize: 10)),
+            Text('Higher', style: TextStyle(color: AppColors.grey600, fontSize: 10)),
           ],
         ),
       ],
@@ -443,14 +443,12 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           Container(
             padding: const EdgeInsets.all(6),
             decoration: BoxDecoration(
-              color: driver.isPositive
-                  ? const Color(0xFF10B981).withValues(alpha: 0.15)
-                  : Colors.amber.withValues(alpha: 0.15),
+              color: driver.isPositive ? AppColors.grey800 : AppColors.surface,
               shape: BoxShape.circle,
             ),
             child: Icon(
               driver.isPositive ? Icons.trending_up : Icons.trending_down,
-              color: driver.isPositive ? const Color(0xFF10B981) : Colors.amber,
+              color: driver.isPositive ? AppColors.white : AppColors.grey500,
               size: 14,
             ),
           ),
@@ -467,7 +465,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           Text(
             driver.impact,
             style: TextStyle(
-              color: driver.isPositive ? const Color(0xFF10B981) : Colors.amber,
+              color: driver.isPositive ? AppColors.white : AppColors.grey500,
               fontSize: 12,
               fontWeight: FontWeight.bold,
             ),

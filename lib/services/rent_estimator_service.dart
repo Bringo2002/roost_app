@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 class ValueDriver {
   final String label;
@@ -12,6 +13,14 @@ class ValueDriver {
     required this.impact,
     required this.isPositive,
   });
+
+  factory ValueDriver.fromJson(Map<String, dynamic> json) {
+    return ValueDriver(
+      label: json['label'] as String,
+      impact: json['impact'] as String,
+      isPositive: json['isPositive'] as bool,
+    );
+  }
 }
 
 class RentEstimate {
@@ -32,6 +41,20 @@ class RentEstimate {
     required this.valueDrivers,
     required this.comparableCount,
   });
+
+  factory RentEstimate.fromJson(Map<String, dynamic> json) {
+    return RentEstimate(
+      minPrice: (json['minPrice'] as num).toDouble(),
+      medianPrice: (json['medianPrice'] as num).toDouble(),
+      maxPrice: (json['maxPrice'] as num).toDouble(),
+      rating: json['rating'] as String,
+      percentile: (json['percentile'] as num).toDouble(),
+      comparableCount: json['comparableCount'] as int,
+      valueDrivers: (json['valueDrivers'] as List)
+          .map((d) => ValueDriver.fromJson(d as Map<String, dynamic>))
+          .toList(),
+    );
+  }
 
   String get ratingLabel {
     switch (rating) {
@@ -59,152 +82,49 @@ class RentEstimate {
     }
   }
 
+  /// Monochrome throughout -- previously green/blue/amber, a purely
+  /// decorative distinction the rating label and emoji already carry.
+  /// The gauge widget conveys position via the needle/marker itself,
+  /// not color, matching every other trust/status indicator in the app.
   Color get ratingColor {
     switch (rating) {
       case 'GREAT_DEAL':
-        return const Color(0xFF10B981);
+        return AppColors.white;
       case 'FAIR_PRICE':
-        return const Color(0xFF38BDF8);
+        return AppColors.grey300;
       case 'ABOVE_MARKET':
-        return Colors.amber;
+        return AppColors.grey500;
       default:
-        return Colors.grey;
+        return AppColors.grey600;
     }
   }
 }
 
+/// Thin client for the server-side rent estimate.
+///
+/// Previously this fetched up to 50 full property records
+/// (`/api/properties/filter?type=X&size=50`) on every single
+/// detail-page view and recomputed percentiles and value-drivers
+/// on-device -- a real bandwidth/latency cost, using its own
+/// independent comparable-matching (house type + first word of
+/// location, no bedroom filter at all) that could disagree with
+/// PropertyRiskService's separate "is this price fair?" feature for
+/// the exact same listing. See RentEstimateService.java on the backend
+/// for the replacement: one comparable-matching definition (house type
+/// + bedrooms + GPS distance, falling back to location text), computed
+/// once server-side, returned as a handful of numbers.
 class RentEstimatorService {
   static Future<RentEstimate?> estimate(Property property) async {
+    final id = property.id;
+    if (id == null) return null;
+
     try {
-      final response = await ApiService.get('/api/properties/filter?type=${property.houseType}&size=50');
-      if (response == null) return null;
-
-      final List<dynamic> data = response;
-      final List<Property> allComps = data.map((json) => Property.fromJson(json)).toList();
-
-      if (allComps.isEmpty) return null;
-
-      final propertyLocationFirstWord = property.location.split(' ').first.toLowerCase();
-      
-      List<Property> locationComps = allComps.where((p) {
-        final compFirstWord = p.location.split(' ').first.toLowerCase();
-        return compFirstWord == propertyLocationFirstWord;
-      }).toList();
-
-      List<Property> compsToUse = locationComps.length >= 3 ? locationComps : allComps;
-
-      if (compsToUse.length < 3) return null;
-
-      List<double> prices = compsToUse.map((p) => p.price.toDouble()).toList()..sort();
-
-      double minPrice = _percentile(prices, 0.25);
-      double medianPrice = _percentile(prices, 0.50);
-      double maxPrice = _percentile(prices, 0.75);
-
-      String rating;
-      if (property.price <= medianPrice) {
-        rating = 'GREAT_DEAL';
-      } else if (property.price <= maxPrice) {
-        rating = 'FAIR_PRICE';
-      } else {
-        rating = 'ABOVE_MARKET';
-      }
-
-      int lowerOrEqualCount = prices.where((p) => p <= property.price).length;
-      double percentile = lowerOrEqualCount / prices.length;
-
-      List<ValueDriver> valueDrivers = _analyzeValueDrivers(property, compsToUse);
-
-      return RentEstimate(
-        minPrice: minPrice,
-        medianPrice: medianPrice,
-        maxPrice: maxPrice,
-        rating: rating,
-        percentile: percentile,
-        valueDrivers: valueDrivers,
-        comparableCount: compsToUse.length,
-      );
-    } catch (e) {
-      return null; // Graceful failure
+      final response = await ApiService.get('/api/properties/$id/rent-estimate');
+      final json = response as Map<String, dynamic>;
+      if (json['available'] != true) return null;
+      return RentEstimate.fromJson(json);
+    } catch (_) {
+      return null; // Graceful failure -- the card just doesn't render.
     }
-  }
-
-  static double _percentile(List<double> sorted, double p) {
-    if (sorted.isEmpty) return 0.0;
-    if (sorted.length == 1) return sorted.first;
-    if (p <= 0) return sorted.first;
-    if (p >= 1) return sorted.last;
-
-    final position = p * (sorted.length - 1);
-    final index = position.floor();
-    final fraction = position - index;
-
-    return sorted[index] + fraction * (sorted[index + 1] - sorted[index]);
-  }
-
-  static List<ValueDriver> _analyzeValueDrivers(Property property, List<Property> comps) {
-    List<Map<String, dynamic>> driverData = [];
-    int total = comps.length;
-    if (total == 0) return [];
-
-    void processAmenity(bool hasAmenity, String label, bool Function(Property) compHas) {
-      int count = comps.where(compHas).length;
-      double prevalence = count / total;
-
-      if (hasAmenity) {
-        if (prevalence < 0.50) {
-          String impact;
-          if (prevalence < 0.10) {
-            impact = '+10-15%';
-          } else if (prevalence < 0.25) {
-            impact = '+5-10%';
-          } else {
-            impact = '+3-5%';
-          }
-          driverData.add({
-            'driver': ValueDriver(label: label, impact: impact, isPositive: true),
-            'prevalence': prevalence,
-          });
-        }
-      } else {
-        if (prevalence > 0.70) {
-          driverData.add({
-            'driver': ValueDriver(label: 'Missing $label', impact: '-5-8%', isPositive: false),
-            'prevalence': prevalence,
-          });
-        }
-      }
-    }
-
-    processAmenity(property.parking, 'Dedicated Parking', (p) => p.parking);
-    processAmenity(property.furnished, 'Fully Furnished', (p) => p.furnished);
-    processAmenity(property.wifi, 'WiFi Included', (p) => p.wifi);
-    processAmenity(property.generator, 'Backup Generator', (p) => p.generator);
-    processAmenity(property.pool, 'Swimming Pool', (p) => p.pool);
-    processAmenity(property.gym, 'Gym Access', (p) => p.gym);
-    processAmenity(property.elevator, 'Elevator Access', (p) => p.elevator);
-    processAmenity(property.balcony, 'Private Balcony', (p) => p.balcony);
-    processAmenity(property.security, '24/7 Security', (p) => p.security);
-    processAmenity(property.solar, 'Solar Power', (p) => p.solar);
-
-    driverData.sort((a, b) {
-      bool aPos = (a['driver'] as ValueDriver).isPositive;
-      bool bPos = (b['driver'] as ValueDriver).isPositive;
-
-      if (aPos && bPos) {
-        return (a['prevalence'] as double).compareTo(b['prevalence'] as double);
-      } else if (!aPos && !bPos) {
-        return (b['prevalence'] as double).compareTo(a['prevalence'] as double);
-      } else {
-        return aPos ? -1 : 1;
-      }
-    });
-
-    List<ValueDriver> finalDrivers = driverData.map((d) => d['driver'] as ValueDriver).toList();
-
-    if (finalDrivers.length > 5) {
-      return finalDrivers.sublist(0, 5);
-    }
-    return finalDrivers;
   }
 }
