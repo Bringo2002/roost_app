@@ -311,6 +311,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
             GoogleMap(
               initialCameraPosition: CameraPosition(target: LatLng(p.latitude ?? -1.2921, p.longitude ?? 36.8219), zoom: 14),
               style: AppMapStyle.darkMapStyle,
+              buildingsEnabled: true,
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
               scrollGesturesEnabled: false,

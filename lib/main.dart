@@ -1090,6 +1090,8 @@ class _MapViewPageState extends State<MapViewPage> {
                 zoom: 12,
               ),
               style: AppMapStyle.darkMapStyle,
+              buildingsEnabled: true,
+              mapToolbarEnabled: false,
               onMapCreated: (controller) {
                 _mapController = controller;
                 _centerOnUserLocation();

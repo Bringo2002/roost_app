@@ -11,12 +11,6 @@ class AppMapStyle {
     ]
   },
   {
-    "elementType": "labels.icon",
-    "stylers": [
-      { "visibility": "off" }
-    ]
-  },
-  {
     "elementType": "labels.text.fill",
     "stylers": [
       { "color": "#8e8e93" }
@@ -50,10 +44,38 @@ class AppMapStyle {
     ]
   },
   {
+    "featureType": "building",
+    "elementType": "geometry",
+    "stylers": [
+      { "color": "#252527" }
+    ]
+  },
+  {
+    "featureType": "building",
+    "elementType": "geometry.stroke",
+    "stylers": [
+      { "color": "#1c1c1e" }
+    ]
+  },
+  {
+    "featureType": "landscape.man_made",
+    "elementType": "geometry",
+    "stylers": [
+      { "color": "#232325" }
+    ]
+  },
+  {
     "featureType": "poi",
     "elementType": "labels.text.fill",
     "stylers": [
-      { "color": "#636366" }
+      { "color": "#8e8e93" }
+    ]
+  },
+  {
+    "featureType": "poi.business",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      { "color": "#8e8e93" }
     ]
   },
   {
@@ -61,6 +83,13 @@ class AppMapStyle {
     "elementType": "geometry",
     "stylers": [
       { "color": "#121214" }
+    ]
+  },
+  {
+    "featureType": "poi.park",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      { "color": "#6b6b70" }
     ]
   },
   {
@@ -96,6 +125,13 @@ class AppMapStyle {
     "elementType": "geometry",
     "stylers": [
       { "color": "#2c2c2e" }
+    ]
+  },
+  {
+    "featureType": "transit.station",
+    "elementType": "labels.text.fill",
+    "stylers": [
+      { "color": "#8e8e93" }
     ]
   },
   {

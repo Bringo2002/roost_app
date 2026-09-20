@@ -23,6 +23,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
 
   late final LatLng _propertyLatLng;
 
+  final Map<String, BitmapDescriptor> _facilityIcons = {};
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +32,24 @@ class _InAppMapPageState extends State<InAppMapPage> {
     final lng = widget.property.longitude ?? 36.8219;
     _propertyLatLng = LatLng(lat, lng);
     _getUserLocationAndDistance();
+    _loadFacilityIcons();
+  }
+
+  /// Custom monochrome pins for nearby facilities (mall/hospital/road) --
+  /// these are markers the app itself places, unlike the base map tiles'
+  /// own POI icons, so they follow the strict black/white brand rather
+  /// than Google's native multi-color icon glyphs.
+  Future<void> _loadFacilityIcons() async {
+    const config = ImageConfiguration(size: Size(36, 36));
+    final mall = await BitmapDescriptor.fromAssetImage(config, 'assets/markers/marker_mall.png');
+    final hospital = await BitmapDescriptor.fromAssetImage(config, 'assets/markers/marker_hospital.png');
+    final road = await BitmapDescriptor.fromAssetImage(config, 'assets/markers/marker_road.png');
+    if (!mounted) return;
+    setState(() {
+      _facilityIcons['mall'] = mall;
+      _facilityIcons['hospital'] = hospital;
+      _facilityIcons['road'] = road;
+    });
   }
 
   Future<void> _getUserLocationAndDistance() async {
@@ -95,6 +115,39 @@ class _InAppMapPageState extends State<InAppMapPage> {
     }
   }
 
+  /// Property pin plus one pin per cached nearby facility (mall/hospital/
+  /// major road) -- so "600m from TRM Mall" is something you can actually
+  /// see on the map relative to the property, not just read as text.
+  Set<Marker> _buildMarkers() {
+    final markers = <Marker>{
+      Marker(
+        markerId: MarkerId('prop_${widget.property.id}'),
+        position: _propertyLatLng,
+        infoWindow: InfoWindow(
+          title: widget.property.title,
+          snippet: widget.property.location,
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
+      ),
+    };
+
+    for (final facility in widget.property.nearbyFacilities) {
+      final icon = _facilityIcons[facility.category];
+      if (icon == null) continue; // icons still loading -- skip this pass
+      markers.add(
+        Marker(
+          markerId: MarkerId('facility_${facility.category}_${facility.name}'),
+          position: LatLng(facility.latitude, facility.longitude),
+          infoWindow: InfoWindow(title: facility.name, snippet: facility.label),
+          icon: icon,
+          anchor: const Offset(0.5, 0.5),
+        ),
+      );
+    }
+
+    return markers;
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -112,20 +165,12 @@ class _InAppMapPageState extends State<InAppMapPage> {
             myLocationButtonEnabled: false,
             zoomControlsEnabled: false,
             compassEnabled: true,
+            buildingsEnabled: true,
+            mapToolbarEnabled: false,
             onMapCreated: (controller) {
               _mapController = controller;
             },
-            markers: {
-              Marker(
-                markerId: MarkerId('prop_${widget.property.id}'),
-                position: _propertyLatLng,
-                infoWindow: InfoWindow(
-                  title: widget.property.title,
-                  snippet: widget.property.location,
-                ),
-                icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-              ),
-            },
+            markers: _buildMarkers(),
             circles: {
               Circle(
                 circleId: CircleId('radius_${widget.property.id}'),

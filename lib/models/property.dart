@@ -9,11 +9,15 @@ class NearbyFacility {
   final String name;
   final String category; // 'mall' | 'hospital' | 'road'
   final double distanceMeters;
+  final double latitude;
+  final double longitude;
 
   const NearbyFacility({
     required this.name,
     required this.category,
     required this.distanceMeters,
+    required this.latitude,
+    required this.longitude,
   });
 
   factory NearbyFacility.fromJson(Map<String, dynamic> json) {
@@ -21,6 +25,8 @@ class NearbyFacility {
       name: json['name']?.toString() ?? '',
       category: json['category']?.toString() ?? '',
       distanceMeters: (json['distanceMeters'] as num?)?.toDouble() ?? 0.0,
+      latitude: (json['lat'] as num?)?.toDouble() ?? 0.0,
+      longitude: (json['lng'] as num?)?.toDouble() ?? 0.0,
     );
   }
 
