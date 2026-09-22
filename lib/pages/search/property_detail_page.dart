@@ -279,7 +279,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
           DualContactCard(property: p),
 
           const SizedBox(height: 16),
-          const FreeViewingsBanner(),
+          FreeViewingsBanner(propertyId: p.id),
 
           const SizedBox(height: 24),
           if (_controller.communityCheckEligible && !_controller.communityCheckSubmitted) ...[

@@ -45,6 +45,7 @@ class _CommunityCheckSheetState extends State<CommunityCheckSheet> {
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.controller.submitCommunityCheck(
         visited: _visited,
@@ -53,15 +54,15 @@ class _CommunityCheckSheetState extends State<CommunityCheckSheet> {
         priceAccurate: _priceAccurate,
         wouldRecommend: _wouldRecommend,
       );
-      if (mounted) Navigator.pop(context);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      Navigator.pop(context);
+      messenger.showSnackBar(
         const SnackBar(content: Text('Thanks for helping keep Roost accurate.')),
       );
     } catch (e) {
-      if (mounted) Navigator.pop(context);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      Navigator.pop(context);
+      messenger.showSnackBar(
         SnackBar(content: Text('Could not submit: ${e is ApiException ? e.message : e}')),
       );
     }

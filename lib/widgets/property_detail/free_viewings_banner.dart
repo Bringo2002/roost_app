@@ -6,7 +6,9 @@ import 'package:roost_app/widgets/property_detail/report_viewing_fee_sheet.dart'
 /// teal-accented (`Color(0xFF00C896)`) -- now a plain white-bordered
 /// card, consistent with the rest of the monochrome trust UI.
 class FreeViewingsBanner extends StatelessWidget {
-  const FreeViewingsBanner({super.key});
+  const FreeViewingsBanner({super.key, this.propertyId});
+
+  final int? propertyId;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +36,7 @@ class FreeViewingsBanner extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           InkWell(
-            onTap: () => ReportViewingFeeSheet.show(context),
+            onTap: () => ReportViewingFeeSheet.show(context, propertyId: propertyId),
             borderRadius: BorderRadius.circular(8),
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
@@ -47,3 +49,4 @@ class FreeViewingsBanner extends StatelessWidget {
     );
   }
 }
+

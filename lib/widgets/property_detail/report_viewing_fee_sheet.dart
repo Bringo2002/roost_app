@@ -39,6 +39,9 @@ class _ReportViewingFeeSheetState extends State<ReportViewingFeeSheet> {
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
+    // Capture the messenger before popping — Navigator.pop unmounts
+    // this widget, making `context` stale for ScaffoldMessenger lookups.
+    final messenger = ScaffoldMessenger.of(context);
     try {
       if (widget.propertyId != null) {
         await ApiService.post('/api/properties/${widget.propertyId}/report', {
@@ -47,14 +50,14 @@ class _ReportViewingFeeSheetState extends State<ReportViewingFeeSheet> {
         });
       }
     } catch (_) {
-      // Matches the original behavior: this report still confirms to
-      // the user even if the network call fails, since the alternative
-      // (leaving them unsure whether a serious safety report landed) is
-      // worse than a rare silent retry-on-the-backend's-side gap.
+      // This report still confirms to the user even if the network call
+      // fails, since the alternative (leaving them unsure whether a
+      // serious safety report landed) is worse than a rare silent
+      // retry-on-the-backend's-side gap.
     }
-    if (mounted) Navigator.pop(context);
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
+    Navigator.pop(context);
+    messenger.showSnackBar(
       const SnackBar(content: Text('Report submitted. We take viewing fees very seriously.'), duration: Duration(seconds: 4)),
     );
   }

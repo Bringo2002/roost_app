@@ -40,20 +40,21 @@ class _ReportSheetState extends State<ReportSheet> {
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
+    final messenger = ScaffoldMessenger.of(context);
     try {
       await widget.controller.reportProperty(_selectedReason);
-      if (mounted) Navigator.pop(context);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      Navigator.pop(context);
+      messenger.showSnackBar(
         const SnackBar(
           content: Text('Report submitted. Thank you for keeping Roost safe!'),
           duration: Duration(seconds: 4),
         ),
       );
     } catch (e) {
-      if (mounted) Navigator.pop(context);
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
+      Navigator.pop(context);
+      messenger.showSnackBar(
         SnackBar(content: Text('Could not submit: ${e is ApiException ? e.message : e}')),
       );
     }
