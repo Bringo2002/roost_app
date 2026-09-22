@@ -21,6 +21,7 @@ import 'package:roost_app/services/favorites_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/utils/property_sorter.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_map_style.dart';
@@ -623,80 +624,27 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     await _loadFavorites();
   }
 
-  int _calculateRelevance(Property p) {
-    int score = 0;
-
-    // 1. Distance from user (+0 to +25 pts) -- the app's core differentiator
-    // per the brief ("show me what's around me"), so it's weighted above
-    // every preference-match signal below. Unknown distance scores neutral
-    // (0), never penalized -- we don't guess where a property is.
-    final km = _distanceKmTo(p);
-    if (km != null) {
-      if (km < 0.5) {
-        score += 25;
-      } else if (km < 1) {
-        score += 20;
-      } else if (km < 2) {
-        score += 15;
-      } else if (km < 4) {
-        score += 10;
-      } else if (km < 8) {
-        score += 5;
-      }
-    }
-
-    // 2. House Type match (+10 pts) -- both sides now use the canonical
-    // backend format (BEDSITTER/STUDIO/1BR/2BR/3BR+), so this is an exact
-    // match rather than a fragile substring comparison.
-    if (_prefHouseType != null && _prefHouseType != 'ANY') {
-      if (p.houseType.toUpperCase() == _prefHouseType!.toUpperCase()) {
-        score += 10;
-      }
-    }
-
-    // 3. Budget Range match (+10 pts)
-    if (_prefBudget != null) {
-      final b = _prefBudget!;
-      if (b.contains('Under 15') && p.price < 15000) score += 10;
-      if (b.contains('15k – 30k') && p.price >= 15000 && p.price <= 30000) {
-        score += 10;
-      }
-      if (b.contains('30k – 60k') && p.price >= 30000 && p.price <= 60000) {
-        score += 10;
-      }
-      if (b.contains('60,000+') && p.price >= 60000) score += 10;
-    }
-
-    // 4. Move-in Immediate (+5 pts)
-    if (_prefTimeframe == 'Immediately' && p.available) {
-      score += 5;
-    }
-
-    // 5. Verified bonus (+2 pts)
-    if (p.verified) score += 2;
-
-    return score;
-  }
 
   void _filterProperties() {
     final query = searchController.text.toLowerCase();
 
     setState(() {
-      filtered = properties.where((p) {
+      final matching = properties.where((p) {
         final matchesQuery = p.location.toLowerCase().contains(query) ||
             p.title.toLowerCase().contains(query);
         final matchesType = selectedType == 'all' ||
             p.type.toLowerCase() == selectedType.toLowerCase();
         return matchesQuery && matchesType;
-      }).toList()
-        ..sort((a, b) {
-          final relA = _calculateRelevance(a);
-          final relB = _calculateRelevance(b);
-          if (relA != relB) {
-            return relB.compareTo(relA); // higher relevance first
-          }
-          return a.price.compareTo(b.price);
-        });
+      }).toList();
+
+      filtered = PropertySorter.sort(
+        matching,
+        userLat: _userPosition?.latitude,
+        userLng: _userPosition?.longitude,
+        prefHouseType: _prefHouseType,
+        prefBudget: _prefBudget,
+        prefTimeframe: _prefTimeframe,
+      );
     });
 
     // A text search or type filter can leave too little on screen to

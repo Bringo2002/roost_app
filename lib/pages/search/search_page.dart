@@ -7,6 +7,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/search_intent_api_service.dart';
+import 'package:roost_app/utils/property_sorter.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
@@ -447,22 +448,13 @@ class _SearchPageState extends State<SearchPage> {
   }
 
   void _sortResults() {
-    if (_sortNewestFirst) {
-      _results.sort((a, b) {
-        final dateA = DateTime.tryParse(a.listedAt ?? '');
-        final dateB = DateTime.tryParse(b.listedAt ?? '');
-        if (dateA == null && dateB == null) return 0;
-        if (dateA == null) return 1;
-        if (dateB == null) return -1;
-        return dateB.compareTo(dateA); // newest first
-      });
-    } else if (_userPosition != null) {
-      _results.sort((a, b) {
-        final distA = _distanceKmTo(a) ?? double.infinity;
-        final distB = _distanceKmTo(b) ?? double.infinity;
-        return distA.compareTo(distB);
-      });
-    }
+    _results = PropertySorter.sort(
+      _results,
+      userLat: _userPosition?.latitude,
+      userLng: _userPosition?.longitude,
+      prefHouseType: _houseType,
+      sortNewestFirst: _sortNewestFirst,
+    );
   }
 
   /// Resets all filters to their defaults, deriving the price range from
