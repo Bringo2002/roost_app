@@ -19,6 +19,7 @@ class SignaturePadSheet extends StatefulWidget {
       context: context,
       backgroundColor: AppColors.surfaceRaised,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -57,13 +58,15 @@ class _SignaturePadSheetState extends State<SignaturePadSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        left: 20,
-        right: 20,
-        top: 16,
-        bottom: MediaQuery.of(context).viewInsets.bottom + 20,
-      ),
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: 20,
+          right: 20,
+          top: 16,
+          bottom: MediaQuery.of(context).viewInsets.bottom + 20,
+        ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -134,6 +137,7 @@ class _SignaturePadSheetState extends State<SignaturePadSheet> {
           ),
         ],
       ),
+    ),
     );
   }
 }

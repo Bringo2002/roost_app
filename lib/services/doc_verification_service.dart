@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/foundation.dart';
 import 'package:roost_app/services/api_service.dart';
 
 // ─── Result model ─────────────────────────────────────────────────────────────
@@ -81,6 +80,7 @@ class DocVerificationService {
     required Uint8List bytes,
     required String fileName,
     required String declaredDocType,
+    List<String>? existingHashes,
   }) async {
     // 1. File size
     if (bytes.length > _maxFileSizeBytes) {
@@ -103,13 +103,13 @@ class DocVerificationService {
       );
     }
 
-    // 3. Duplicate hash
-    if (await _isDuplicateFile(bytes)) {
+    // 3. Duplicate hash check against currently uploaded session files
+    if (existingHashes != null && existingHashes.contains(_quickHash(bytes))) {
       return const DocVerificationResult(
         riskLevel: DocRiskLevel.rejected,
         flags: ['DUPLICATE_HASH'],
         tier1RejectionReason:
-            'This exact document was already submitted. Please use a different file.',
+            'This exact document is already attached to this listing.',
       );
     }
 
@@ -118,9 +118,6 @@ class DocVerificationService {
     if (_isExifTooRecent(bytes)) {
       flags.add('EXIF_TOO_RECENT');
     }
-
-    // Store hash for future duplicate detection
-    await _storeFileHash(bytes);
 
     if (flags.isNotEmpty) {
       return DocVerificationResult(
@@ -137,15 +134,7 @@ class DocVerificationService {
 
   // ── Tier 2 (server-side Gemini fraud-check) ─────────────────────────────
   //
-  // This used to call Gemini directly from the client, with the API key
-  // baked into the app via --dart-define. That's readable straight out
-  // of a compiled release APK/IPA, so the actual call now lives on the
-  // backend (GeminiDocVerificationService) -- same prompt, same schema,
-  // same cost-optimized model choice, just called through our own
-  // authenticated endpoint instead of Google's directly. [landlordName]
-  // is accepted here only for call-site compatibility; the backend
-  // derives the real name from the authenticated session rather than
-  // trusting anything the client claims.
+  // Calls backend (GeminiDocVerificationService) for server-side Gemini AI.
   static Future<DocVerificationResult> runTier2({
     required Uint8List imageBytes,
     required String declaredDocType,
@@ -157,7 +146,8 @@ class DocVerificationService {
         'declaredDocType': declaredDocType,
       });
       return _parseBackendResponse(response as Map<String, dynamic>);
-    } catch (_) {
+    } catch (e) {
+      debugPrint('Tier 2 Gemini verification error: $e');
       return const DocVerificationResult(
         riskLevel: DocRiskLevel.pendingReview,
         flags: ['AI_UNAVAILABLE'],
@@ -190,24 +180,6 @@ class DocVerificationService {
       return DateTime.now().difference(dt).inHours < 24;
     } catch (_) {
       return false;
-    }
-  }
-
-  static Future<bool> _isDuplicateFile(Uint8List bytes) async {
-    final hash = _quickHash(bytes);
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList('roost_doc_hashes') ?? [];
-    return stored.contains(hash);
-  }
-
-  static Future<void> _storeFileHash(Uint8List bytes) async {
-    final hash = _quickHash(bytes);
-    final prefs = await SharedPreferences.getInstance();
-    final stored = prefs.getStringList('roost_doc_hashes') ?? [];
-    if (!stored.contains(hash)) {
-      stored.add(hash);
-      if (stored.length > 100) stored.removeAt(0);
-      await prefs.setStringList('roost_doc_hashes', stored);
     }
   }
 

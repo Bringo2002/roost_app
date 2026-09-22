@@ -29,40 +29,44 @@ class RoostBottomSheet {
       context: context,
       backgroundColor: AppColors.surfaceRaised,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
       ),
       builder: (ctx) {
-        return Padding(
-          padding: EdgeInsets.only(
-            left: 20,
-            right: 20,
-            top: 12,
-            bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
-          ),
-          child: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Drag handle
-                Center(
-                  child: Container(
-                    width: 36,
-                    height: 4,
-                    margin: const EdgeInsets.only(bottom: 20),
-                    decoration: BoxDecoration(
-                      color: AppColors.grey700,
-                      borderRadius: BorderRadius.circular(999),
+        return SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(
+              left: 20,
+              right: 20,
+              top: 12,
+              bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+            ),
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Drag handle
+                  Center(
+                    child: Container(
+                      width: 36,
+                      height: 4,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: AppColors.grey700,
+                        borderRadius: BorderRadius.circular(999),
+                      ),
                     ),
                   ),
-                ),
-                Text(title, style: AppTextStyles.title.copyWith(fontSize: 19, fontWeight: FontWeight.w800)),
-                const SizedBox(height: 6),
-                Text(subtitle, style: AppTextStyles.caption.copyWith(height: 1.4)),
-                const SizedBox(height: 18),
-                builder(ctx),
-              ],
+                  Text(title, style: AppTextStyles.title.copyWith(fontSize: 19, fontWeight: FontWeight.w800)),
+                  const SizedBox(height: 6),
+                  Text(subtitle, style: AppTextStyles.caption.copyWith(height: 1.4)),
+                  const SizedBox(height: 18),
+                  builder(ctx),
+                ],
+              ),
             ),
           ),
         );

@@ -777,6 +777,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       if (_managerRole != 'LANDLORD')
         'caretakerPhone': _formatPhone(_caretakerPhoneCtrl.text.trim()),
       'caretakerLivesOnSite': _caretakerLivesOnSite,
+      'documentUrls': _documentUrls,
+      'documentVerified': _hasDocUploaded,
       'landlordEndorsed': false,
       if (_ownerNameCtrl.text.trim().isNotEmpty)
         'ownerVerifyName': _ownerNameCtrl.text.trim(),
