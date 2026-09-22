@@ -17,6 +17,7 @@ import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:intl/intl.dart';
 import 'package:roost_app/services/rent_estimator_service.dart';
+import 'package:roost_app/widgets/property/listing_completion_sheet.dart';
 
 // ─── Amenity descriptor ────────────────────────────────────────────────────
 
@@ -973,9 +974,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (!mounted) return;
     setState(() => _isLoading = true);
     try {
-      await _persist(_buildPayload(status: 'PUBLISHED'));
+      final savedId = await _persist(_buildPayload(status: 'PUBLISHED'));
       if (!mounted) return;
-      await _showSuccessDialog();
+      setState(() => _isLoading = false);
+      await _showSuccessDialog(savedId: savedId);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -983,15 +985,63 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         );
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted && _isLoading) setState(() => _isLoading = false);
     }
   }
 
-  Future<void> _showSuccessDialog() async {
-    await showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (_) => _SuccessDialog(isEditing: _isEditing),
+  Future<void> _showSuccessDialog({int? savedId}) async {
+    final payload = _buildPayload(status: 'PUBLISHED');
+    final prop = Property(
+      id: savedId ?? _draftId,
+      title: _titleCtrl.text.trim(),
+      buildingName: _buildingNameCtrl.text.trim().isEmpty ? null : _buildingNameCtrl.text.trim(),
+      description: _descriptionCtrl.text.trim(),
+      location: _locationCtrl.text.trim(),
+      price: double.tryParse(_priceCtrl.text.trim()) ?? 0.0,
+      bedrooms: _bedrooms,
+      bathrooms: _bathrooms,
+      houseType: _houseType,
+      type: 'RENTAL',
+      available: _isEditing && widget.editingProperty != null
+          ? widget.editingProperty!.available
+          : true,
+      verified: _isEditing && widget.editingProperty != null
+          ? widget.editingProperty!.verified
+          : false,
+      landlordPhone: payload['landlordPhone']?.toString() ?? '',
+      imageUrl: _imageUrls.isNotEmpty ? _imageUrls.first : null,
+      imageUrls: List<String>.from(_imageUrls),
+      videoUrl: _videoUrl,
+      latitude: _latitude,
+      longitude: _longitude,
+      furnished: _amenityState['furnished'] ?? false,
+      parking: _amenityState['parking'] ?? false,
+      wifi: _amenityState['wifi'] ?? false,
+      water: _amenityState['water'] ?? true,
+      security: _amenityState['security'] ?? true,
+      balcony: _amenityState['balcony'] ?? false,
+      petFriendly: _amenityState['petFriendly'] ?? false,
+      ac: _amenityState['ac'] ?? false,
+      heating: _amenityState['heating'] ?? false,
+      laundry: _amenityState['laundry'] ?? false,
+      dstv: _amenityState['dstv'] ?? false,
+      fence: _amenityState['fence'] ?? false,
+      intercom: _amenityState['intercom'] ?? false,
+      elevator: _amenityState['elevator'] ?? false,
+      caretaker: _amenityState['caretaker'] ?? false,
+      rooftop: _amenityState['rooftop'] ?? false,
+      garden: _amenityState['garden'] ?? false,
+      storage: _amenityState['storage'] ?? false,
+      pool: _amenityState['pool'] ?? false,
+      gym: _amenityState['gym'] ?? false,
+      playArea: _amenityState['playArea'] ?? false,
+      cleaning: _amenityState['cleaning'] ?? false,
+    );
+
+    await ListingCompletionSheet.show(
+      context,
+      property: prop,
+      isEditing: _isEditing,
     );
     if (mounted) Navigator.pop(context, true);
   }
@@ -3678,110 +3728,3 @@ class _ReviewRow extends StatelessWidget {
 
 // ── Success dialog ─────────────────────────────────────────────────────────
 
-class _SuccessDialog extends StatefulWidget {
-  const _SuccessDialog({required this.isEditing});
-
-  final bool isEditing;
-
-  @override
-  State<_SuccessDialog> createState() => _SuccessDialogState();
-}
-
-class _SuccessDialogState extends State<_SuccessDialog>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController _ctrl;
-  late final Animation<double> _scale;
-  late final Animation<double> _fade;
-
-  @override
-  void initState() {
-    super.initState();
-    _ctrl = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 600),
-    )..forward();
-    _scale = CurvedAnimation(parent: _ctrl, curve: Curves.elasticOut);
-    _fade = CurvedAnimation(parent: _ctrl, curve: const Interval(0, 0.5));
-  }
-
-  @override
-  void dispose() {
-    _ctrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Dialog(
-      backgroundColor: const Color(0xFF1C1C1E),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Animated checkmark
-            ScaleTransition(
-              scale: _scale,
-              child: Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: const Color(0xFF00C896).withValues(alpha: 0.15),
-                  border: Border.all(
-                      color: const Color(0xFF00C896).withValues(alpha: 0.4),
-                      width: 2),
-                ),
-                child: const Icon(Icons.check_rounded,
-                    color: Color(0xFF00C896), size: 40),
-              ),
-            ),
-            const SizedBox(height: 24),
-            FadeTransition(
-              opacity: _fade,
-              child: Column(
-                children: [
-                  Text(
-                    widget.isEditing ? 'Listing updated!' : 'You\'re live! 🚀',
-                    style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        letterSpacing: -0.3),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    widget.isEditing
-                        ? 'Your listing has been updated successfully.'
-                        : 'Your property is now visible to renters.\nGood luck!',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                        color: Colors.grey[400], fontSize: 14, height: 1.5),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 28),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => Navigator.pop(context),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.white,
-                  foregroundColor: Colors.black,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                ),
-                child: const Text('View My Listings',
-                    style:
-                        TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
