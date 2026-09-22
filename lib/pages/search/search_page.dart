@@ -6,6 +6,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/services/search_intent_api_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
@@ -35,6 +36,7 @@ class _SearchPageState extends State<SearchPage> {
   bool _loading = true;
   bool _loadError = false;
   bool _loadingMore = false;
+  bool _aiSearchLoading = false;
   bool _hasMore = true;
   int _nextPage = 0;
   static const int _pageSize = 20;
@@ -325,6 +327,74 @@ class _SearchPageState extends State<SearchPage> {
   /// (the backend doesn't sort). Everything else -- house type, bedrooms,
   /// price, furnished/parking/wifi/water/security, verified -- was already
   /// applied server-side by _fetchFiltered before this runs.
+  /// Called when the user explicitly submits a search (not on every
+  /// keystroke -- see the debounced _onSearchChanged for that). If the
+  /// local regex parser found nothing structured in the query, this
+  /// falls back to the server-side Gemini parser, which can handle
+  /// price ranges beyond "under N", amenities beyond "furnished", and
+  /// Swahili/Sheng-mixed phrasing the regex was never going to cover.
+  /// A query the regex already handled (e.g. "Studio under 20k") never
+  /// reaches the AI call at all -- this is purely a fallback for
+  /// queries that would otherwise just fall through to a plain
+  /// substring match.
+  Future<void> _onSearchSubmitted() async {
+    _debounceTimer?.cancel();
+    final query = _searchCtrl.text.trim();
+    final localIntent = _parseSearchIntent(query);
+    final localParseFoundNothing =
+        localIntent.maxPrice == null && localIntent.houseType == null && !localIntent.furnished;
+
+    if (query.isEmpty || !localParseFoundNothing) {
+      _applyClientSideFilters();
+      return;
+    }
+
+    setState(() => _aiSearchLoading = true);
+    final aiIntent = await SearchIntentApiService.parseIntent(query);
+    if (!mounted) return;
+
+    if (aiIntent == null) {
+      // Rate-limited, API unavailable, or nothing extractable --
+      // falls back to a plain keyword search on the original query,
+      // exactly what would have happened before this feature existed.
+      setState(() => _aiSearchLoading = false);
+      _applyClientSideFilters();
+      return;
+    }
+
+    setState(() {
+      _aiSearchLoading = false;
+      if (aiIntent.minPrice != null) {
+        _priceRange = RangeValues(aiIntent.minPrice!, _priceRange.end);
+      }
+      if (aiIntent.maxPrice != null) {
+        _priceRange = RangeValues(_priceRange.start, aiIntent.maxPrice!);
+      }
+      if (aiIntent.houseType != null) _houseType = aiIntent.houseType!;
+      if (aiIntent.furnished) _furnished = true;
+      if (aiIntent.parking) _parking = true;
+      if (aiIntent.wifi) _wifi = true;
+      if (aiIntent.water) _water = true;
+      if (aiIntent.security) _security = true;
+      if (aiIntent.verifiedOnly) _verifiedOnly = true;
+
+      // Whatever's left after extracting structured filters becomes
+      // the free-text query -- the original mixed-language input
+      // (e.g. "nyumba ya bedsitter kilimani chini ya elfu ishirini")
+      // wouldn't usefully substring-match against title/location, but
+      // "kilimani" on its own does.
+      final remaining = [aiIntent.locationHint, aiIntent.remainingKeywords]
+          .where((s) => s != null && s.isNotEmpty)
+          .join(' ');
+      _searchCtrl.text = remaining;
+    });
+
+    // Price/amenity/house-type filters are server-side params -- a
+    // fresh fetch is needed to actually narrow _allProperties, not
+    // just a client-side re-check of what's already loaded.
+    _fetchFiltered();
+  }
+
   void _applyClientSideFilters() {
     final intent = _parseSearchIntent(_searchCtrl.text.trim());
     final query = intent.remainingText;
@@ -807,10 +877,7 @@ class _SearchPageState extends State<SearchPage> {
                               controller: _searchCtrl,
                               focusNode: _searchFocusNode,
                               hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
-                              onSubmitted: (_) {
-                                _debounceTimer?.cancel();
-                                _applyClientSideFilters();
-                              },
+                              onSubmitted: (_) => _onSearchSubmitted(),
                               onClear: () {
                                 _debounceTimer?.cancel();
                                 _applyClientSideFilters();
@@ -849,6 +916,15 @@ class _SearchPageState extends State<SearchPage> {
                               ),
                             ),
                           ),
+                          if (_aiSearchLoading)
+                            const Padding(
+                              padding: EdgeInsets.symmetric(horizontal: 16),
+                              child: LinearProgressIndicator(
+                                minHeight: 2,
+                                backgroundColor: AppColors.divider,
+                                valueColor: AlwaysStoppedAnimation(AppColors.white),
+                              ),
+                            ),
                           _buildVerificationQuickFiltersRow(),
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
