@@ -398,41 +398,49 @@ class Property {
 
   factory Property.fromJson(Map<String, dynamic> json) {
     return Property(
-      id: (json['id'] as num?)?.toInt(),
+      id: _parseNumToInt(json['id']),
       title: json['title'] ?? '',
-      buildingName: json['buildingName']?.toString(),
+      buildingName: json['buildingName']?.toString() ?? json['building_name']?.toString(),
       description: json['description'] ?? '',
       location: json['location'] ?? '',
-      price: (json['price'] as num?)?.toDouble() ?? 0.0,
-      bedrooms: (json['bedrooms'] as num?)?.toInt() ?? 0,
+      price: _parseNumToDouble(json['price']),
+      bedrooms: _parseNumToInt(json['bedrooms']),
       type: json['type'] ?? 'RENTAL',
-      landlordPhone: json['landlordPhone'] ?? '',
-      landlordName: json['landlordName']?.toString(),
-      landlordId: json['landlordId']?.toString(),
+      landlordPhone: json['landlordPhone']?.toString() ?? json['landlord_phone']?.toString() ?? '',
+      landlordName: json['landlordName']?.toString() ?? json['landlord_name']?.toString(),
+      landlordId: json['landlordId']?.toString() ?? json['landlord_id']?.toString(),
       available: json['available'] ?? true,
-      imageUrl: json['imageUrl']?.toString(),
-      verified: json['verified'] ?? false,
-      gpsVerified: json['gpsVerified'] ?? false,
-      documentVerified: json['documentVerified'] ?? false,
-      communityVerified: json['communityVerified'] ?? false,
+      imageUrl: json['imageUrl']?.toString() ?? json['image_url']?.toString(),
+      verified: json['verified'] == true,
+      gpsVerified: json['gpsVerified'] == true || json['gps_verified'] == true,
+      documentVerified: json['documentVerified'] == true || json['document_verified'] == true,
+      communityVerified: json['communityVerified'] == true || json['community_verified'] == true,
       status: json['status'] ?? 'PUBLISHED',
-      latitude: (json['latitude'] as num?)?.toDouble(),
-      longitude: (json['longitude'] as num?)?.toDouble(),
+      latitude: json['latitude'] != null ? _parseNumToDouble(json['latitude']) : (json['lat'] != null ? _parseNumToDouble(json['lat']) : null),
+      longitude: json['longitude'] != null ? _parseNumToDouble(json['longitude']) : (json['lng'] != null ? _parseNumToDouble(json['lng']) : null),
       owner: json['owner'] is Map<String, dynamic> ? User.fromJson(json['owner']) : null,
-      imageUrls: json['imageUrls'] is List ? (json['imageUrls'] as List).map((e) => e.toString()).toList() : [],
-      documentUrls: json['documentUrls'] is List ? (json['documentUrls'] as List).map((e) => e.toString()).toList() : [],
-      averageRating: (json['averageRating'] as num?)?.toDouble() ?? 0.0,
-      reviewCount: (json['reviewCount'] as num?)?.toInt() ?? 0,
-      reportCount: (json['reportCount'] as num?)?.toInt() ?? 0,
-      videoUrl: json['videoUrl']?.toString(),
-      houseType: json['houseType']?.toString() ?? 'BEDSITTER',
-      bathrooms: (json['bathrooms'] as num?)?.toInt() ?? 1,
+      imageUrls: json['imageUrls'] is List
+          ? (json['imageUrls'] as List).map((e) => e.toString()).toList()
+          : (json['image_urls'] is List
+              ? (json['image_urls'] as List).map((e) => e.toString()).toList()
+              : []),
+      documentUrls: json['documentUrls'] is List
+          ? (json['documentUrls'] as List).map((e) => e.toString()).toList()
+          : (json['document_urls'] is List
+              ? (json['document_urls'] as List).map((e) => e.toString()).toList()
+              : []),
+      averageRating: _parseNumToDouble(json['averageRating'] ?? json['average_rating']),
+      reviewCount: _parseNumToInt(json['reviewCount'] ?? json['review_count']),
+      reportCount: _parseNumToInt(json['reportCount'] ?? json['report_count']),
+      videoUrl: json['videoUrl']?.toString() ?? json['video_url']?.toString(),
+      houseType: json['houseType']?.toString() ?? json['house_type']?.toString() ?? 'BEDSITTER',
+      bathrooms: _parseNumToInt(json['bathrooms'], defaultValue: 1),
       furnished: json['furnished'] == true,
       parking: json['parking'] == true,
       water: json['water'] != false,
       wifi: json['wifi'] == true,
       security: json['security'] != false,
-      petFriendly: json['petFriendly'] == true,
+      petFriendly: json['petFriendly'] == true || json['pet_friendly'] == true,
       balcony: json['balcony'] == true,
       ac: json['ac'] == true,
       heating: json['heating'] == true,
@@ -447,43 +455,73 @@ class Property {
       storage: json['storage'] == true,
       pool: json['pool'] == true,
       gym: json['gym'] == true,
-      playArea: json['playArea'] == true,
+      playArea: json['playArea'] == true || json['play_area'] == true,
       cleaning: json['cleaning'] == true,
       garbage: json['garbage'] == true,
       wheelchair: json['wheelchair'] == true,
       solar: json['solar'] == true,
       generator: json['generator'] == true,
       deposit: json['deposit']?.toString(),
-      moveInDate: json['moveInDate']?.toString(),
-      viewCount: (json['viewCount'] as num?)?.toInt() ?? 0,
-      saveCount: (json['saveCount'] as num?)?.toInt() ?? 0,
-      listedAt: json['listedAt']?.toString(),
-      lastConfirmedAt: json['lastConfirmedAt']?.toString(),
+      moveInDate: json['moveInDate']?.toString() ?? json['move_in_date']?.toString(),
+      viewCount: _parseNumToInt(json['viewCount'] ?? json['view_count']),
+      saveCount: _parseNumToInt(json['saveCount'] ?? json['save_count']),
+      listedAt: json['listedAt']?.toString() ?? json['listed_at']?.toString(),
+      lastConfirmedAt: json['lastConfirmedAt']?.toString() ?? json['last_confirmed_at']?.toString(),
       country: json['country']?.toString() ?? 'KE',
-      nearbyFacilities: _parseNearbyFacilities(json['nearbyFacilities']),
+      nearbyFacilities: _parseNearbyFacilities(json['nearbyFacilities'] ?? json['nearby_facilities']),
       customAmenities: json['customAmenities'] is List
           ? (json['customAmenities'] as List).map((e) => e.toString()).toList()
-          : [],
+          : (json['custom_amenities'] is List
+              ? (json['custom_amenities'] as List).map((e) => e.toString()).toList()
+              : []),
       riskFlags: json['riskFlags'] is List
           ? (json['riskFlags'] as List).map((e) => e.toString()).toList()
-          : [],
-      priceComparisonAverage: (json['priceComparisonAverage'] as num?)?.toDouble(),
-      priceComparisonSampleSize: json['priceComparisonSampleSize'] as int?,
-      priceComparisonPercentDiff: (json['priceComparisonPercentDiff'] as num?)?.toDouble(),
-      managerRole: json['managerRole']?.toString() ?? 'LANDLORD',
-      caretakerName: json['caretakerName']?.toString(),
-      caretakerPhone: json['caretakerPhone']?.toString(),
-      caretakerLivesOnSite: json['caretakerLivesOnSite'] != false,
-      landlordEndorsed: json['landlordEndorsed'] == true,
-      endorsementToken: json['endorsementToken']?.toString(),
-      ownerVerifyName: json['ownerVerifyName']?.toString(),
-      ownerVerifyPhone: json['ownerVerifyPhone']?.toString(),
-      depositMonths: (json['depositMonths'] as num?)?.toInt() ?? 1,
-      waterFee: (json['waterFee'] as num?)?.toDouble() ?? 0.0,
-      garbageFee: (json['garbageFee'] as num?)?.toDouble() ?? 0.0,
-      serviceCharge: (json['serviceCharge'] as num?)?.toDouble() ?? 0.0,
-      electricityType: json['electricityType']?.toString() ?? 'tokens',
+          : (json['risk_flags'] is List
+              ? (json['risk_flags'] as List).map((e) => e.toString()).toList()
+              : []),
+      priceComparisonAverage: json['priceComparisonAverage'] != null || json['price_comparison_average'] != null
+          ? _parseNumToDouble(json['priceComparisonAverage'] ?? json['price_comparison_average'])
+          : null,
+      priceComparisonSampleSize: json['priceComparisonSampleSize'] != null || json['price_comparison_sample_size'] != null
+          ? _parseNumToInt(json['priceComparisonSampleSize'] ?? json['price_comparison_sample_size'])
+          : null,
+      priceComparisonPercentDiff: json['priceComparisonPercentDiff'] != null || json['price_comparison_percent_diff'] != null
+          ? _parseNumToDouble(json['priceComparisonPercentDiff'] ?? json['price_comparison_percent_diff'])
+          : null,
+      managerRole: json['managerRole']?.toString() ?? json['manager_role']?.toString() ?? 'LANDLORD',
+      caretakerName: json['caretakerName']?.toString() ?? json['caretaker_name']?.toString(),
+      caretakerPhone: json['caretakerPhone']?.toString() ?? json['caretaker_phone']?.toString(),
+      caretakerLivesOnSite: json['caretakerLivesOnSite'] != false && json['caretaker_lives_on_site'] != false,
+      landlordEndorsed: json['landlordEndorsed'] == true || json['landlord_endorsed'] == true,
+      endorsementToken: json['endorsementToken']?.toString() ?? json['endorsement_token']?.toString(),
+      ownerVerifyName: json['ownerVerifyName']?.toString() ?? json['owner_verify_name']?.toString(),
+      ownerVerifyPhone: json['ownerVerifyPhone']?.toString() ?? json['owner_verify_phone']?.toString(),
+      depositMonths: _parseNumToInt(json['depositMonths'] ?? json['deposit_months'], defaultValue: 1),
+      waterFee: _parseNumToDouble(json['waterFee'] ?? json['water_fee']),
+      garbageFee: _parseNumToDouble(json['garbageFee'] ?? json['garbage_fee']),
+      serviceCharge: _parseNumToDouble(json['serviceCharge'] ?? json['service_charge']),
+      electricityType: (json['electricityType'] ?? json['electricity_type'])?.toString() ?? 'tokens',
     );
+  }
+
+  static double _parseNumToDouble(dynamic value) {
+    if (value == null) return 0.0;
+    if (value is num) return value.toDouble();
+    if (value is String) {
+      final sanitized = value.replaceAll(',', '').replaceAll(' ', '').trim();
+      return double.tryParse(sanitized) ?? 0.0;
+    }
+    return 0.0;
+  }
+
+  static int _parseNumToInt(dynamic value, {int defaultValue = 0}) {
+    if (value == null) return defaultValue;
+    if (value is num) return value.toInt();
+    if (value is String) {
+      final sanitized = value.replaceAll(',', '').replaceAll(' ', '').trim();
+      return int.tryParse(sanitized) ?? defaultValue;
+    }
+    return defaultValue;
   }
 
   /// The backend stores/returns this as a raw JSON *string* (see
@@ -574,10 +612,15 @@ class Property {
       if (ownerVerifyName != null) 'ownerVerifyName': ownerVerifyName,
       if (ownerVerifyPhone != null) 'ownerVerifyPhone': ownerVerifyPhone,
       'depositMonths': depositMonths,
+      'deposit_months': depositMonths,
       'waterFee': waterFee,
+      'water_fee': waterFee,
       'garbageFee': garbageFee,
+      'garbage_fee': garbageFee,
       'serviceCharge': serviceCharge,
+      'service_charge': serviceCharge,
       'electricityType': electricityType,
+      'electricity_type': electricityType,
     };
   }
 

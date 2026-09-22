@@ -340,9 +340,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     _priceCtrl.text = p.price == p.price.roundToDouble()
         ? p.price.toInt().toString()
         : p.price.toString();
-    _waterFeeCtrl.text = p.waterFee > 0 ? p.waterFee.toInt().toString() : '';
-    _garbageFeeCtrl.text = p.garbageFee > 0 ? p.garbageFee.toInt().toString() : '';
-    _serviceChargeCtrl.text = p.serviceCharge > 0 ? p.serviceCharge.toInt().toString() : '';
+    _waterFeeCtrl.text = p.waterFee > 0 ? (p.waterFee == p.waterFee.roundToDouble() ? p.waterFee.toInt().toString() : p.waterFee.toString()) : '';
+    _garbageFeeCtrl.text = p.garbageFee > 0 ? (p.garbageFee == p.garbageFee.roundToDouble() ? p.garbageFee.toInt().toString() : p.garbageFee.toString()) : '';
+    _serviceChargeCtrl.text = p.serviceCharge > 0 ? (p.serviceCharge == p.serviceCharge.roundToDouble() ? p.serviceCharge.toInt().toString() : p.serviceCharge.toString()) : '';
     _depositMonths = p.depositMonths;
     _electricityType = p.electricityType;
     _bedrooms = p.bedrooms;
@@ -767,10 +767,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       'status': status,
       'customAmenities': _customAmenities,
       'depositMonths': _depositMonths,
-      'waterFee': double.tryParse(_waterFeeCtrl.text.trim()) ?? 0.0,
-      'garbageFee': double.tryParse(_garbageFeeCtrl.text.trim()) ?? 0.0,
-      'serviceCharge': double.tryParse(_serviceChargeCtrl.text.trim()) ?? 0.0,
+      'deposit_months': _depositMonths,
+      'waterFee': _parseFeeInput(_waterFeeCtrl),
+      'water_fee': _parseFeeInput(_waterFeeCtrl),
+      'garbageFee': _parseFeeInput(_garbageFeeCtrl),
+      'garbage_fee': _parseFeeInput(_garbageFeeCtrl),
+      'serviceCharge': _parseFeeInput(_serviceChargeCtrl),
+      'service_charge': _parseFeeInput(_serviceChargeCtrl),
       'electricityType': _electricityType,
+      'electricity_type': _electricityType,
       'managerRole': _managerRole,
       if (_managerRole != 'LANDLORD')
         'caretakerName': _caretakerNameCtrl.text.trim(),
@@ -787,6 +792,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       if (_ownerPhoneCtrl.text.trim().isNotEmpty)
         'endorsementToken': _generateToken(),
     };
+  }
+
+  double _parseFeeInput(TextEditingController controller) {
+    final raw = controller.text.replaceAll(',', '').replaceAll(' ', '').trim();
+    if (raw.isEmpty) return 0.0;
+    return double.tryParse(raw) ?? 0.0;
   }
 
   String _formatPhone(String raw) {
@@ -895,9 +906,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           ? null
           : _formatPhone(_ownerPhoneCtrl.text.trim()),
       depositMonths: _depositMonths,
-      waterFee: double.tryParse(_waterFeeCtrl.text.trim()) ?? 0.0,
-      garbageFee: double.tryParse(_garbageFeeCtrl.text.trim()) ?? 0.0,
-      serviceCharge: double.tryParse(_serviceChargeCtrl.text.trim()) ?? 0.0,
+      waterFee: _parseFeeInput(_waterFeeCtrl),
+      garbageFee: _parseFeeInput(_garbageFeeCtrl),
+      serviceCharge: _parseFeeInput(_serviceChargeCtrl),
       electricityType: _electricityType,
     );
   }
