@@ -183,7 +183,12 @@ class TrustVerificationCard extends StatelessWidget {
                           children: [
                             Icon(Icons.bolt, color: AppColors.grey500, size: 14),
                             const SizedBox(width: 4),
-                            Text('Usually responds within 2 hours', style: TextStyle(color: AppColors.grey500, fontSize: 12)),
+                            Text(
+                              property.owner?.responseTime != null && property.owner!.responseTime!.isNotEmpty
+                                  ? 'Usually responds within ${property.owner!.responseTime}'
+                                  : 'Response time unavailable',
+                              style: const TextStyle(color: AppColors.grey500, fontSize: 12),
+                            ),
                           ],
                         ),
                       ],

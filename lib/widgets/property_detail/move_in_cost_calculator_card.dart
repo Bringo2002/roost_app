@@ -140,6 +140,14 @@ Calculated via Roost App 📱
 
           const SizedBox(height: 18),
 
+          AnimatedSwitcher(
+            duration: const Duration(milliseconds: 300),
+            switchInCurve: Curves.easeOut,
+            switchOutCurve: Curves.easeIn,
+            child: Column(
+              key: ValueKey(_leaseDurationMonths),
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
           // Total panel -- a subtle grayscale gradient (black to
           // grey900) for depth, no color, unlike the purple/blue
           // gradient this card used to have.
@@ -167,9 +175,15 @@ Calculated via Roost App 📱
                   crossAxisAlignment: CrossAxisAlignment.baseline,
                   textBaseline: TextBaseline.alphabetic,
                   children: [
-                    Text(
-                      _formatCurrency(_displayTotal),
-                      style: const TextStyle(color: AppColors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                    TweenAnimationBuilder<double>(
+                      key: ValueKey(_displayTotal),
+                      tween: Tween(begin: _displayTotal * 0.8, end: _displayTotal),
+                      duration: const Duration(milliseconds: 500),
+                      curve: Curves.easeOutCubic,
+                      builder: (context, val, _) => Text(
+                        _formatCurrency(val),
+                        style: const TextStyle(color: AppColors.white, fontSize: 26, fontWeight: FontWeight.bold),
+                      ),
                     ),
                     const SizedBox(width: 8),
                     Text(
@@ -245,6 +259,9 @@ Calculated via Roost App 📱
                     ? 'Included in rent'
                     : 'Postpaid monthly bill -- not in total above',
             amount: p.electricityType.toLowerCase() == 'included' ? 'Included' : 'Usage-based',
+          ),
+              ],
+            ),
           ),
         ],
       ),

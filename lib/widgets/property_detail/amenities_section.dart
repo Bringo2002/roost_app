@@ -3,14 +3,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 
-/// Renders whichever of the property's ~26 boolean amenity flags are
-/// true, plus any free-text custom amenities the landlord added.
-///
-/// The (icon, label) -> flag mapping lives entirely in this one widget
-/// now, rather than being copy-pasted inline in the page body -- so
-/// adding an amenity to the design is a one-line change here, not a
-/// hunt through a 1,000+ line build method.
-class AmenitiesSection extends StatelessWidget {
+class AmenitiesSection extends StatefulWidget {
   const AmenitiesSection({super.key, required this.property});
 
   final Property property;
@@ -45,19 +38,62 @@ class AmenitiesSection extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
-    final active = _flags.where((f) => f.isActive(property)).toList();
-    if (active.isEmpty && property.customAmenities.isEmpty) return const SizedBox.shrink();
+  State<AmenitiesSection> createState() => _AmenitiesSectionState();
+}
 
-    // Just the chip grid -- the section heading is owned by the page,
-    // same as every other section (Location, Hosted by, etc.), so it's
-    // not duplicated when a caller wants to place its own heading.
-    return Wrap(
-      spacing: 10,
-      runSpacing: 10,
+class _AmenitiesSectionState extends State<AmenitiesSection> {
+  bool _expanded = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = AmenitiesSection._flags.where((f) => f.isActive(widget.property)).toList();
+    final allAmenities = [
+      ...active.map((f) => _AmenityChip(icon: f.icon, label: f.label)),
+      ...widget.property.customAmenities.map((c) => _AmenityChip(icon: Icons.stars_outlined, label: c)),
+    ];
+
+    if (allAmenities.isEmpty) return const SizedBox.shrink();
+
+    final showToggle = allAmenities.length > 6;
+    final displayedAmenities = _expanded || !showToggle ? allAmenities : allAmenities.take(6).toList();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final flag in active) _AmenityChip(icon: flag.icon, label: flag.label),
-        for (final custom in property.customAmenities) _AmenityChip(icon: Icons.stars_outlined, label: custom),
+        AnimatedSize(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          alignment: Alignment.topCenter,
+          child: GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            padding: EdgeInsets.zero,
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 2,
+              mainAxisSpacing: 10,
+              crossAxisSpacing: 10,
+              mainAxisExtent: 44,
+            ),
+            itemCount: displayedAmenities.length,
+            itemBuilder: (context, idx) => displayedAmenities[idx],
+          ),
+        ),
+        if (showToggle) ...[
+          const SizedBox(height: 16),
+          OutlinedButton(
+            onPressed: () => setState(() => _expanded = !_expanded),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppColors.white,
+              side: const BorderSide(color: AppColors.border),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: Text(
+              _expanded ? 'Show less' : 'Show all ${allAmenities.length} amenities',
+              style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -72,32 +108,36 @@ class _AmenityChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.only(left: 6, right: 14, top: 6, bottom: 6),
+      padding: const EdgeInsets.only(left: 6, right: 10, top: 6, bottom: 6),
       decoration: BoxDecoration(
         color: AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(999),
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         children: [
           Container(
-            width: 26,
-            height: 26,
+            width: 30,
+            height: 30,
             decoration: const BoxDecoration(color: AppColors.grey800, shape: BoxShape.circle),
-            child: Icon(icon, color: AppColors.white, size: 14),
+            child: Icon(icon, color: AppColors.white, size: 16),
           ),
           const SizedBox(width: 8),
-          Text(label, style: AppTextStyles.chipLabel.copyWith(fontSize: 12.5, letterSpacing: 0)),
+          Expanded(
+            child: Text(
+              label,
+              style: AppTextStyles.chipLabel.copyWith(fontSize: 12, letterSpacing: 0),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
         ],
       ),
     );
   }
 }
 
-/// Tiny value type pairing a flag's presentation with the getter that
-/// reads it off a [Property] -- keeps the big `_flags` table above as a
-/// single readable list instead of 26 near-identical `if` statements.
 class _AmenityFlag {
   const _AmenityFlag(this.icon, this.label, this.isActive);
 

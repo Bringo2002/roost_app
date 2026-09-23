@@ -1,27 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 
-/// A single-line "how does this price compare?" indicator, computed
-/// server-side from listings with the same house type, bedroom count,
-/// and location (see PropertyRiskService.getPriceComparison on the
-/// backend). Deliberately compact and inline rather than a full card --
-/// this is a quick fact to read once, not something that needs its own
-/// visual weight, the same way Zillow/Redfin show a price estimate
-/// inline near the price rather than in a separate panel.
-///
-/// Renders nothing when the backend didn't find any comparable listings
-/// -- a comparison against zero data points isn't useful information,
-/// it's noise.
 class FairPriceIndicator extends StatelessWidget {
   const FairPriceIndicator({super.key, required this.property});
 
   final Property property;
 
-  /// Below this magnitude, the difference reads as "basically the
-  /// same price" rather than meaningfully above or below -- avoids
-  /// reporting something like "3% above average" as if it were a
-  /// finding worth a tenant's attention.
   static const double _neutralBandPercent = 15;
 
   @override
@@ -46,19 +32,91 @@ class FairPriceIndicator extends StatelessWidget {
       label = 'In line with similar listings nearby';
     }
 
-    return Padding(
-      padding: const EdgeInsets.only(top: 4),
-      child: Row(
-        children: [
-          Icon(icon, color: AppColors.grey400, size: 14),
-          const SizedBox(width: 5),
-          Expanded(
-            child: Text(
-              label,
-              style: TextStyle(color: AppColors.grey400, fontSize: 12.5, fontWeight: FontWeight.w500),
+    // Clamp between -50% and +50% for the slider position
+    final clampedDiff = diff.clamp(-50.0, 50.0);
+    // Convert to 0.0 -> 1.0 (0.0 is -50%, 1.0 is +50%)
+    final alignment = (clampedDiff + 50) / 100;
+
+    return GestureDetector(
+      onTap: () {
+        HapticFeedback.lightImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Based on $sampleSize similar listings nearby. Average rent: ${property.priceComparisonAverage!.round()}.',
+              style: const TextStyle(fontSize: 13),
             ),
+            duration: const Duration(seconds: 3),
+            behavior: SnackBarBehavior.floating,
           ),
-        ],
+        );
+      },
+      child: Padding(
+        padding: const EdgeInsets.only(top: 8),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Icon(icon, color: AppColors.grey400, size: 14),
+                const SizedBox(width: 5),
+                Expanded(
+                  child: Text(
+                    label,
+                    style: const TextStyle(color: AppColors.grey400, fontSize: 12.5, fontWeight: FontWeight.w500),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            Container(
+              height: 6,
+              width: double.infinity,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(3),
+                gradient: const LinearGradient(
+                  colors: [AppColors.success, AppColors.warning, AppColors.error],
+                ),
+              ),
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: -4,
+                    child: Align(
+                      alignment: FractionalOffset(alignment, 0),
+                      child: Container(
+                        width: 14,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: AppColors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: AppColors.black, width: 2),
+                          boxShadow: [
+                            BoxShadow(
+                              color: AppColors.black.withValues(alpha: 0.3),
+                              blurRadius: 4,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Text('Cheaper', style: TextStyle(color: AppColors.grey500, fontSize: 10)),
+                Text('More expensive', style: TextStyle(color: AppColors.grey500, fontSize: 10)),
+              ],
+            ),
+          ],
+        ),
       ),
     );
   }

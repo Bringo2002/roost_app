@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:shimmer/shimmer.dart';
 
 /// Displays a property's image (or swipeable gallery, when more than one
 /// URL is provided) with a fade-in placeholder, a graceful error fallback,
@@ -67,10 +68,6 @@ class _PropertyImageState extends State<PropertyImage> {
       ),
     );
 
-    if (widget.heroTag != null) {
-      content = Hero(tag: widget.heroTag!, child: content);
-    }
-
     return content;
   }
 
@@ -78,38 +75,42 @@ class _PropertyImageState extends State<PropertyImage> {
     if (widget.imageUrls.isEmpty) return _fallback();
 
     if (widget.imageUrls.length == 1) {
-      return _networkImage(widget.imageUrls.first);
+      return _networkImage(widget.imageUrls.first, isFirst: true);
     }
 
     return PageView.builder(
       controller: _controller,
       itemCount: widget.imageUrls.length,
-      onPageChanged: (i) => setState(() => _index = i),
-      itemBuilder: (_, i) => _networkImage(widget.imageUrls[i]),
+      onPageChanged: (i) {
+        setState(() => _index = i);
+        if (i + 1 < widget.imageUrls.length) {
+          precacheImage(CachedNetworkImageProvider(widget.imageUrls[i + 1]), context);
+        }
+      },
+      itemBuilder: (_, i) => _networkImage(widget.imageUrls[i], isFirst: i == 0),
     );
   }
 
-  Widget _networkImage(String url) {
+  Widget _networkImage(String url, {bool isFirst = false}) {
     if (url.trim().isEmpty) return _fallback();
 
-    return CachedNetworkImage(
+    Widget image = CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
       fadeInDuration: const Duration(milliseconds: 200),
-      placeholder: (context, url) => Container(
-        color: AppColors.surface,
-        alignment: Alignment.center,
-        child: const SizedBox(
-          width: 22,
-          height: 22,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.grey400,
-          ),
-        ),
+      placeholder: (context, url) => Shimmer.fromColors(
+        baseColor: AppColors.grey800,
+        highlightColor: AppColors.grey700,
+        child: Container(color: AppColors.grey800),
       ),
       errorWidget: (context, url, error) => _fallback(),
     );
+
+    if (isFirst && widget.heroTag != null) {
+      return Hero(tag: widget.heroTag!, child: image);
+    }
+    
+    return image;
   }
 
   Widget _fallback() {

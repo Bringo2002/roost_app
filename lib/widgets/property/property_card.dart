@@ -56,9 +56,16 @@ class PropertyCard extends StatefulWidget {
 
 class _PropertyCardState extends State<PropertyCard> {
   Property get property => widget.property;
-  bool _pressed = false;
 
-  List<String> get _galleryUrls {
+  late final List<String> _galleryUrls;
+
+  @override
+  void initState() {
+    super.initState();
+    _galleryUrls = _buildGalleryUrls();
+  }
+
+  List<String> _buildGalleryUrls() {
     final urls = <String>[];
     if (property.imageUrl != null && property.imageUrl!.trim().isNotEmpty) {
       urls.add(property.imageUrl!);
@@ -70,6 +77,19 @@ class _PropertyCardState extends State<PropertyCard> {
     }
     return urls;
   }
+
+  bool _isNewListing() {
+    if (property.listedAt == null) return false;
+    try {
+      final listedDate = DateTime.parse(property.listedAt!);
+      final difference = DateTime.now().difference(listedDate);
+      return difference.inDays <= 7;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // _galleryUrls and _isNewListing are now used
 
   void _handleFavoriteTap() {
     if (widget.onFavoriteTap == null) return;
@@ -122,9 +142,6 @@ class _PropertyCardState extends State<PropertyCard> {
     final formattedPrice = CountryService.pricePerMonth(property.price);
 
     return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) => setState(() => _pressed = false),
-      onTapCancel: () => setState(() => _pressed = false),
       onTap: () {
         HapticFeedback.selectionClick();
         if (widget.onTap != null) {
@@ -136,11 +153,7 @@ class _PropertyCardState extends State<PropertyCard> {
           );
         }
       },
-      child: AnimatedScale(
-        scale: _pressed ? 0.98 : 1.0,
-        duration: const Duration(milliseconds: 120),
-        curve: Curves.easeOut,
-        child: Container(
+      child: Container(
         margin: widget.margin,
         decoration: BoxDecoration(
           color: AppColors.surfaceRaised,
@@ -194,33 +207,56 @@ class _PropertyCardState extends State<PropertyCard> {
                       ),
                     ),
                   ),
-                  if (property.verified)
-                    Positioned(
-                      top: 10,
-                      left: 10,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.verified, color: AppColors.black, size: 14),
-                            SizedBox(width: 4),
-                            Text(
-                              'Verified',
+                  Positioned(
+                    top: 10,
+                    left: 10,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (property.verified)
+                          Container(
+                            margin: const EdgeInsets.only(bottom: 6),
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.verified, color: AppColors.black, size: 14),
+                                SizedBox(width: 4),
+                                Text(
+                                  'Verified',
+                                  style: TextStyle(
+                                    color: AppColors.black,
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (_isNewListing())
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                            decoration: BoxDecoration(
+                              color: AppColors.white,
+                              borderRadius: BorderRadius.circular(999),
+                            ),
+                            child: const Text(
+                              'NEW',
                               style: TextStyle(
                                 color: AppColors.black,
                                 fontSize: 11,
-                                fontWeight: FontWeight.w700,
+                                fontWeight: FontWeight.w800,
+                                letterSpacing: 0.5,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
+                          ),
+                      ],
                     ),
+                  ),
                   // Caution indicator -- lighter than the detail page's
                   // full ListingCautionCard on purpose: this needs to
                   // catch attention before the tenant even taps in,
@@ -423,57 +459,73 @@ class _PropertyCardState extends State<PropertyCard> {
                   const SizedBox(height: 10),
 
                   // Action buttons: Call | Chat | Navigate
-                  Row(
-                    children: [
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: _handleCall,
-                          icon: const Icon(Icons.phone_outlined, size: 16),
-                          label: const Text('Call'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.white,
-                            side: const BorderSide(color: AppColors.border),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final smallScreen = constraints.maxWidth < 340;
+                      return Row(
+                        children: [
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: _handleCall,
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.white,
+                                side: const BorderSide(color: AppColors.border),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: smallScreen 
+                                ? const Icon(Icons.phone_outlined, size: 16)
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [Icon(Icons.phone_outlined, size: 16), SizedBox(width: 4), Text('Call')],
+                                  ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: OutlinedButton.icon(
-                          onPressed: () => _handleChat(context),
-                          icon: const Icon(Icons.chat_bubble_outline, size: 16),
-                          label: const Text('Chat'),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: AppColors.white,
-                            side: const BorderSide(color: AppColors.border),
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: OutlinedButton(
+                              onPressed: () => _handleChat(context),
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: AppColors.white,
+                                side: const BorderSide(color: AppColors.border),
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: smallScreen
+                                ? const Icon(Icons.chat_bubble_outline, size: 16)
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [Icon(Icons.chat_bubble_outline, size: 16), SizedBox(width: 4), Text('Chat')],
+                                  ),
+                            ),
                           ),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: ElevatedButton.icon(
-                          onPressed: _handleNavigate,
-                          icon: const Icon(Icons.navigation_outlined, size: 16),
-                          label: const Text('Navigate'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppColors.white,
-                            foregroundColor: AppColors.black,
-                            elevation: 0,
-                            padding: const EdgeInsets.symmetric(vertical: 8),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                          const SizedBox(width: 8),
+                          Expanded(
+                            child: ElevatedButton(
+                              onPressed: _handleNavigate,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.white,
+                                foregroundColor: AppColors.black,
+                                elevation: 0,
+                                padding: const EdgeInsets.symmetric(vertical: 8),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                              ),
+                              child: smallScreen
+                                ? const Icon(Icons.navigation_outlined, size: 16)
+                                : const Row(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [Icon(Icons.navigation_outlined, size: 16), SizedBox(width: 4), Text('Navigate')],
+                                  ),
+                            ),
                           ),
-                        ),
-                      ),
-                    ],
+                        ],
+                      );
+                    },
                   ),
                 ],
               ),
             ),
           ],
-        ),
         ),
       ),
     );

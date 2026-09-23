@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -8,9 +9,12 @@ import 'package:roost_app/controllers/property_detail_controller.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/chat/chat_room_page.dart';
 import 'package:roost_app/pages/search/in_app_map_page.dart';
+import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_map_style.dart';
+import 'package:roost_app/theme/app_text_styles.dart';
+import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/widgets/property_detail/amenities_section.dart';
 import 'package:roost_app/widgets/property_detail/community_check_sheet.dart';
 import 'package:roost_app/widgets/property_detail/dual_contact_card.dart';
@@ -43,6 +47,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
   late final AnimationController _entranceController;
   late final Animation<double> _entranceFade;
   late final Animation<Offset> _entranceSlide;
+  List<Property> _similarListings = [];
 
   Property get _property => widget.property;
 
@@ -55,6 +60,27 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
     _entranceSlide = Tween<Offset>(begin: const Offset(0, 0.03), end: Offset.zero)
         .animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOut));
     _entranceController.forward();
+    _fetchSimilarListings();
+  }
+  
+  Future<void> _fetchSimilarListings() async {
+    if (_property.id == null) return;
+    try {
+      final response = await ApiService.get('/api/properties/${_property.id}/similar');
+      if (response is Map && response['data'] is List) {
+        if (mounted) {
+          setState(() {
+            _similarListings = (response['data'] as List).map((p) => Property.fromJson(p)).toList();
+          });
+        }
+      } else if (response is List) {
+        if (mounted) {
+          setState(() {
+            _similarListings = response.map((p) => Property.fromJson(p)).toList();
+          });
+        }
+      }
+    } catch (_) {}
   }
 
   @override
@@ -76,10 +102,12 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
   }
 
   void _navigateToMap() {
+    HapticFeedback.lightImpact();
     Navigator.push(context, MaterialPageRoute(builder: (_) => InAppMapPage(property: _property)));
   }
 
   void _shareListing() {
+    HapticFeedback.lightImpact();
     final p = _property;
     final link = p.id != null ? '${AppConfig.baseUrl}/api/properties/${p.id}' : AppConfig.baseUrl;
     final shareText =
@@ -101,76 +129,87 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
           onChat: _openChat,
         ),
       ),
-      body: AnimatedBuilder(
-        animation: _controller,
-        builder: (context, _) {
-          return CustomScrollView(
-            physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
-            slivers: [
-              SliverAppBar(
-                expandedHeight: kHeroMediaHeight,
-                pinned: true,
-                stretch: true,
-                backgroundColor: AppColors.background,
-                elevation: 0,
-                leading: Padding(
-                  padding: const EdgeInsets.all(8.0),
-                  child: GlassIconButton(icon: Icons.arrow_back, onTap: () => Navigator.pop(context)),
-                ),
-                actions: [
-                  if (_property.id != null)
-                    Padding(
-                      padding: const EdgeInsets.only(right: 6),
-                      child: GlassIconButton(
-                        icon: Icons.favorite_border,
-                        onTap: _controller.toggleFavorite,
-                        child: TweenAnimationBuilder<double>(
-                          key: ValueKey(_controller.isFavorite),
-                          tween: Tween(begin: 0.6, end: 1.0),
-                          duration: const Duration(milliseconds: 220),
-                          curve: Curves.elasticOut,
-                          builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-                          child: Icon(
-                            _controller.isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: _controller.isFavorite ? Colors.redAccent : AppColors.white,
-                            size: 20,
-                          ),
+      body: CustomScrollView(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+        slivers: [
+          SliverAppBar(
+            expandedHeight: kHeroMediaHeight,
+            pinned: true,
+            stretch: true,
+            backgroundColor: AppColors.background,
+            elevation: 0,
+            title: Text(_property.title, style: AppTextStyles.title),
+            leading: Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: GlassIconButton(icon: Icons.arrow_back, onTap: () {
+                HapticFeedback.lightImpact();
+                Navigator.pop(context);
+              }),
+            ),
+            actions: [
+              if (_property.id != null)
+                Padding(
+                  padding: const EdgeInsets.only(right: 6),
+                  child: ListenableBuilder(
+                    listenable: _controller,
+                    builder: (context, _) => GlassIconButton(
+                      icon: Icons.favorite_border,
+                      onTap: () {
+                        HapticFeedback.lightImpact();
+                        _controller.toggleFavorite();
+                      },
+                      child: TweenAnimationBuilder<double>(
+                        key: ValueKey(_controller.isFavorite),
+                        tween: Tween(begin: 0.6, end: 1.0),
+                        duration: const Duration(milliseconds: 220),
+                        curve: Curves.elasticOut,
+                        builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+                        child: Icon(
+                          _controller.isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: _controller.isFavorite ? Colors.redAccent : AppColors.white,
+                          size: 20,
                         ),
                       ),
                     ),
-                  Padding(
-                    padding: const EdgeInsets.only(right: 12),
-                    child: GlassIconButton(icon: Icons.share_outlined, onTap: _shareListing),
                   ),
-                ],
-                flexibleSpace: FlexibleSpaceBar(
-                  stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
-                  background: _property.id != null
-                      ? Hero(tag: 'property-image-${_property.id}', child: HeroMediaGallery(property: _property))
-                      : HeroMediaGallery(property: _property),
                 ),
-              ),
-              SliverToBoxAdapter(
-                child: FadeTransition(
-                  opacity: _entranceFade,
-                  child: SlideTransition(position: _entranceSlide, child: _buildBody()),
-                ),
+              Padding(
+                padding: const EdgeInsets.only(right: 12),
+                child: GlassIconButton(icon: Icons.share_outlined, onTap: _shareListing),
               ),
             ],
-          );
-        },
+            flexibleSpace: FlexibleSpaceBar(
+              stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
+              background: _property.id != null
+                  ? Hero(tag: 'property-image-${_property.id}', child: HeroMediaGallery(property: _property))
+                  : HeroMediaGallery(property: _property),
+            ),
+          ),
+          ..._buildBodySlivers().map((sliver) => SliverToBoxAdapter(
+            child: FadeTransition(
+              opacity: _entranceFade,
+              child: SlideTransition(
+                position: _entranceSlide,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 20),
+                  child: sliver,
+                ),
+              ),
+            ),
+          )),
+        ],
       ),
     );
   }
 
-  Widget _buildBody() {
+  List<Widget> _buildBodySlivers() {
     final p = _property;
-
-    return Padding(
-      padding: const EdgeInsets.all(20),
-      child: Column(
+    return [
+      // Section 1: Title & Stats
+      Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          const SizedBox(height: 20),
           Text(p.title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: -0.4)),
           if (p.buildingName != null && p.buildingName!.trim().isNotEmpty) ...[
             const SizedBox(height: 4),
@@ -185,38 +224,47 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
               Expanded(child: Text(p.location, style: TextStyle(color: AppColors.grey400, fontSize: 14))),
             ],
           ),
-          if (_controller.distanceLabel != null) ...[
-            const SizedBox(height: 6),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.surfaceRaised,
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.near_me_outlined, color: AppColors.grey300, size: 13),
-                  const SizedBox(width: 6),
-                  Text(_controller.distanceLabel!, style: const TextStyle(color: AppColors.grey300, fontSize: 12, fontWeight: FontWeight.w500)),
-                ],
-              ),
-            ),
-          ],
-
+          ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) {
+              if (_controller.distanceLabel == null) return const SizedBox.shrink();
+              return Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.surfaceRaised,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.near_me_outlined, color: AppColors.grey300, size: 13),
+                      const SizedBox(width: 6),
+                      Text(_controller.distanceLabel!, style: const TextStyle(color: AppColors.grey300, fontSize: 12, fontWeight: FontWeight.w500)),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
           const SizedBox(height: 16),
           VerificationBadges(property: p, onTapVerification: _showVerificationDetails),
           FairPriceIndicator(property: p),
-
           if (p.riskFlags.isNotEmpty) ...[
             const SizedBox(height: 16),
             ListingCautionCard(riskFlags: p.riskFlags),
           ],
-
           const SizedBox(height: 24),
           QuickStatsRow(property: p),
+        ],
+      ),
 
+      // Section 2: Amenities, Cost, Description
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const SizedBox(height: 28),
           const SectionHeader('Amenities'),
           const SizedBox(height: 14),
@@ -237,7 +285,13 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
             const SizedBox(height: 10),
             Text(p.description, style: TextStyle(color: AppColors.grey300, fontSize: 15, height: 1.6)),
           ],
+        ],
+      ),
 
+      // Section 3: Location
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const SizedBox(height: 28),
           SectionHeader(
             'Location & Surroundings',
@@ -269,7 +323,13 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
               ],
             ),
           ],
+        ],
+      ),
 
+      // Section 4: Host Info
+      Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
           const SizedBox(height: 28),
           const SectionHeader('Hosted by'),
           const SizedBox(height: 12),
@@ -282,11 +342,18 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
           FreeViewingsBanner(propertyId: p.id),
 
           const SizedBox(height: 24),
-          if (_controller.communityCheckEligible && !_controller.communityCheckSubmitted) ...[
-            _buildCommunityCheckPrompt(),
-            const SizedBox(height: 20),
-          ],
-
+          ListenableBuilder(
+            listenable: _controller,
+            builder: (context, _) {
+              if (_controller.communityCheckEligible && !_controller.communityCheckSubmitted) {
+                return Padding(
+                  padding: const EdgeInsets.only(bottom: 20),
+                  child: _buildCommunityCheckPrompt(),
+                );
+              }
+              return const SizedBox.shrink();
+            },
+          ),
           Center(
             child: TextButton.icon(
               onPressed: () => ReportSheet.show(context, _controller),
@@ -294,10 +361,42 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
               label: const Text('Report an issue with this listing', style: TextStyle(color: AppColors.grey500, fontSize: 13)),
             ),
           ),
-          const SizedBox(height: 100),
         ],
       ),
-    );
+      
+      // Section 5: Similar Listings
+      if (_similarListings.isNotEmpty)
+        Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SizedBox(height: 32),
+            const SectionHeader('Similar Listings'),
+            const SizedBox(height: 12),
+            SizedBox(
+              height: 280,
+              child: ListView.builder(
+                scrollDirection: Axis.horizontal,
+                physics: const BouncingScrollPhysics(),
+                itemCount: _similarListings.length,
+                itemBuilder: (context, index) {
+                  final similarProp = _similarListings[index];
+                  return SizedBox(
+                    width: 280,
+                    child: PropertyCard(
+                      property: similarProp,
+                      margin: const EdgeInsets.only(right: 16),
+                      compact: true,
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+
+      // Bottom padding
+      const SizedBox(height: 100),
+    ];
   }
 
   Widget _buildMapPreview(Property p) {

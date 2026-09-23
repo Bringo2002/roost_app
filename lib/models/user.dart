@@ -19,6 +19,11 @@ class User {
   /// null if the user has never made an authenticated request yet.
   final DateTime? lastActiveAt;
 
+  /// Human-readable response-time label, e.g. "2 hours" or "a few minutes".
+  /// Populated for property owners shown on listing detail pages; null
+  /// when the backend does not supply it.
+  final String? responseTime;
+
   User({
     required this.id,
     required this.name,
@@ -27,6 +32,7 @@ class User {
     this.phone,
     this.avatarUrl,
     this.lastActiveAt,
+    this.responseTime,
   });
 
   /// True if the user was active recently enough to be considered online.
@@ -44,6 +50,7 @@ class User {
       phone: json['phone']?.toString(),
       avatarUrl: json['avatarUrl']?.toString() ?? json['profilePicUrl']?.toString(),
       lastActiveAt: parseServerDateTime(json['lastActiveAt']?.toString()),
+      responseTime: json['responseTime']?.toString(),
     );
   }
 }

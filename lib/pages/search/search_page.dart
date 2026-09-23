@@ -11,6 +11,8 @@ import 'package:roost_app/utils/property_sorter.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
+import 'package:roost_app/widgets/common/property_card_skeleton.dart';
+import 'package:roost_app/services/favorites_service.dart';
 
 /// Friendly display labels for the canonical backend house-type values,
 /// so filter chips read naturally instead of showing raw codes like
@@ -31,7 +33,7 @@ class SearchPage extends StatefulWidget {
   State<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> {
+class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   List<Property> _allProperties = [];
   List<Property> _results = [];
   bool _loading = true;
@@ -47,6 +49,10 @@ class _SearchPageState extends State<SearchPage> {
 
   bool _isHeaderVisible = true;
   double _lastScrollOffset = 0;
+  bool _showScrollToTop = false;
+
+  AnimationController? _staggerController;
+  final Set<int> _favoriteIds = {};
 
   // Active Filter state
   String _houseType = 'All';
@@ -74,15 +80,25 @@ class _SearchPageState extends State<SearchPage> {
     super.initState();
     final config = CountryService.config;
     _priceRange = RangeValues(config.priceMin, config.priceMax);
-    _loadProperties();
-    _loadUserLocation();
+    _initData();
     _searchCtrl.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
     _searchFocusNode.addListener(_onSearchFocusChanged);
   }
 
+  Future<void> _initData() async {
+    final favIds = await FavoritesService.getFavoriteIds();
+    if (mounted) setState(() => _favoriteIds.addAll(favIds));
+    await _loadUserLocation().timeout(
+      const Duration(seconds: 3),
+      onTimeout: () {},
+    );
+    _loadProperties();
+  }
+
   @override
   void dispose() {
+    _staggerController?.dispose();
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     _searchFocusNode.removeListener(_onSearchFocusChanged);
@@ -107,16 +123,36 @@ class _SearchPageState extends State<SearchPage> {
     final currentOffset = pos.pixels;
 
     if (_searchFocusNode.hasFocus || currentOffset <= 0) {
+      bool shouldUpdate = false;
       if (!_isHeaderVisible) {
-        setState(() => _isHeaderVisible = true);
+        _isHeaderVisible = true;
+        shouldUpdate = true;
       }
+      if (_showScrollToTop) {
+        _showScrollToTop = false;
+        shouldUpdate = true;
+      }
+      if (shouldUpdate) setState(() {});
     } else {
       final delta = currentOffset - _lastScrollOffset;
+      bool shouldUpdate = false;
       if (delta > 10 && _isHeaderVisible) {
-        setState(() => _isHeaderVisible = false);
+        _isHeaderVisible = false;
+        shouldUpdate = true;
       } else if (delta < -10 && !_isHeaderVisible) {
-        setState(() => _isHeaderVisible = true);
+        _isHeaderVisible = true;
+        shouldUpdate = true;
       }
+      
+      if (currentOffset > 800 && !_showScrollToTop) {
+        _showScrollToTop = true;
+        shouldUpdate = true;
+      } else if (currentOffset <= 800 && _showScrollToTop) {
+        _showScrollToTop = false;
+        shouldUpdate = true;
+      }
+      
+      if (shouldUpdate) setState(() {});
     }
     _lastScrollOffset = currentOffset;
 
@@ -399,6 +435,13 @@ class _SearchPageState extends State<SearchPage> {
   void _applyClientSideFilters() {
     final intent = _parseSearchIntent(_searchCtrl.text.trim());
     final query = intent.remainingText;
+    
+    _staggerController?.dispose();
+    _staggerController = AnimationController(
+      vsync: this,
+      duration: AppColors.durationMedium,
+    );
+    
     setState(() {
       _results = _allProperties.where((p) {
         final matchesQuery = query.isEmpty ||
@@ -435,6 +478,8 @@ class _SearchPageState extends State<SearchPage> {
 
       _sortResults();
     });
+    
+    _staggerController?.forward();
 
     // Balcony/petFriendly/free-text are client-only filters (the backend
     // doesn't know about them), so a narrow match can leave too little on
@@ -849,7 +894,19 @@ class _SearchPageState extends State<SearchPage> {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return Scaffold(
+        backgroundColor: Colors.black,
+        body: SafeArea(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            itemCount: 4,
+            itemBuilder: (_, __) => const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: PropertyCardSkeleton(),
+            ),
+          ),
+        ),
+      );
     }
 
     return Scaffold(
@@ -925,8 +982,16 @@ class _SearchPageState extends State<SearchPage> {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.end,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
+                                AnimatedSwitcher(
+                                  duration: AppColors.durationMedium,
+                                  child: Text(
+                                    '${_results.length} results',
+                                    key: ValueKey(_results.length),
+                                    style: const TextStyle(color: AppColors.grey500, fontSize: 13, fontWeight: FontWeight.bold),
+                                  ),
+                                ),
                                 TextButton(
                                   onPressed: () {
                                     _searchCtrl.clear();
@@ -1020,15 +1085,76 @@ class _SearchPageState extends State<SearchPage> {
                               }
                               final property = _results[index];
                               final km = _distanceKmTo(property);
-                              return PropertyCard(
+                              
+                              Widget card = PropertyCard(
                                 property: property,
                                 distanceLabel: km != null ? LocationService.formatDistance(km) : null,
+                                isFavorite: _favoriteIds.contains(property.id),
+                                onFavoriteTap: () {
+                                  final propId = property.id;
+                                  if (propId == null) return;
+                                  final isFav = _favoriteIds.contains(propId);
+                                  setState(() {
+                                    if (isFav) {
+                                      _favoriteIds.remove(propId);
+                                    } else {
+                                      _favoriteIds.add(propId);
+                                    }
+                                  });
+                                  ScaffoldMessenger.of(context).clearSnackBars();
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    SnackBar(
+                                      content: Text(isFav ? 'Removed from favorites' : 'Saved to favorites'),
+                                      duration: const Duration(seconds: 2),
+                                    ),
+                                  );
+                                  FavoritesService.toggle(propId);
+                                },
                               );
+                              
+                              if (_staggerController != null && index < 10) {
+                                final delay = index * 0.05;
+                                final animation = CurvedAnimation(
+                                  parent: _staggerController!,
+                                  curve: Interval(
+                                    delay.clamp(0.0, 1.0),
+                                    (delay + 0.5).clamp(0.0, 1.0),
+                                    curve: Curves.easeOutCubic,
+                                  ),
+                                );
+                                card = AnimatedBuilder(
+                                  animation: animation,
+                                  builder: (context, child) {
+                                    return Opacity(
+                                      opacity: animation.value,
+                                      child: Transform.translate(
+                                        offset: Offset(0, 30 * (1 - animation.value)),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: card,
+                                );
+                              }
+                              return card;
                             },
                           ),
               ),
             ),
           ],
+        ),
+      ),
+      floatingActionButton: AnimatedScale(
+        scale: _showScrollToTop ? 1.0 : 0.0,
+        duration: AppColors.durationMedium,
+        curve: Curves.easeOutBack,
+        child: FloatingActionButton.small(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          onPressed: () {
+            _scrollController.animateTo(0, duration: AppColors.durationSlow, curve: Curves.easeOutCubic);
+          },
+          child: const Icon(Icons.arrow_upward),
         ),
       ),
     );

@@ -13,12 +13,76 @@ class QuickStatsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        _QuickStatCard(icon: Icons.king_bed_outlined, title: property.bedroomDisplay, subtitle: 'Bedrooms'),
+        _buildAnimatedCard(
+          icon: Icons.king_bed_outlined,
+          value: property.bedrooms,
+          isNumeric: property.bedrooms > 0,
+          labelBuilder: (val) => val <= 0 ? property.bedroomDisplay : '$val ${val == 1 ? 'bed' : 'beds'}',
+          subtitle: 'Bedrooms',
+        ),
         const SizedBox(width: 10),
-        _QuickStatCard(icon: Icons.bathtub_outlined, title: '${property.bathrooms} Bath', subtitle: 'Bathrooms'),
+        _buildAnimatedCard(
+          icon: Icons.bathtub_outlined,
+          value: property.bathrooms,
+          isNumeric: true,
+          labelBuilder: (val) => '$val Bath',
+          subtitle: 'Bathrooms',
+        ),
         const SizedBox(width: 10),
-        _QuickStatCard(icon: Icons.home_work_outlined, title: property.houseType.isNotEmpty ? property.houseType : 'Apartment', subtitle: 'Type'),
+        _QuickStatCard(
+          icon: Icons.home_work_outlined,
+          title: property.houseType.isNotEmpty ? property.houseType : 'Apartment',
+          subtitle: 'Type',
+        ),
       ],
+    );
+  }
+
+  Widget _buildAnimatedCard({
+    required IconData icon,
+    required int value,
+    required bool isNumeric,
+    required String Function(int) labelBuilder,
+    required String subtitle,
+  }) {
+    if (!isNumeric) {
+      return _QuickStatCard(
+        icon: icon,
+        title: labelBuilder(value),
+        subtitle: subtitle,
+      );
+    }
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: AppColors.white, size: 22),
+            const SizedBox(height: 8),
+            TweenAnimationBuilder<int>(
+              tween: IntTween(begin: 0, end: value),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOut,
+              builder: (context, val, _) {
+                return Text(
+                  labelBuilder(val),
+                  style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14),
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                );
+              },
+            ),
+            const SizedBox(height: 2),
+            Text(subtitle, style: const TextStyle(color: AppColors.grey500, fontSize: 11), textAlign: TextAlign.center),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -52,7 +116,7 @@ class _QuickStatCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
             const SizedBox(height: 2),
-            Text(subtitle, style: TextStyle(color: AppColors.grey500, fontSize: 11), textAlign: TextAlign.center),
+            Text(subtitle, style: const TextStyle(color: AppColors.grey500, fontSize: 11), textAlign: TextAlign.center),
           ],
         ),
       ),

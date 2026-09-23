@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:shimmer/shimmer.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/rent_estimator_service.dart';
@@ -89,39 +90,39 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
   }
 
   // ── Loading State ─────────────────────────────────────────────────────────
+  /// Shimmer skeleton that previews the gauge layout while data loads.
   Widget _buildLoading() {
-    return Column(
-      children: [
-        const Row(
-          children: [
-            Icon(Icons.analytics_outlined, color: AppColors.white, size: 22),
-            SizedBox(width: 8),
-            Text(
-              'Market Price Analysis',
-              style: TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 24),
-        SizedBox(
-          height: 24,
-          width: 24,
-          child: CircularProgressIndicator(
-            strokeWidth: 2,
-            color: AppColors.grey400,
+    return Shimmer.fromColors(
+      baseColor: AppColors.grey800,
+      highlightColor: AppColors.grey700,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(width: 22, height: 22, decoration: const BoxDecoration(color: AppColors.grey800, shape: BoxShape.circle)),
+              const SizedBox(width: 8),
+              Container(width: 160, height: 16, decoration: BoxDecoration(color: AppColors.grey800, borderRadius: BorderRadius.circular(4))),
+            ],
           ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Analyzing comparable listings...',
-          style: TextStyle(color: AppColors.grey500, fontSize: 12),
-        ),
-        const SizedBox(height: 8),
-      ],
+          const SizedBox(height: 16),
+          Container(width: double.infinity, height: 72, decoration: BoxDecoration(color: AppColors.grey800, borderRadius: BorderRadius.circular(16))),
+          const SizedBox(height: 18),
+          Container(width: 100, height: 10, decoration: BoxDecoration(color: AppColors.grey800, borderRadius: BorderRadius.circular(4))),
+          const SizedBox(height: 10),
+          Container(width: double.infinity, height: 8, decoration: BoxDecoration(color: AppColors.grey800, borderRadius: BorderRadius.circular(4))),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: Container(height: 48, decoration: BoxDecoration(color: AppColors.grey800, borderRadius: BorderRadius.circular(12)))),
+              const SizedBox(width: 8),
+              Expanded(child: Container(height: 48, decoration: BoxDecoration(color: AppColors.grey800, borderRadius: BorderRadius.circular(12)))),
+              const SizedBox(width: 8),
+              Expanded(child: Container(height: 48, decoration: BoxDecoration(color: AppColors.grey800, borderRadius: BorderRadius.circular(12)))),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
