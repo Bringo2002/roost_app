@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
+import 'package:flutter/services.dart';
+
+import 'package:shimmer/shimmer.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
@@ -7,6 +9,9 @@ import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
 import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
 import 'package:roost_app/pages/landlord/endorsement_page.dart';
+import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/theme/app_text_styles.dart';
+import 'package:roost_app/widgets/landlord/landlord_property_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class LandlordDashboardPage extends StatefulWidget {
@@ -19,6 +24,7 @@ class LandlordDashboardPage extends StatefulWidget {
 class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   List<Property> _myListings = [];
   bool _loading = true;
+  String _selectedFilter = 'ALL';
 
   /// Ids of listings with an action (publish, verify-gps, delete,
   /// toggle-availability) currently in flight. Guards every per-listing
@@ -55,28 +61,43 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     }
   }
 
+  List<Property> get _filteredListings {
+    switch (_selectedFilter) {
+      case 'PUBLISHED':
+        return _myListings.where((p) => p.status == 'PUBLISHED' && p.available).toList();
+      case 'DRAFT':
+        return _myListings.where((p) => p.status == 'DRAFT').toList();
+      case 'RENTED':
+        return _myListings.where((p) => !p.available).toList();
+      case 'ALL':
+      default:
+        return _myListings;
+    }
+  }
+
   Future<void> _toggleAvailability(Property property) async {
     if (property.id == null || _isBusy(property)) return;
 
-    // Marking rented is the more consequential direction (removes the
-    // listing from discovery), so it gets a confirmation -- matching
-    // the brief's "Tap Mark as Rented" as a deliberate action, not a
-    // switch someone could flip by accident. Re-marking available
-    // doesn't need the same friction.
     if (property.available) {
       final confirm = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: Colors.grey[900],
+          backgroundColor: AppColors.surfaceRaised,
           title: const Text('Mark as Rented?', style: TextStyle(color: Colors.white)),
           content: const Text(
             'This listing will disappear from discovery. You can mark it available again anytime.',
-            style: TextStyle(color: Colors.white70),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancel', style: TextStyle(color: AppColors.textTertiary)),
+            ),
             ElevatedButton(
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
+              ),
               onPressed: () => Navigator.pop(ctx, true),
               child: const Text('Mark as Rented'),
             ),
@@ -106,13 +127,19 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: Colors.grey[900],
+        backgroundColor: AppColors.surfaceRaised,
         title: const Text('Delete Listing', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to delete this listing?', style: TextStyle(color: Colors.white70)),
+        content: const Text(
+          'Are you sure you want to delete this listing?',
+          style: TextStyle(color: AppColors.textSecondary),
+        ),
         actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel', style: TextStyle(color: Colors.white54))),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: AppColors.textTertiary)),
+          ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
           ),
@@ -134,17 +161,6 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     }
   }
 
-  /// One-tap publish for a draft, without reopening the wizard. Backend
-  /// still enforces phone verification (PropertyService.assertCanPublish)
-  /// even though this shortcut skips the wizard's own verification UI --
-  /// if that check fails, send the landlord into the wizard instead,
-  /// where the phone-verification screen actually lives.
-  /// Called when the landlord is physically at the property and taps
-  /// the "verify location" prompt -- takes the device's live GPS
-  /// reading and sends it to the backend, which independently checks
-  /// the distance to the listing's pinned coordinates
-  /// (PropertyService.verifyGpsLocation) rather than trusting a
-  /// client-reported "yes I'm here."
   Future<void> _verifyGps(Property property) async {
     if (property.id == null || _isBusy(property)) return;
 
@@ -198,11 +214,11 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       final proceedToWizard = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
-          backgroundColor: Colors.grey[900],
+          backgroundColor: AppColors.surfaceRaised,
           title: const Text('Could not publish', style: TextStyle(color: Colors.white)),
           content: Text(
             'This usually means your phone isn\'t verified yet. Open the listing to verify and publish?',
-            style: TextStyle(color: Colors.grey[400]),
+            style: TextStyle(color: AppColors.textSecondary),
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
@@ -254,20 +270,27 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   }
 
   Widget _buildStatsHeader() {
+    final totalCount = _myListings.length;
+    final draftsCount = _myListings.where((p) => p.status == 'DRAFT').length;
+    final availableCount = _myListings.where((p) => p.status == 'PUBLISHED' && p.available).length;
+
     return Container(
       padding: const EdgeInsets.all(16),
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         gradient: LinearGradient(
-          colors: [const Color(0xFF18181B), const Color(0xFF0F172A).withAlpha(180)],
+          colors: [
+            const Color(0xFF18181B),
+            const Color(0xFF0F172A).withValues(alpha: 0.9),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF10B981).withAlpha(30)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.2)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF10B981).withAlpha(12),
+            color: AppColors.accent.withValues(alpha: 0.08),
             blurRadius: 16,
             spreadRadius: 0,
             offset: const Offset(0, 4),
@@ -277,40 +300,133 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildStatItem('Total Listings', '${_myListings.length}', Icons.home_work_outlined, Colors.white70),
-          Container(width: 1, height: 32, color: Colors.white10),
-          _buildStatItem('Drafts', '${_myListings.where((p) => p.status == 'DRAFT').length}', Icons.edit_note, Colors.amber),
-          Container(width: 1, height: 32, color: Colors.white10),
-          _buildStatItem('Available', '${_myListings.where((p) => p.available).length}', Icons.check_circle_outline, const Color(0xFF10B981)),
+          _buildStatItem(
+            'Total Listings',
+            totalCount,
+            Icons.home_work_outlined,
+            Colors.white,
+            'ALL',
+          ),
+          Container(width: 1, height: 36, color: AppColors.border),
+          _buildStatItem(
+            'Drafts',
+            draftsCount,
+            Icons.edit_note_rounded,
+            Colors.amber,
+            'DRAFT',
+          ),
+          Container(width: 1, height: 36, color: AppColors.border),
+          _buildStatItem(
+            'Available',
+            availableCount,
+            Icons.check_circle_outline_rounded,
+            AppColors.accent,
+            'PUBLISHED',
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildStatItem(String label, String value, IconData icon, Color color) {
-    return Column(
-      children: [
-        Row(
-          mainAxisSize: MainAxisSize.min,
+  Widget _buildStatItem(String label, int value, IconData icon, Color color, String filterKey) {
+    final isSelected = _selectedFilter == filterKey;
+
+    return InkWell(
+      onTap: () {
+        HapticFeedback.selectionClick();
+        setState(() => _selectedFilter = filterKey);
+      },
+      borderRadius: BorderRadius.circular(12),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        child: Column(
           children: [
-            Icon(icon, color: color, size: 15),
-            const SizedBox(width: 5),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, color: color, size: 16),
+                const SizedBox(width: 6),
+                TweenAnimationBuilder<int>(
+                  tween: IntTween(begin: 0, end: value),
+                  duration: AppColors.durationMedium,
+                  builder: (context, val, _) {
+                    return Text(
+                      '$val',
+                      style: AppTextStyles.sectionHeader.copyWith(
+                        color: Colors.white,
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 4),
             Text(
-              value,
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
+              label,
+              style: TextStyle(
+                color: isSelected ? Colors.white : AppColors.textTertiary,
+                fontSize: 11,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
               ),
             ),
           ],
         ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.white54, fontSize: 11),
-        ),
-      ],
+      ),
+    );
+  }
+
+  Widget _buildFilterChipsRow() {
+    final publishedCount = _myListings.where((p) => p.status == 'PUBLISHED' && p.available).length;
+    final draftsCount = _myListings.where((p) => p.status == 'DRAFT').length;
+    final rentedCount = _myListings.where((p) => !p.available).length;
+    final totalCount = _myListings.length;
+
+    final filterOptions = [
+      {'key': 'ALL', 'label': 'All ($totalCount)'},
+      {'key': 'PUBLISHED', 'label': 'Available ($publishedCount)'},
+      {'key': 'DRAFT', 'label': 'Drafts ($draftsCount)'},
+      {'key': 'RENTED', 'label': 'Rented ($rentedCount)'},
+    ];
+
+    return Container(
+      height: 40,
+      margin: const EdgeInsets.only(bottom: 16),
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: filterOptions.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (context, index) {
+          final option = filterOptions[index];
+          final key = option['key'] as String;
+          final label = option['label'] as String;
+          final isSelected = _selectedFilter == key;
+
+          return ChoiceChip(
+            selected: isSelected,
+            label: Text(label),
+            labelStyle: TextStyle(
+              color: isSelected ? Colors.black : Colors.white70,
+              fontSize: 12,
+              fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
+            ),
+            selectedColor: Colors.white,
+            backgroundColor: AppColors.surface,
+            side: BorderSide(
+              color: isSelected ? Colors.white : AppColors.border,
+              width: 1,
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 10),
+            onSelected: (selected) {
+              if (selected) {
+                HapticFeedback.selectionClick();
+                setState(() => _selectedFilter = key);
+              }
+            },
+          );
+        },
+      ),
     );
   }
 
@@ -319,7 +435,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     final totalCount = _myListings.length;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
@@ -328,7 +444,14 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF10B981).withAlpha(100)),
+        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
       ),
       child: Row(
         children: [
@@ -338,7 +461,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
               color: Color(0x3010B981),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.verified_user, color: Color(0xFF10B981), size: 24),
+            child: const Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -361,6 +484,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
           ),
           ElevatedButton(
             onPressed: () {
+              HapticFeedback.lightImpact();
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const LandlordVerificationHubPage()),
@@ -369,7 +493,8 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFF10B981),
               foregroundColor: Colors.white,
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              elevation: 0,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             child: const Text('Manage', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
@@ -379,296 +504,119 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     );
   }
 
+  Widget _buildSkeletonLoading() {
+    return ListView.builder(
+      padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
+      itemCount: 4,
+      itemBuilder: (_, __) => const _LandlordCardSkeleton(),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
+    final displayedListings = _filteredListings;
+
     return Scaffold(
       backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.black,
+        elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
-        title: const Text('My Listings', style: TextStyle(color: Colors.white)),
+        title: const Text('My Listings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Colors.white))
+          ? _buildSkeletonLoading()
           : RefreshIndicator(
               color: Colors.white,
-              backgroundColor: Colors.grey[900],
+              backgroundColor: AppColors.surfaceRaised,
               onRefresh: _loadListings,
               child: ListView(
                 padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
                 children: [
                   _buildVerificationCenterBanner(),
                   _buildStatsHeader(),
-                  if (_myListings.isEmpty)
+                  _buildFilterChipsRow(),
+                  if (displayedListings.isEmpty)
                     SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.5,
+                      height: MediaQuery.of(context).size.height * 0.4,
                       child: Center(
                         child: Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.business_center_outlined, color: Colors.grey[700], size: 64),
-                            const SizedBox(height: 16),
+                            Icon(Icons.business_center_outlined, color: AppColors.textTertiary, size: 56),
+                            const SizedBox(height: 14),
                             Text(
-                              'No properties listed yet',
-                              style: TextStyle(color: Colors.grey[500], fontSize: 18, fontWeight: FontWeight.w600),
+                              _selectedFilter == 'ALL'
+                                  ? 'No properties listed yet'
+                                  : 'No $_selectedFilter listings',
+                              style: TextStyle(
+                                color: AppColors.textSecondary,
+                                fontSize: 16,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
-                            const SizedBox(height: 8),
+                            const SizedBox(height: 6),
                             Text(
-                              'Tap the "+" button on Home feed to add one',
-                              style: TextStyle(color: Colors.grey[700], fontSize: 14),
+                              'Tap the "+" button on Home feed to add a new listing',
+                              style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
                             ),
                           ],
                         ),
                       ),
                     )
                   else
-                    ..._myListings.map((property) {
-                      final busy = _isBusy(property);
-                      return Card(
-                        color: Colors.grey[900],
-                        margin: const EdgeInsets.only(bottom: 12),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                        child: Padding(
-                          padding: const EdgeInsets.all(16),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Expanded(
-                                    child: Row(
-                                      children: [
-                                        Flexible(
-                                          child: Text(
-                                            property.title,
-                                            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
-                                            maxLines: 1,
-                                            overflow: TextOverflow.ellipsis,
-                                          ),
-                                        ),
-                                        if (property.status == 'DRAFT') ...[
-                                          const SizedBox(width: 8),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                                            decoration: BoxDecoration(
-                                              color: Colors.amber.withValues(alpha: 0.15),
-                                              borderRadius: BorderRadius.circular(6),
-                                              border: Border.all(color: Colors.amber, width: 1),
-                                            ),
-                                            child: const Text(
-                                              'DRAFT',
-                                              style: TextStyle(color: Colors.amber, fontSize: 11, fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                        ],
-                                      ],
-                                    ),
-                                  ),
-                                  Row(
-                                    children: [
-                                      IconButton(
-                                        icon: const Icon(Icons.edit_outlined, color: Colors.white70),
-                                        tooltip: 'Edit listing',
-                                        onPressed: () async {
-                                          final updated = await Navigator.push<bool>(
-                                            context,
-                                            MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
-                                          );
-                                          if (updated == true) _loadListings();
-                                        },
-                                      ),
-                                      IconButton(
-                                        icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                                        tooltip: 'Delete listing',
-                                        onPressed: busy ? null : () => _deleteListing(property),
-                                      ),
-                                      Text(
-                                        property.available ? 'Available' : 'Rented',
-                                        style: TextStyle(
-                                          color: property.available ? Colors.greenAccent : Colors.grey[500],
-                                          fontSize: 11,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                      Switch(
-                                        value: property.available,
-                                        activeThumbColor: Colors.white,
-                                        activeTrackColor: Colors.grey[800],
-                                        inactiveThumbColor: Colors.grey[600],
-                                        inactiveTrackColor: Colors.grey[950],
-                                        onChanged: busy ? null : (_) => _toggleAvailability(property),
-                                      ),
-                                    ],
-                                  ),
-                                ],
+                    ListView.builder(
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: displayedListings.length,
+                      itemBuilder: (context, index) {
+                        final property = displayedListings[index];
+                        return TweenAnimationBuilder<double>(
+                          tween: Tween(begin: 0.0, end: 1.0),
+                          duration: Duration(milliseconds: 400 + (index * 50)),
+                          curve: Curves.easeOutCubic,
+                          builder: (context, value, child) {
+                            return Opacity(
+                              opacity: value,
+                              child: Transform.translate(
+                                offset: Offset(0, 20 * (1 - value)),
+                                child: child,
                               ),
-                              Text(
-                                property.location,
-                                style: TextStyle(color: Colors.grey[500], fontSize: 14),
-                              ),
-                              const SizedBox(height: 8),
-                              Row(
-                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    CountryService.price(property.price),
-                                    style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
-                                  ),
-                                  Text(
-                                    property.available ? 'AVAILABLE' : 'UNAVAILABLE',
-                                    style: TextStyle(
-                                      color: property.available ? Colors.white : Colors.grey[600],
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 12,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const Divider(color: Colors.white12, height: 24),
-                              Row(
-                                children: [
-                                  Text(
-                                    property.status == 'DRAFT'
-                                        ? 'Not published yet'
-                                        : (property.listedAt != null
-                                            ? 'Listed ${DateFormat('dd MMM yyyy').format(DateTime.parse(property.listedAt!))}'
-                                            : 'Listed recently'),
-                                    style: const TextStyle(color: Colors.white38, fontSize: 13),
-                                  ),
-                                  const Spacer(),
-                                  if (property.status == 'DRAFT')
-                                    TextButton(
-                                      onPressed: busy ? null : () => _publishDraft(property),
-                                      style: TextButton.styleFrom(foregroundColor: Colors.amber, padding: EdgeInsets.zero),
-                                      child: busy
-                                          ? const SizedBox(
-                                              width: 12,
-                                              height: 12,
-                                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
-                                            )
-                                          : const Text('Publish', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                                    )
-                                  else
-                                    TextButton(
-                                      onPressed: () => _viewApplications(property),
-                                      style: TextButton.styleFrom(foregroundColor: Colors.white, padding: EdgeInsets.zero),
-                                      child: const Text('Applications', style: TextStyle(fontSize: 12)),
-                                    ),
-                                ],
-                              ),
-                              if (property.status == 'PUBLISHED' && !property.gpsVerified) ...[
-                                const SizedBox(height: 10),
-                                GestureDetector(
-                                  onTap: busy ? null : () => _verifyGps(property),
-                                  child: Row(
-                                    children: [
-                                      if (busy)
-                                        const SizedBox(
-                                          width: 16,
-                                          height: 16,
-                                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
-                                        )
-                                      else
-                                        const Icon(Icons.location_searching, color: Colors.amber, size: 16),
-                                      const SizedBox(width: 6),
-                                      const Text(
-                                        'Stand at the property and tap to verify location',
-                                        style: TextStyle(color: Colors.amber, fontSize: 12, fontWeight: FontWeight.w600),
-                                      ),
-                                    ],
+                            );
+                          },
+                          child: LandlordPropertyCard(
+                            key: ValueKey(property.id),
+                            property: property,
+                            isBusy: _isBusy(property),
+                            onEdit: () async {
+                              final updated = await Navigator.push<bool>(
+                                context,
+                                MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
+                              );
+                              if (updated == true) _loadListings();
+                            },
+                            onDelete: () => _deleteListing(property),
+                            onToggleAvailability: (_) => _toggleAvailability(property),
+                            onPublish: () => _publishDraft(property),
+                            onViewApplications: () => _viewApplications(property),
+                            onVerifyGps: () => _verifyGps(property),
+                            onShareEndorsement: () => _shareLandlordEndorsement(property),
+                            onViewEndorsementBadge: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => EndorsementPage(
+                                    initialToken: property.endorsementToken,
+                                    property: property,
                                   ),
                                 ),
-                              ],
-                              if (!property.isDirectLandlord) ...[
-                                const SizedBox(height: 10),
-                                Container(
-                                  padding: const EdgeInsets.all(10),
-                                  decoration: BoxDecoration(
-                                    color: property.landlordEndorsed
-                                        ? const Color(0xFF00C896).withValues(alpha: 0.1)
-                                        : Colors.amber.withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(10),
-                                    border: Border.all(
-                                      color: property.landlordEndorsed
-                                          ? const Color(0xFF00C896).withValues(alpha: 0.3)
-                                          : Colors.amber.withValues(alpha: 0.3),
-                                    ),
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(
-                                        property.landlordEndorsed ? Icons.verified : Icons.mark_email_unread_outlined,
-                                        color: property.landlordEndorsed ? const Color(0xFF00C896) : Colors.amber,
-                                        size: 16,
-                                      ),
-                                      const SizedBox(width: 8),
-                                      Expanded(
-                                        child: Text(
-                                          property.landlordEndorsed
-                                              ? 'Landlord Endorsed Listing'
-                                              : 'Pending Owner Endorsement',
-                                          style: TextStyle(
-                                            color: property.landlordEndorsed ? const Color(0xFF00C896) : Colors.amber,
-                                            fontSize: 12,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                        ),
-                                      ),
-                                      GestureDetector(
-                                        onTap: () async {
-                                          if (property.landlordEndorsed) {
-                                            Navigator.push(
-                                              context,
-                                              MaterialPageRoute(
-                                                builder: (_) => EndorsementPage(
-                                                  initialToken: property.endorsementToken,
-                                                  property: property,
-                                                ),
-                                              ),
-                                            );
-                                          } else {
-                                            _shareLandlordEndorsement(property);
-                                          }
-                                        },
-                                        child: Container(
-                                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                                          decoration: BoxDecoration(
-                                            color: property.landlordEndorsed
-                                                ? const Color(0xFF00C896)
-                                                : Colors.amber,
-                                            borderRadius: BorderRadius.circular(6),
-                                          ),
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              Icon(
-                                                property.landlordEndorsed ? Icons.check_circle : Icons.share,
-                                                color: Colors.black,
-                                                size: 12,
-                                              ),
-                                              const SizedBox(width: 4),
-                                              Text(
-                                                property.landlordEndorsed ? 'View Badge' : 'Send Link',
-                                                style: const TextStyle(
-                                                  color: Colors.black,
-                                                  fontSize: 11,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
-                            ],
+                              );
+                            },
                           ),
-                        ),
-                      );
-                    }),
+                        );
+                      },
+                    ),
+
                 ],
               ),
             ),
@@ -678,20 +626,42 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   void _viewApplications(Property property) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: Colors.grey[900],
+      backgroundColor: AppColors.surface,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
       builder: (ctx) {
         return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          maxChildSize: 0.9,
-          minChildSize: 0.5,
+          initialChildSize: 0.65,
+          maxChildSize: 0.92,
+          minChildSize: 0.45,
           expand: false,
           builder: (context, scrollController) {
             return ApplicationsBottomSheet(property: property, scrollController: scrollController);
           },
         );
       },
+    );
+  }
+}
+
+class _LandlordCardSkeleton extends StatelessWidget {
+  const _LandlordCardSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: AppColors.surfaceRaised,
+      highlightColor: Colors.white.withValues(alpha: 0.08),
+      child: Container(
+        margin: const EdgeInsets.only(bottom: 14),
+        height: 160,
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(16),
+        ),
+      ),
     );
   }
 }
@@ -746,6 +716,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
     try {
       await ApiService.put('/api/applications/$id/status', {'status': status});
       if (!mounted) return;
+      HapticFeedback.lightImpact();
       _fetchApplications();
     } catch (e) {
       if (!mounted) return;
@@ -755,108 +726,224 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            'Applications for ${widget.property.title}',
-            style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Handle bar
+        Center(
+          child: Container(
+            margin: const EdgeInsets.only(top: 10, bottom: 8),
+            width: 38,
+            height: 4,
+            decoration: BoxDecoration(
+              color: AppColors.textTertiary,
+              borderRadius: BorderRadius.circular(2),
+            ),
           ),
-          const SizedBox(height: 16),
-          Expanded(
-            child: _loading
-                ? const Center(child: CircularProgressIndicator(color: Colors.white))
-                : _error != null
-                    ? Center(child: Text('Error: $_error', style: const TextStyle(color: Colors.redAccent)))
-                    : _applications.isEmpty
-                        ? const Center(child: Text('No applications yet', style: TextStyle(color: Colors.white54)))
-                        : ListView.builder(
-                            controller: widget.scrollController,
-                            itemCount: _applications.length,
-                            itemBuilder: (context, index) {
-                              final app = _applications[index];
-                              final status = app['status'] ?? 'PENDING';
-                              final monthlyIncome = app['monthlyIncome'] ?? 0.0;
-                              final nationalId = app['nationalId'] ?? 'N/A';
-                              final employment = app['employmentStatus'] ?? 'N/A';
+        ),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+          child: Row(
+            children: [
+              const Icon(Icons.assignment_ind_outlined, color: AppColors.accent, size: 22),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Rental Applications',
+                      style: AppTextStyles.title.copyWith(color: Colors.white, fontSize: 17),
+                    ),
+                    Text(
+                      widget.property.title,
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary, fontSize: 12),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        const Divider(color: AppColors.border, height: 1),
+        Expanded(
+          child: _loading
+              ? _buildBottomSheetSkeleton()
+              : _error != null
+                  ? Center(
+                      child: Text(
+                        'Error: $_error',
+                        style: const TextStyle(color: Colors.redAccent),
+                      ),
+                    )
+                  : _applications.isEmpty
+                      ? Center(
+                          child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Icon(Icons.inbox_outlined, color: AppColors.textTertiary, size: 48),
+                              const SizedBox(height: 12),
+                              Text(
+                                'No applications submitted yet',
+                                style: TextStyle(color: AppColors.textSecondary, fontSize: 15, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        )
+                      : ListView.builder(
+                          controller: widget.scrollController,
+                          padding: const EdgeInsets.all(16),
+                          itemCount: _applications.length,
+                          itemBuilder: (context, index) {
+                            final app = _applications[index];
+                            final status = app['status'] ?? 'PENDING';
+                            final monthlyIncome = app['monthlyIncome'] ?? 0.0;
+                            final nationalId = app['nationalId'] ?? 'N/A';
+                            final employment = app['employmentStatus'] ?? 'N/A';
+                            final fullName = app['fullName'] ?? 'Applicant';
+                            final initial = fullName.isNotEmpty ? fullName[0].toUpperCase() : 'A';
 
-                              return Card(
-                                color: Colors.white10,
-                                margin: const EdgeInsets.only(bottom: 12),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                                child: Padding(
-                                  padding: const EdgeInsets.all(16),
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                            return Container(
+                              margin: const EdgeInsets.only(bottom: 12),
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(
+                                color: AppColors.surfaceRaised,
+                                borderRadius: BorderRadius.circular(14),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Row(
                                     children: [
-                                      Row(
-                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Text(
-                                            app['fullName'] ?? 'Applicant',
-                                            style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                                          ),
-                                          Container(
-                                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                                            decoration: BoxDecoration(
-                                              color: status == 'APPROVED'
-                                                  ? Colors.white.withValues(alpha: 0.15)
-                                                  : status == 'REJECTED'
-                                                      ? Colors.red.withValues(alpha: 0.2)
-                                                      : Colors.amber.withValues(alpha: 0.2),
-                                              borderRadius: BorderRadius.circular(8),
-                                            ),
-                                            child: Text(
-                                              status,
-                                              style: TextStyle(
-                                                color: status == 'APPROVED'
-                                                    ? Colors.white
-                                                    : status == 'REJECTED'
-                                                        ? Colors.red
-                                                        : Colors.amber,
-                                                fontSize: 12,
+                                      CircleAvatar(
+                                        radius: 18,
+                                        backgroundColor: AppColors.accent.withValues(alpha: 0.15),
+                                        child: Text(
+                                          initial,
+                                          style: const TextStyle(color: AppColors.accent, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                      const SizedBox(width: 12),
+                                      Expanded(
+                                        child: Column(
+                                          crossAxisAlignment: CrossAxisAlignment.start,
+                                          children: [
+                                            Text(
+                                              fullName,
+                                              style: AppTextStyles.body.copyWith(
+                                                color: Colors.white,
                                                 fontWeight: FontWeight.bold,
                                               ),
                                             ),
-                                          ),
-                                        ],
-                                      ),
-                                      const SizedBox(height: 8),
-                                      Text('National ID: $nationalId', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                                      Text('Employment: $employment', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                                      Text('Income: ${CountryService.price(monthlyIncome)}', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-                                      if (status == 'PENDING') ...[
-                                        const SizedBox(height: 12),
-                                        Row(
-                                          mainAxisAlignment: MainAxisAlignment.end,
-                                          children: [
-                                            TextButton(
-                                              onPressed: () => _updateStatus(app['id'], 'REJECTED'),
-                                              style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
-                                              child: const Text('Reject'),
-                                            ),
-                                            const SizedBox(width: 8),
-                                            ElevatedButton(
-                                              onPressed: () => _updateStatus(app['id'], 'APPROVED'),
-                                              style: ElevatedButton.styleFrom(
-                                                backgroundColor: Colors.white,
-                                                foregroundColor: Colors.black,
+                                            Text(
+                                              'Employment: $employment',
+                                              style: AppTextStyles.caption.copyWith(
+                                                color: AppColors.textSecondary,
+                                                fontSize: 12,
                                               ),
-                                              child: const Text('Approve'),
                                             ),
                                           ],
                                         ),
-                                      ],
+                                      ),
+                                      _buildApplicationStatusBadge(status),
                                     ],
                                   ),
-                                ),
-                              );
-                            },
-                          ),
+                                  const SizedBox(height: 12),
+                                  Row(
+                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Text(
+                                        'National ID: $nationalId',
+                                        style: AppTextStyles.caption.copyWith(color: AppColors.textTertiary, fontSize: 12),
+                                      ),
+                                      Text(
+                                        'Income: ${CountryService.price(monthlyIncome)}',
+                                        style: AppTextStyles.body.copyWith(
+                                          color: AppColors.accent,
+                                          fontWeight: FontWeight.w700,
+                                          fontSize: 13,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                  if (status == 'PENDING') ...[
+                                    const SizedBox(height: 14),
+                                    Row(
+                                      mainAxisAlignment: MainAxisAlignment.end,
+                                      children: [
+                                        TextButton(
+                                          onPressed: () => _updateStatus(app['id'], 'REJECTED'),
+                                          style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                                          child: const Text('Reject'),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        ElevatedButton(
+                                          onPressed: () => _updateStatus(app['id'], 'APPROVED'),
+                                          style: ElevatedButton.styleFrom(
+                                            backgroundColor: Colors.white,
+                                            foregroundColor: Colors.black,
+                                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                                          ),
+                                          child: const Text('Approve', style: TextStyle(fontWeight: FontWeight.bold)),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            );
+                          },
+                        ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildBottomSheetSkeleton() {
+    return Shimmer.fromColors(
+      baseColor: AppColors.surfaceRaised,
+      highlightColor: Colors.white.withValues(alpha: 0.08),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: 3,
+        itemBuilder: (_, __) => Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          height: 100,
+          decoration: BoxDecoration(
+            color: AppColors.surfaceRaised,
+            borderRadius: BorderRadius.circular(14),
           ),
-        ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildApplicationStatusBadge(String status) {
+    Color bg;
+    Color fg;
+    if (status == 'APPROVED') {
+      bg = const Color(0xFF10B981).withValues(alpha: 0.15);
+      fg = const Color(0xFF10B981);
+    } else if (status == 'REJECTED') {
+      bg = Colors.red.withValues(alpha: 0.15);
+      fg = Colors.redAccent;
+    } else {
+      bg = Colors.amber.withValues(alpha: 0.15);
+      fg = Colors.amber;
+    }
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        status,
+        style: TextStyle(color: fg, fontSize: 11, fontWeight: FontWeight.bold),
       ),
     );
   }

@@ -11,7 +11,6 @@ import 'package:roost_app/utils/property_sorter.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
-import 'package:roost_app/widgets/common/property_card_skeleton.dart';
 import 'package:roost_app/services/favorites_service.dart';
 
 /// Friendly display labels for the canonical backend house-type values,
@@ -49,9 +48,6 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   bool _isHeaderVisible = true;
   double _lastScrollOffset = 0;
-  bool _showScrollToTop = false;
-
-  AnimationController? _staggerController;
   final Set<int> _favoriteIds = {};
 
   // Active Filter state
@@ -98,7 +94,6 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
-    _staggerController?.dispose();
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     _searchFocusNode.removeListener(_onSearchFocusChanged);
@@ -123,36 +118,16 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     final currentOffset = pos.pixels;
 
     if (_searchFocusNode.hasFocus || currentOffset <= 0) {
-      bool shouldUpdate = false;
       if (!_isHeaderVisible) {
-        _isHeaderVisible = true;
-        shouldUpdate = true;
+        setState(() => _isHeaderVisible = true);
       }
-      if (_showScrollToTop) {
-        _showScrollToTop = false;
-        shouldUpdate = true;
-      }
-      if (shouldUpdate) setState(() {});
     } else {
       final delta = currentOffset - _lastScrollOffset;
-      bool shouldUpdate = false;
       if (delta > 10 && _isHeaderVisible) {
-        _isHeaderVisible = false;
-        shouldUpdate = true;
+        setState(() => _isHeaderVisible = false);
       } else if (delta < -10 && !_isHeaderVisible) {
-        _isHeaderVisible = true;
-        shouldUpdate = true;
+        setState(() => _isHeaderVisible = true);
       }
-      
-      if (currentOffset > 800 && !_showScrollToTop) {
-        _showScrollToTop = true;
-        shouldUpdate = true;
-      } else if (currentOffset <= 800 && _showScrollToTop) {
-        _showScrollToTop = false;
-        shouldUpdate = true;
-      }
-      
-      if (shouldUpdate) setState(() {});
     }
     _lastScrollOffset = currentOffset;
 
@@ -436,12 +411,6 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     final intent = _parseSearchIntent(_searchCtrl.text.trim());
     final query = intent.remainingText;
     
-    _staggerController?.dispose();
-    _staggerController = AnimationController(
-      vsync: this,
-      duration: AppColors.durationMedium,
-    );
-    
     setState(() {
       _results = _allProperties.where((p) {
         final matchesQuery = query.isEmpty ||
@@ -478,8 +447,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
       _sortResults();
     });
-    
-    _staggerController?.forward();
+
 
     // Balcony/petFriendly/free-text are client-only filters (the backend
     // doesn't know about them), so a narrow match can leave too little on
@@ -894,19 +862,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return Scaffold(
-        backgroundColor: Colors.black,
-        body: SafeArea(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            itemCount: 4,
-            itemBuilder: (_, __) => const Padding(
-              padding: EdgeInsets.only(bottom: 16),
-              child: PropertyCardSkeleton(),
-            ),
-          ),
-        ),
-      );
+      return const Center(child: CircularProgressIndicator(color: Colors.white));
     }
 
     return Scaffold(
@@ -982,16 +938,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                           Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                             child: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              mainAxisAlignment: MainAxisAlignment.end,
                               children: [
-                                AnimatedSwitcher(
-                                  duration: AppColors.durationMedium,
-                                  child: Text(
-                                    '${_results.length} results',
-                                    key: ValueKey(_results.length),
-                                    style: const TextStyle(color: AppColors.grey500, fontSize: 13, fontWeight: FontWeight.bold),
-                                  ),
-                                ),
                                 TextButton(
                                   onPressed: () {
                                     _searchCtrl.clear();
@@ -1085,58 +1033,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               }
                               final property = _results[index];
                               final km = _distanceKmTo(property);
-                              
-                              Widget card = PropertyCard(
+                              return PropertyCard(
                                 property: property,
                                 distanceLabel: km != null ? LocationService.formatDistance(km) : null,
-                                isFavorite: _favoriteIds.contains(property.id),
-                                onFavoriteTap: () {
-                                  final propId = property.id;
-                                  if (propId == null) return;
-                                  final isFav = _favoriteIds.contains(propId);
-                                  setState(() {
-                                    if (isFav) {
-                                      _favoriteIds.remove(propId);
-                                    } else {
-                                      _favoriteIds.add(propId);
-                                    }
-                                  });
-                                  ScaffoldMessenger.of(context).clearSnackBars();
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(
-                                      content: Text(isFav ? 'Removed from favorites' : 'Saved to favorites'),
-                                      duration: const Duration(seconds: 2),
-                                    ),
-                                  );
-                                  FavoritesService.toggle(propId);
-                                },
                               );
-                              
-                              if (_staggerController != null && index < 10) {
-                                final delay = index * 0.05;
-                                final animation = CurvedAnimation(
-                                  parent: _staggerController!,
-                                  curve: Interval(
-                                    delay.clamp(0.0, 1.0),
-                                    (delay + 0.5).clamp(0.0, 1.0),
-                                    curve: Curves.easeOutCubic,
-                                  ),
-                                );
-                                card = AnimatedBuilder(
-                                  animation: animation,
-                                  builder: (context, child) {
-                                    return Opacity(
-                                      opacity: animation.value,
-                                      child: Transform.translate(
-                                        offset: Offset(0, 30 * (1 - animation.value)),
-                                        child: child,
-                                      ),
-                                    );
-                                  },
-                                  child: card,
-                                );
-                              }
-                              return card;
                             },
                           ),
               ),
@@ -1144,19 +1044,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
           ],
         ),
       ),
-      floatingActionButton: AnimatedScale(
-        scale: _showScrollToTop ? 1.0 : 0.0,
-        duration: AppColors.durationMedium,
-        curve: Curves.easeOutBack,
-        child: FloatingActionButton.small(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.black,
-          onPressed: () {
-            _scrollController.animateTo(0, duration: AppColors.durationSlow, curve: Curves.easeOutCubic);
-          },
-          child: const Icon(Icons.arrow_upward),
-        ),
-      ),
     );
   }
 }
+
