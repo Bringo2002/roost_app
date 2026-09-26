@@ -26,6 +26,13 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   bool _loading = true;
   String _selectedFilter = 'ALL';
 
+  /// Set only when a load/refresh fails. Cleared on the next attempt.
+  /// Rendered as a full retry state only when we have nothing else to
+  /// show (`_myListings` is empty) -- a refresh failure with existing
+  /// data on screen just surfaces the snackbar below and keeps showing
+  /// what we already have.
+  String? _loadError;
+
   /// Ids of listings with an action (publish, verify-gps, delete,
   /// toggle-availability) currently in flight. Guards every per-listing
   /// action below so a slow round trip can't be fired twice from a
@@ -41,20 +48,34 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     _loadListings();
   }
 
+  /// Draft listings first, published/rented after -- stable within each
+  /// group. Re-run after any local mutation that can change `status`
+  /// (currently just publish) so the list doesn't wait for a full
+  /// reload to reflect the new grouping.
+  void _sortListings() {
+    _myListings.sort((a, b) => a.status == b.status ? 0 : (a.status == 'DRAFT' ? -1 : 1));
+  }
+
   Future<void> _loadListings() async {
     if (!mounted) return;
-    setState(() => _loading = true);
+    setState(() {
+      _loading = true;
+      _loadError = null;
+    });
     try {
       final jsonList = await ApiService.get('/api/properties/my-listings');
       if (!mounted) return;
       setState(() {
-        _myListings = (jsonList as List).map((j) => Property.fromJson(j)).toList()
-          ..sort((a, b) => a.status == b.status ? 0 : (a.status == 'DRAFT' ? -1 : 1));
+        _myListings = (jsonList as List).map((j) => Property.fromJson(j)).toList();
+        _sortListings();
         _loading = false;
       });
     } catch (e) {
       if (!mounted) return;
-      setState(() => _loading = false);
+      setState(() {
+        _loading = false;
+        _loadError = e.toString();
+      });
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to load listings: $e')),
       );
@@ -107,14 +128,24 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       if (confirm != true) return;
     }
 
-    setState(() => _busyIds.add(property.id!));
+    final index = _myListings.indexWhere((p) => p.id == property.id);
+    if (index == -1) return;
+    final previous = _myListings[index];
+
+    // Flip the switch immediately -- don't make the user wait on a round
+    // trip (and a full-list reload) just to see their own tap reflected.
+    // Revert in place if the server rejects it.
+    setState(() {
+      _busyIds.add(property.id!);
+      _myListings[index] = previous.copyWith(available: !previous.available);
+    });
     try {
       await ApiService.patch('/api/properties/${property.id}/availability', {
-        'available': !property.available,
+        'available': !previous.available,
       });
-      await _loadListings();
     } catch (e) {
       if (!mounted) return;
+      setState(() => _myListings[index] = previous);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
     } finally {
       if (mounted) setState(() => _busyIds.remove(property.id));
@@ -149,12 +180,22 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
 
     if (confirm != true) return;
 
-    setState(() => _busyIds.add(property.id!));
+    final index = _myListings.indexWhere((p) => p.id == property.id);
+    if (index == -1) return;
+    final removed = _myListings[index];
+
+    // Remove immediately; put it back at the same spot if the delete
+    // fails, rather than blocking on a reload just to show the same list
+    // minus one row.
+    setState(() {
+      _busyIds.add(property.id!);
+      _myListings.removeAt(index);
+    });
     try {
       await ApiService.delete('/api/properties/${property.id}');
-      await _loadListings();
     } catch (e) {
       if (!mounted) return;
+      setState(() => _myListings.insert(index, removed));
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
     } finally {
       if (mounted) setState(() => _busyIds.remove(property.id));
@@ -173,6 +214,8 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       return;
     }
 
+    final index = _myListings.indexWhere((p) => p.id == property.id);
+
     setState(() => _busyIds.add(property.id!));
     try {
       await ApiService.post('/api/properties/${property.id}/verify-gps', {
@@ -180,6 +223,9 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
         'longitude': position.longitude,
       });
       if (!mounted) return;
+      if (index != -1) {
+        setState(() => _myListings[index] = _myListings[index].copyWith(gpsVerified: true));
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('📍 On-Site GPS Location Verified! Your physical presence has been confirmed at this property.'),
@@ -187,7 +233,6 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
           behavior: SnackBarBehavior.floating,
         ),
       );
-      await _loadListings();
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -201,14 +246,21 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   Future<void> _publishDraft(Property property) async {
     if (property.id == null || _isBusy(property)) return;
 
+    final index = _myListings.indexWhere((p) => p.id == property.id);
+
     setState(() => _busyIds.add(property.id!));
     try {
       await ApiService.patch('/api/properties/${property.id}/publish', {});
       if (!mounted) return;
+      if (index != -1) {
+        setState(() {
+          _myListings[index] = _myListings[index].copyWith(status: 'PUBLISHED');
+          _sortListings();
+        });
+      }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Listing published')),
       );
-      await _loadListings();
     } catch (e) {
       if (!mounted) return;
       final proceedToWizard = await showDialog<bool>(
@@ -512,9 +564,82 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     );
   }
 
+  Widget _buildErrorState() {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.wifi_off_rounded, color: AppColors.textTertiary, size: 56),
+            const SizedBox(height: 14),
+            const Text(
+              'Couldn\'t load your listings',
+              style: TextStyle(color: AppColors.textSecondary, fontSize: 16, fontWeight: FontWeight.w600),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 6),
+            Text(
+              _loadError ?? 'Check your connection and try again.',
+              style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
+              textAlign: TextAlign.center,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+            ),
+            const SizedBox(height: 18),
+            ElevatedButton.icon(
+              onPressed: _loadListings,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.accent,
+                foregroundColor: Colors.black,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+              ),
+              icon: const Icon(Icons.refresh_rounded, size: 18),
+              label: const Text('Retry', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: SizedBox(
+        height: MediaQuery.of(context).size.height * 0.4,
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(Icons.business_center_outlined, color: AppColors.textTertiary, size: 56),
+              const SizedBox(height: 14),
+              Text(
+                _selectedFilter == 'ALL'
+                    ? 'No properties listed yet'
+                    : 'No $_selectedFilter listings',
+                style: TextStyle(
+                  color: AppColors.textSecondary,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'Tap the "+" button on Home feed to add a new listing',
+                style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final displayedListings = _filteredListings;
+    final bottomInset = 16 + MediaQuery.of(context).padding.bottom;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -526,100 +651,87 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       ),
       body: _loading
           ? _buildSkeletonLoading()
-          : RefreshIndicator(
-              color: Colors.white,
-              backgroundColor: AppColors.surfaceRaised,
-              onRefresh: _loadListings,
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(16, 16, 16, 16 + MediaQuery.of(context).padding.bottom),
-                children: [
-                  _buildVerificationCenterBanner(),
-                  _buildStatsHeader(),
-                  _buildFilterChipsRow(),
-                  if (displayedListings.isEmpty)
-                    SizedBox(
-                      height: MediaQuery.of(context).size.height * 0.4,
-                      child: Center(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.business_center_outlined, color: AppColors.textTertiary, size: 56),
-                            const SizedBox(height: 14),
-                            Text(
-                              _selectedFilter == 'ALL'
-                                  ? 'No properties listed yet'
-                                  : 'No $_selectedFilter listings',
-                              style: TextStyle(
-                                color: AppColors.textSecondary,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 6),
-                            Text(
-                              'Tap the "+" button on Home feed to add a new listing',
-                              style: TextStyle(color: AppColors.textTertiary, fontSize: 13),
-                            ),
-                          ],
+          : (_myListings.isEmpty && _loadError != null)
+              ? _buildErrorState()
+              : RefreshIndicator(
+                  color: Colors.white,
+                  backgroundColor: AppColors.surfaceRaised,
+                  onRefresh: _loadListings,
+                  child: CustomScrollView(
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            children: [
+                              _buildVerificationCenterBanner(),
+                              _buildStatsHeader(),
+                              _buildFilterChipsRow(),
+                            ],
+                          ),
                         ),
                       ),
-                    )
-                  else
-                    ListView.builder(
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      itemCount: displayedListings.length,
-                      itemBuilder: (context, index) {
-                        final property = displayedListings[index];
-                        return TweenAnimationBuilder<double>(
-                          tween: Tween(begin: 0.0, end: 1.0),
-                          duration: Duration(milliseconds: 400 + (index * 50)),
-                          curve: Curves.easeOutCubic,
-                          builder: (context, value, child) {
-                            return Opacity(
-                              opacity: value,
-                              child: Transform.translate(
-                                offset: Offset(0, 20 * (1 - value)),
-                                child: child,
-                              ),
-                            );
-                          },
-                          child: LandlordPropertyCard(
-                            key: ValueKey(property.id),
-                            property: property,
-                            isBusy: _isBusy(property),
-                            onEdit: () async {
-                              final updated = await Navigator.push<bool>(
-                                context,
-                                MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
-                              );
-                              if (updated == true) _loadListings();
-                            },
-                            onDelete: () => _deleteListing(property),
-                            onToggleAvailability: (_) => _toggleAvailability(property),
-                            onPublish: () => _publishDraft(property),
-                            onViewApplications: () => _viewApplications(property),
-                            onVerifyGps: () => _verifyGps(property),
-                            onShareEndorsement: () => _shareLandlordEndorsement(property),
-                            onViewEndorsementBadge: () {
-                              Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => EndorsementPage(
-                                    initialToken: property.endorsementToken,
+                      if (displayedListings.isEmpty)
+                        SliverToBoxAdapter(child: _buildEmptyState())
+                      else
+                        SliverPadding(
+                          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
+                          sliver: SliverList(
+                            delegate: SliverChildBuilderDelegate(
+                              (context, index) {
+                                final property = displayedListings[index];
+                                return TweenAnimationBuilder<double>(
+                                  tween: Tween(begin: 0.0, end: 1.0),
+                                  duration: Duration(milliseconds: 400 + (index * 50)),
+                                  curve: Curves.easeOutCubic,
+                                  builder: (context, value, child) {
+                                    return Opacity(
+                                      opacity: value,
+                                      child: Transform.translate(
+                                        offset: Offset(0, 20 * (1 - value)),
+                                        child: child,
+                                      ),
+                                    );
+                                  },
+                                  child: LandlordPropertyCard(
+                                    key: ValueKey(property.id),
                                     property: property,
+                                    isBusy: _isBusy(property),
+                                    onEdit: () async {
+                                      final updated = await Navigator.push<bool>(
+                                        context,
+                                        MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
+                                      );
+                                      if (updated == true) _loadListings();
+                                    },
+                                    onDelete: () => _deleteListing(property),
+                                    onToggleAvailability: (_) => _toggleAvailability(property),
+                                    onPublish: () => _publishDraft(property),
+                                    onViewApplications: () => _viewApplications(property),
+                                    onVerifyGps: () => _verifyGps(property),
+                                    onShareEndorsement: () => _shareLandlordEndorsement(property),
+                                    onViewEndorsementBadge: () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                          builder: (_) => EndorsementPage(
+                                            initialToken: property.endorsementToken,
+                                            property: property,
+                                          ),
+                                        ),
+                                      );
+                                    },
                                   ),
-                                ),
-                              );
-                            },
+                                );
+                              },
+                              childCount: displayedListings.length,
+                            ),
                           ),
-                        );
-                      },
-                    ),
-
-                ],
-              ),
-            ),
+                        ),
+                    ],
+                  ),
+                ),
     );
   }
 

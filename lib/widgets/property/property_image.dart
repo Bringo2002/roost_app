@@ -94,9 +94,21 @@ class _PropertyImageState extends State<PropertyImage> {
   Widget _networkImage(String url, {bool isFirst = false}) {
     if (url.trim().isEmpty) return _fallback();
 
+    // Decode at (roughly) the size this image is actually displayed at,
+    // not at the source's full resolution -- otherwise every thumbnail in
+    // a scrolling list decodes a full-size photo into memory just to draw
+    // it at a few dozen logical pixels, which is the exact "unbounded
+    // memory allocation" this codebase's image-handling rules warn about.
+    final dpr = MediaQuery.of(context).devicePixelRatio;
+    final logicalWidth = widget.width.isFinite ? widget.width : MediaQuery.of(context).size.width;
+    final cacheWidth = (logicalWidth * dpr).round();
+    final cacheHeight = (widget.height * dpr).round();
+
     Widget image = CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
+      memCacheWidth: cacheWidth,
+      memCacheHeight: cacheHeight,
       fadeInDuration: const Duration(milliseconds: 200),
       placeholder: (context, url) => Shimmer.fromColors(
         baseColor: AppColors.grey800,

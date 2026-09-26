@@ -33,13 +33,26 @@ class LandlordPropertyCard extends StatelessWidget {
     required this.onViewEndorsementBadge,
   });
 
+  static final DateFormat _listedDateFormat = DateFormat('dd MMM yyyy');
+
+  /// Renders `listedAt` for display, never throwing into `build()`.
+  /// `listedAt` comes straight off the wire (see [Property.fromJson]) with
+  /// no format guarantee enforced client-side, so an unparseable value here
+  /// must degrade to "unknown" rather than crash the whole list.
+  static String? _formatListedDate(String? listedAt) {
+    if (listedAt == null) return null;
+    try {
+      return _listedDateFormat.format(DateTime.parse(listedAt));
+    } catch (_) {
+      return null;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDraft = property.status == 'DRAFT';
     final isPublished = property.status == 'PUBLISHED';
-    final formattedDate = property.listedAt != null
-        ? DateFormat('dd MMM yyyy').format(DateTime.parse(property.listedAt!))
-        : null;
+    final formattedDate = _formatListedDate(property.listedAt);
 
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -154,7 +167,7 @@ class LandlordPropertyCard extends StatelessWidget {
               // Middle Row: Date / Primary Action Button
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.calendar_today_outlined,
                     color: AppColors.textTertiary,
                     size: 13,
