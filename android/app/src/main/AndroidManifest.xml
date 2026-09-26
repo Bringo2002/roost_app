@@ -102,5 +102,14 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="mailto" />
         </intent>
+        <!-- Needed for canLaunchUrl(Uri(scheme: 'tel', ...)) to return true
+             on Android 11+ (API 30+) package visibility restrictions.
+             Without this, the in-app "Call landlord" button silently does
+             nothing on modern Android, even though the phone app is
+             installed and would work fine via ACTION_DIAL directly. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="tel" />
+        </intent>
     </queries>
 </manifest>

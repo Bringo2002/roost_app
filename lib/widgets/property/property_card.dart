@@ -121,14 +121,44 @@ class _PropertyCardState extends State<PropertyCard> {
 
   void _handleCall() => (widget.onCall ?? _callLandlord)();
 
+  /// Strips everything but digits and a single leading `+`. The previous
+  /// version only stripped spaces, so a number stored as
+  /// "(0712) 345-678" would produce an invalid `tel:` URI and fail to
+  /// dial with no explanation to the user.
+  String? _sanitizePhoneForDialing(String raw) {
+    final trimmed = raw.trim();
+    if (trimmed.isEmpty) return null;
+    final hasLeadingPlus = trimmed.startsWith('+');
+    final digitsOnly = trimmed.replaceAll(RegExp(r'[^0-9]'), '');
+    if (digitsOnly.isEmpty) return null;
+    return hasLeadingPlus ? '+$digitsOnly' : digitsOnly;
+  }
+
   void _callLandlord() async {
-    final phone = property.primaryViewingPhone.replaceAll(' ', '');
-    if (phone.isNotEmpty) {
-      final uri = Uri.parse('tel:$phone');
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      }
+    final phone = _sanitizePhoneForDialing(property.primaryViewingPhone);
+    if (phone == null) {
+      _showActionUnavailable('No phone number available for this listing');
+      return;
     }
+    final uri = Uri(scheme: 'tel', path: phone);
+    var launched = false;
+    try {
+      launched = await launchUrl(uri);
+    } catch (_) {
+      launched = false;
+    }
+    if (!launched) {
+      _showActionUnavailable('Could not open the phone dialer');
+    }
+  }
+
+  /// Shared failure feedback for Call/Chat, so neither action fails
+  /// silently. Guarded with `mounted` since these run after an `await`
+  /// (a permission prompt or the dialer itself can take long enough for
+  /// the user to navigate away first).
+  void _showActionUnavailable(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   void _handleChat(BuildContext context) => widget.onChat != null ? widget.onChat!() : _chatLandlord(context);
@@ -142,9 +172,7 @@ class _PropertyCardState extends State<PropertyCard> {
         ),
       );
     } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Landlord contact unavailable for chat')),
-      );
+      _showActionUnavailable('Landlord contact unavailable for chat');
     }
   }
 
@@ -162,19 +190,17 @@ class _PropertyCardState extends State<PropertyCard> {
   @override
   Widget build(BuildContext context) {
     final formattedPrice = CountryService.pricePerMonth(property.price);
+    final cardSemanticsLabel = [
+      property.title,
+      formattedPrice,
+      '${property.bedroomDisplay}, ${property.bathrooms} bath',
+      property.location,
+      if (!property.available) 'currently taken',
+    ].join(', ');
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.selectionClick();
-        if (widget.onTap != null) {
-          widget.onTap!();
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
-          );
-        }
-      },
+    return Semantics(
+      button: true,
+      label: cardSemanticsLabel,
       child: Container(
         margin: widget.margin,
         decoration: BoxDecoration(
@@ -190,7 +216,21 @@ class _PropertyCardState extends State<PropertyCard> {
           ],
         ),
         clipBehavior: Clip.antiAlias,
-        child: Column(
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () {
+              HapticFeedback.selectionClick();
+              if (widget.onTap != null) {
+                widget.onTap!();
+              } else {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
+                );
+              }
+            },
+            child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -204,26 +244,44 @@ class _PropertyCardState extends State<PropertyCard> {
                     heroTag: widget.heroTag,
                   ),
                   Positioned(
-                    top: 10,
-                    right: 10,
-                    child: GestureDetector(
-                      onTap: _handleFavoriteTap,
-                      child: Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.6),
-                          shape: BoxShape.circle,
-                        ),
-                        child: TweenAnimationBuilder<double>(
-                          key: ValueKey(widget.isFavorite),
-                          tween: Tween(begin: 0.6, end: 1.0),
-                          duration: const Duration(milliseconds: 250),
-                          curve: Curves.elasticOut,
-                          builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
-                          child: Icon(
-                            widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: widget.isFavorite ? Colors.redAccent : AppColors.white,
-                            size: 20,
+                    // Shifted 4px so the enlarged 44x44 tap target is
+                    // centered on the same visual position the 36px icon
+                    // circle had before (was a sub-minimum touch target).
+                    top: 6,
+                    right: 6,
+                    child: Semantics(
+                      button: true,
+                      label: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                      child: Material(
+                        color: Colors.transparent,
+                        shape: const CircleBorder(),
+                        child: InkWell(
+                          onTap: _handleFavoriteTap,
+                          customBorder: const CircleBorder(),
+                          child: SizedBox(
+                            width: 44,
+                            height: 44,
+                            child: Center(
+                              child: Container(
+                                padding: const EdgeInsets.all(8),
+                                decoration: BoxDecoration(
+                                  color: Colors.black.withValues(alpha: 0.6),
+                                  shape: BoxShape.circle,
+                                ),
+                                child: TweenAnimationBuilder<double>(
+                                  key: ValueKey(widget.isFavorite),
+                                  tween: Tween(begin: 0.6, end: 1.0),
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.elasticOut,
+                                  builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
+                                  child: Icon(
+                                    widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                                    color: widget.isFavorite ? Colors.redAccent : AppColors.white,
+                                    size: 20,
+                                  ),
+                                ),
+                              ),
+                            ),
                           ),
                         ),
                       ),
@@ -487,57 +545,66 @@ class _PropertyCardState extends State<PropertyCard> {
                       return Row(
                         children: [
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed: _handleCall,
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.white,
-                                side: const BorderSide(color: AppColors.border),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            child: Tooltip(
+                              message: 'Call',
+                              child: OutlinedButton(
+                                onPressed: _handleCall,
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.white,
+                                  side: const BorderSide(color: AppColors.border),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: smallScreen 
+                                  ? const Icon(Icons.phone_outlined, size: 16)
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [Icon(Icons.phone_outlined, size: 16), SizedBox(width: 4), Text('Call')],
+                                    ),
                               ),
-                              child: smallScreen 
-                                ? const Icon(Icons.phone_outlined, size: 16)
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [Icon(Icons.phone_outlined, size: 16), SizedBox(width: 4), Text('Call')],
-                                  ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: OutlinedButton(
-                              onPressed: () => _handleChat(context),
-                              style: OutlinedButton.styleFrom(
-                                foregroundColor: AppColors.white,
-                                side: const BorderSide(color: AppColors.border),
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            child: Tooltip(
+                              message: 'Chat',
+                              child: OutlinedButton(
+                                onPressed: () => _handleChat(context),
+                                style: OutlinedButton.styleFrom(
+                                  foregroundColor: AppColors.white,
+                                  side: const BorderSide(color: AppColors.border),
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: smallScreen
+                                  ? const Icon(Icons.chat_bubble_outline, size: 16)
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [Icon(Icons.chat_bubble_outline, size: 16), SizedBox(width: 4), Text('Chat')],
+                                    ),
                               ),
-                              child: smallScreen
-                                ? const Icon(Icons.chat_bubble_outline, size: 16)
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [Icon(Icons.chat_bubble_outline, size: 16), SizedBox(width: 4), Text('Chat')],
-                                  ),
                             ),
                           ),
                           const SizedBox(width: 8),
                           Expanded(
-                            child: ElevatedButton(
-                              onPressed: _handleNavigate,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: AppColors.white,
-                                foregroundColor: AppColors.black,
-                                elevation: 0,
-                                padding: const EdgeInsets.symmetric(vertical: 8),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                            child: Tooltip(
+                              message: 'Navigate',
+                              child: ElevatedButton(
+                                onPressed: _handleNavigate,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: AppColors.white,
+                                  foregroundColor: AppColors.black,
+                                  elevation: 0,
+                                  padding: const EdgeInsets.symmetric(vertical: 8),
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                                ),
+                                child: smallScreen
+                                  ? const Icon(Icons.navigation_outlined, size: 16)
+                                  : const Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [Icon(Icons.navigation_outlined, size: 16), SizedBox(width: 4), Text('Navigate')],
+                                    ),
                               ),
-                              child: smallScreen
-                                ? const Icon(Icons.navigation_outlined, size: 16)
-                                : const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [Icon(Icons.navigation_outlined, size: 16), SizedBox(width: 4), Text('Navigate')],
-                                  ),
                             ),
                           ),
                         ],
@@ -549,7 +616,9 @@ class _PropertyCardState extends State<PropertyCard> {
             ),
           ],
         ),
-      ),
+      ), // Column
+      ), // InkWell
+    ), // Material
     );
   }
 }
