@@ -57,20 +57,44 @@ class PropertyCard extends StatefulWidget {
 class _PropertyCardState extends State<PropertyCard> {
   Property get property => widget.property;
 
-  late final List<String> _galleryUrls;
+  late List<String> _galleryUrls;
 
   @override
   void initState() {
     super.initState();
-    _galleryUrls = _buildGalleryUrls();
+    _galleryUrls = _buildGalleryUrls(property);
   }
 
-  List<String> _buildGalleryUrls() {
-    final urls = <String>[];
-    if (property.imageUrl != null && property.imageUrl!.trim().isNotEmpty) {
-      urls.add(property.imageUrl!);
+  @override
+  void didUpdateWidget(covariant PropertyCard oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Two independent reasons widget.property can change without a fresh
+    // State: (1) a caller rebuilds this card in place with a new Property
+    // object (e.g. add_property_page's live preview, rebuilt on every form
+    // edit); (2) a list caller forgets a stable key and Flutter reuses this
+    // element for a different item. Callers now pass keys (see PropertyCard
+    // call sites), but this check is what actually fixes the stale-gallery
+    // bug in both cases -- the key only prevents case (2).
+    if (!_sameGallerySource(oldWidget.property, widget.property)) {
+      _galleryUrls = _buildGalleryUrls(widget.property);
     }
-    for (final url in property.imageUrls) {
+  }
+
+  bool _sameGallerySource(Property a, Property b) {
+    if (a.imageUrl != b.imageUrl) return false;
+    if (a.imageUrls.length != b.imageUrls.length) return false;
+    for (var i = 0; i < a.imageUrls.length; i++) {
+      if (a.imageUrls[i] != b.imageUrls[i]) return false;
+    }
+    return true;
+  }
+
+  List<String> _buildGalleryUrls(Property source) {
+    final urls = <String>[];
+    if (source.imageUrl != null && source.imageUrl!.trim().isNotEmpty) {
+      urls.add(source.imageUrl!);
+    }
+    for (final url in source.imageUrls) {
       if (url.trim().isNotEmpty && !urls.contains(url)) {
         urls.add(url);
       }
@@ -88,8 +112,6 @@ class _PropertyCardState extends State<PropertyCard> {
       return false;
     }
   }
-
-  // _galleryUrls and _isNewListing are now used
 
   void _handleFavoriteTap() {
     if (widget.onFavoriteTap == null) return;

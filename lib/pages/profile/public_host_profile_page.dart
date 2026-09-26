@@ -434,7 +434,11 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                       itemCount: _hostProperties.length,
                       separatorBuilder: (_, __) => const SizedBox(height: 14),
                       itemBuilder: (context, index) {
-                        return PropertyCard(property: _hostProperties[index]);
+                        final property = _hostProperties[index];
+                        return PropertyCard(
+                          key: ValueKey(property.id ?? identityHashCode(property)),
+                          property: property,
+                        );
                       },
                     ),
 

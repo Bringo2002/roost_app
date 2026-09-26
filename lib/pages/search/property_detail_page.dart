@@ -383,6 +383,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                   return SizedBox(
                     width: 280,
                     child: PropertyCard(
+                      key: ValueKey(similarProp.id ?? identityHashCode(similarProp)),
                       property: similarProp,
                       margin: const EdgeInsets.only(right: 16),
                       compact: true,

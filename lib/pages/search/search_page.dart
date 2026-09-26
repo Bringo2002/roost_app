@@ -1034,6 +1034,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               final property = _results[index];
                               final km = _distanceKmTo(property);
                               return PropertyCard(
+                                key: ValueKey(property.id ?? identityHashCode(property)),
                                 property: property,
                                 distanceLabel: km != null ? LocationService.formatDistance(km) : null,
                               );

@@ -4,6 +4,7 @@ import 'package:shimmer/shimmer.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/favorites_service.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/main.dart';
 
@@ -416,14 +417,16 @@ class _SavedPageState extends State<SavedPage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceRaised,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
-        boxShadow: [
+        border: Border.all(color: AppColors.border),
+        // Same shadow recipe as PropertyCard, so saved-list rows and search
+        // results read as the same visual family.
+        boxShadow: const [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.35),
+            color: Color(0x28000000),
             blurRadius: 16,
-            offset: const Offset(0, 6),
+            offset: Offset(0, 6),
           ),
         ],
       ),
@@ -451,49 +454,46 @@ class _SavedPageState extends State<SavedPage> {
                             imageUrl: property.imageUrl!,
                             fit: BoxFit.cover,
                             errorWidget: (context, url, error) => Container(
-                              color: const Color(0xFF2C2C2E),
-                              child: Icon(Icons.home_work_outlined, color: Colors.grey[600], size: 36),
+                              color: AppColors.grey800,
+                              child: const Icon(Icons.home_work_outlined, color: AppColors.grey600, size: 36),
                             ),
                           )
                         : Container(
-                            color: const Color(0xFF2C2C2E),
-                            child: Icon(Icons.home_work_outlined, color: Colors.grey[600], size: 36),
+                            color: AppColors.grey800,
+                            child: const Icon(Icons.home_work_outlined, color: AppColors.grey600, size: 36),
                           ),
                   ),
 
-                  // Dark gradient overlay for bottom badge legibility
-                  Positioned.fill(
-                    child: Container(
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            Colors.transparent,
-                            Colors.black.withValues(alpha: 0.6),
-                          ],
-                          begin: Alignment.topCenter,
-                          end: Alignment.bottomCenter,
-                        ),
-                      ),
+                  // Dark gradient overlay for bottom badge legibility --
+                  // reuses the shared image-scrim token instead of a
+                  // one-off gradient, so it matches every other image
+                  // overlay in the app (was previously unused).
+                  const Positioned.fill(
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(gradient: AppColors.imageScrimGradient),
                     ),
                   ),
 
-                  // Verified Landlord Pill Badge
+                  // Verified badge -- same monochrome white-pill treatment
+                  // as PropertyCard's image badge (this app has no accent
+                  // colors; the previous green border/icon here was the
+                  // only place that broke that rule).
                   if (property.verified)
                     Positioned(
                       top: 8,
                       left: 8,
                       child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xCC000000),
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.greenAccent.withValues(alpha: 0.4)),
+                          color: AppColors.white,
+                          borderRadius: BorderRadius.circular(999),
                         ),
                         child: const Row(
+                          mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.verified_rounded, color: Colors.greenAccent, size: 11),
+                            Icon(Icons.verified, color: AppColors.black, size: 11),
                             SizedBox(width: 3),
-                            Text('VERIFIED', style: TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w800)),
+                            Text('Verified', style: TextStyle(color: AppColors.black, fontSize: 9, fontWeight: FontWeight.w700)),
                           ],
                         ),
                       ),
@@ -506,12 +506,12 @@ class _SavedPageState extends State<SavedPage> {
                     child: Container(
                       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
                       decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.7),
+                        color: AppColors.black.withValues(alpha: 0.7),
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         property.houseType.toUpperCase(),
-                        style: TextStyle(color: Colors.grey[300], fontSize: 9, fontWeight: FontWeight.w700),
+                        style: const TextStyle(color: AppColors.grey300, fontSize: 9, fontWeight: FontWeight.w700),
                       ),
                     ),
                   ),
@@ -534,7 +534,7 @@ class _SavedPageState extends State<SavedPage> {
                             child: Text(
                               property.title,
                               style: const TextStyle(
-                                color: Colors.white,
+                                color: AppColors.white,
                                 fontSize: 15,
                                 fontWeight: FontWeight.bold,
                                 height: 1.2,
@@ -566,12 +566,12 @@ class _SavedPageState extends State<SavedPage> {
                       // Location Pin
                       Row(
                         children: [
-                          Icon(Icons.location_on_rounded, color: Colors.grey[500], size: 13),
+                          const Icon(Icons.location_on_rounded, color: AppColors.grey500, size: 13),
                           const SizedBox(width: 3),
                           Expanded(
                             child: Text(
                               property.location,
-                              style: TextStyle(color: Colors.grey[400], fontSize: 12),
+                              style: const TextStyle(color: AppColors.grey400, fontSize: 12),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
@@ -600,13 +600,13 @@ class _SavedPageState extends State<SavedPage> {
                           Text(
                             CountryService.pricePerMonth(property.price),
                             style: const TextStyle(
-                              color: Colors.white,
+                              color: AppColors.white,
                               fontSize: 16,
                               fontWeight: FontWeight.w900,
                               letterSpacing: -0.2,
                             ),
                           ),
-                          Icon(Icons.chevron_right_rounded, color: Colors.grey[600], size: 18),
+                          const Icon(Icons.chevron_right_rounded, color: AppColors.grey600, size: 18),
                         ],
                       ),
                     ],
@@ -624,16 +624,16 @@ class _SavedPageState extends State<SavedPage> {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.06),
+        color: AppColors.white.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
+        border: Border.all(color: AppColors.white.withValues(alpha: 0.05)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, color: Colors.grey[400], size: 11),
+          Icon(icon, color: AppColors.grey400, size: 11),
           const SizedBox(width: 4),
-          Text(text, style: TextStyle(color: Colors.grey[300], fontSize: 10, fontWeight: FontWeight.w600)),
+          Text(text, style: const TextStyle(color: AppColors.grey300, fontSize: 10, fontWeight: FontWeight.w600)),
         ],
       ),
     );

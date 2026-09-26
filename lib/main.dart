@@ -835,6 +835,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                           return _StaggeredListItem(
                             index: index,
                             child: PropertyCard(
+                              key: ValueKey(property.id ?? identityHashCode(property)),
                               property: property,
                               heroTag: 'property-image-${property.id}',
                               distanceLabel: km != null
