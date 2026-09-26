@@ -409,7 +409,12 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
         child: Stack(
           children: [
             GoogleMap(
-              initialCameraPosition: CameraPosition(target: LatLng(p.latitude ?? -1.2921, p.longitude ?? 36.8219), zoom: 14),
+              initialCameraPosition: CameraPosition(
+                target: p.latitude != null && p.longitude != null
+                    ? LatLng(p.latitude!, p.longitude!)
+                    : AppConfig.defaultMapCenter,
+                zoom: 14,
+              ),
               style: AppMapStyle.darkMapStyle,
               buildingsEnabled: true,
               zoomControlsEnabled: false,
@@ -419,7 +424,12 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
               tiltGesturesEnabled: false,
               rotateGesturesEnabled: false,
               markers: {
-                Marker(markerId: MarkerId('detail_prop_${p.id}'), position: LatLng(p.latitude ?? -1.2921, p.longitude ?? 36.8219)),
+                Marker(
+                  markerId: MarkerId('detail_prop_${p.id}'),
+                  position: p.latitude != null && p.longitude != null
+                      ? LatLng(p.latitude!, p.longitude!)
+                      : AppConfig.defaultMapCenter,
+                ),
               },
             ),
             Positioned.fill(child: Material(color: Colors.transparent, child: InkWell(onTap: _navigateToMap))),

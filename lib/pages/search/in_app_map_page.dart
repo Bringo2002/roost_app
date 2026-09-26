@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:roost_app/config.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
@@ -24,31 +25,39 @@ class _InAppMapPageState extends State<InAppMapPage> {
   late final LatLng _propertyLatLng;
 
   final Map<String, BitmapDescriptor> _facilityIcons = {};
+  BitmapDescriptor? _propertyIcon;
 
   @override
   void initState() {
     super.initState();
-    final lat = widget.property.latitude ?? -1.2921;
-    final lng = widget.property.longitude ?? 36.8219;
-    _propertyLatLng = LatLng(lat, lng);
+    final hasCoords = widget.property.latitude != null && widget.property.longitude != null;
+    _propertyLatLng = hasCoords
+        ? LatLng(widget.property.latitude!, widget.property.longitude!)
+        : AppConfig.defaultMapCenter;
     _getUserLocationAndDistance();
-    _loadFacilityIcons();
+    _loadMarkerIcons();
   }
 
-  /// Custom monochrome pins for nearby facilities (mall/hospital/road) --
-  /// these are markers the app itself places, unlike the base map tiles'
-  /// own POI icons, so they follow the strict black/white brand rather
-  /// than Google's native multi-color icon glyphs.
-  Future<void> _loadFacilityIcons() async {
-    const config = ImageConfiguration(size: Size(36, 36));
-    final mall = await BitmapDescriptor.fromAssetImage(config, 'assets/markers/marker_mall.png');
-    final hospital = await BitmapDescriptor.fromAssetImage(config, 'assets/markers/marker_hospital.png');
-    final road = await BitmapDescriptor.fromAssetImage(config, 'assets/markers/marker_road.png');
+  /// Custom monochrome pins for the property itself and for nearby
+  /// facilities (mall/hospital/road) -- these are markers the app itself
+  /// places, unlike the base map tiles' own POI icons, so they follow the
+  /// strict black/white brand rather than Google's native multi-color
+  /// icon glyphs (or, for the property pin, the default red teardrop).
+  Future<void> _loadMarkerIcons() async {
+    const facilityConfig = ImageConfiguration(size: Size(36, 36));
+    const propertyConfig = ImageConfiguration(size: Size(40, 50));
+    final results = await Future.wait([
+      BitmapDescriptor.fromAssetImage(facilityConfig, 'assets/markers/marker_mall.png'),
+      BitmapDescriptor.fromAssetImage(facilityConfig, 'assets/markers/marker_hospital.png'),
+      BitmapDescriptor.fromAssetImage(facilityConfig, 'assets/markers/marker_road.png'),
+      BitmapDescriptor.fromAssetImage(propertyConfig, 'assets/markers/marker_property.png'),
+    ]);
     if (!mounted) return;
     setState(() {
-      _facilityIcons['mall'] = mall;
-      _facilityIcons['hospital'] = hospital;
-      _facilityIcons['road'] = road;
+      _facilityIcons['mall'] = results[0];
+      _facilityIcons['hospital'] = results[1];
+      _facilityIcons['road'] = results[2];
+      _propertyIcon = results[3];
     });
   }
 
@@ -85,51 +94,74 @@ class _InAppMapPageState extends State<InAppMapPage> {
     }
   }
 
-  /// Launches Google Maps directly for navigation — no app chooser.
-  /// Uses explicit Google Maps package URL to bypass Uber / other nav apps.
-  Future<void> _launchGoogleMapsNavigation() async {
+  /// Launches turn-by-turn navigation to the property via the Google
+  /// Maps app if installed, falling back to the Google Maps web URL in a
+  /// browser, and finally to a visible error instead of the button
+  /// silently doing nothing if neither launch succeeds.
+  ///
+  /// Still hard-coded to Google Maps rather than offering a picker
+  /// (Apple Maps / Waze) -- see the map-feature review notes; that's a
+  /// separate, slightly larger follow-up.
+  Future<void> _launchNavigation() async {
     final lat = _propertyLatLng.latitude;
     final lng = _propertyLatLng.longitude;
-
-    // Google Maps-specific URL that opens directly in Google Maps app
     final mapsUri = Uri.parse(
       'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
     );
 
     try {
-      // Launch with externalNonBrowserApplication to target Google Maps app directly
-      await launchUrl(mapsUri, mode: LaunchMode.externalNonBrowserApplication);
+      final launchedApp = await launchUrl(mapsUri, mode: LaunchMode.externalNonBrowserApplication);
+      if (launchedApp) return;
+      final launchedBrowser = await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
+      if (!launchedBrowser) throw Exception('No app or browser could handle the maps link');
     } catch (_) {
-      // Fallback: open in any browser/app
-      await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
+      _showActionError("Couldn't open navigation. Is a maps app installed?");
     }
   }
 
-  void _callLandlord() async {
+  Future<void> _callLandlord() async {
     final phone = widget.property.landlordPhone;
-    if (phone.isNotEmpty) {
-      final uri = Uri.parse('tel:$phone');
-      if (await canLaunchUrl(uri)) {
-        await launchUrl(uri);
-      }
+    if (phone.isEmpty) return;
+    final uri = Uri.parse('tel:$phone');
+    try {
+      final launched = await launchUrl(uri);
+      if (!launched) throw Exception('tel: launch returned false');
+    } catch (_) {
+      _showActionError("Couldn't start a call. Check your phone app is set up.");
     }
+  }
+
+  void _showActionError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: const Color(0xFF2C2C2E)),
+    );
   }
 
   /// Property pin plus one pin per cached nearby facility (mall/hospital/
   /// major road) -- so "600m from TRM Mall" is something you can actually
   /// see on the map relative to the property, not just read as text.
+  ///
+  /// Both use custom black/white assets rather than Google's default
+  /// markers (which only ever render as a colored teardrop) -- the app's
+  /// palette is strictly monochrome, so a stock red pin here would be the
+  /// one thing on this screen breaking the brand.
   Set<Marker> _buildMarkers() {
-    final markers = <Marker>{
-      Marker(
-        markerId: MarkerId('prop_${widget.property.id}'),
-        position: _propertyLatLng,
-        infoWindow: InfoWindow(
-          title: widget.property.title,
-          snippet: widget.property.location,
+    final markers = <Marker>{};
+
+    if (_propertyIcon != null) {
+      markers.add(
+        Marker(
+          markerId: MarkerId('prop_${widget.property.id}'),
+          position: _propertyLatLng,
+          infoWindow: InfoWindow(
+            title: widget.property.title,
+            snippet: widget.property.location,
+          ),
+          icon: _propertyIcon!,
         ),
-        icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
-      ),
-    };
+      );
+    }
 
     for (final facility in widget.property.nearbyFacilities) {
       final icon = _facilityIcons[facility.category];
@@ -190,16 +222,11 @@ class _InAppMapPageState extends State<InAppMapPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  GestureDetector(
+                  _MapCircleButton(
+                    icon: Icons.arrow_back,
+                    semanticLabel: 'Back',
                     onTap: () => Navigator.pop(context),
-                    child: Container(
-                      padding: const EdgeInsets.all(10),
-                      decoration: const BoxDecoration(
-                        color: Colors.black,
-                        shape: BoxShape.circle,
-                      ),
-                      child: const Icon(Icons.arrow_back, color: Colors.white, size: 22),
-                    ),
+                    background: Colors.black,
                   ),
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
@@ -238,31 +265,21 @@ class _InAppMapPageState extends State<InAppMapPage> {
             bottom: 230,
             child: Column(
               children: [
-                GestureDetector(
+                _MapCircleButton(
+                  icon: Icons.home_work_outlined,
+                  semanticLabel: 'Center map on property',
                   onTap: _recenterOnProperty,
-                  child: Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.9),
-                      shape: BoxShape.circle,
-                      border: Border.all(color: Colors.grey[800]!),
-                    ),
-                    child: const Icon(Icons.home_work_outlined, color: Colors.white, size: 22),
-                  ),
+                  background: Colors.black.withValues(alpha: 0.9),
+                  borderColor: Colors.grey[800],
                 ),
                 const SizedBox(height: 10),
                 if (_userPosition != null)
-                  GestureDetector(
+                  _MapCircleButton(
+                    icon: Icons.my_location,
+                    semanticLabel: 'Center map on your location',
                     onTap: _recenterOnUser,
-                    child: Container(
-                      padding: const EdgeInsets.all(12),
-                      decoration: BoxDecoration(
-                        color: Colors.black.withValues(alpha: 0.9),
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.grey[800]!),
-                      ),
-                      child: const Icon(Icons.my_location, color: Colors.white, size: 22),
-                    ),
+                    background: Colors.black.withValues(alpha: 0.9),
+                    borderColor: Colors.grey[800],
                   ),
               ],
             ),
@@ -350,7 +367,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _launchGoogleMapsNavigation,
+                          onPressed: _launchNavigation,
                           icon: const Icon(Icons.navigation, size: 18),
                           label: const Text('Start Navigation', style: TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
@@ -363,16 +380,11 @@ class _InAppMapPageState extends State<InAppMapPage> {
                       ),
                       if (widget.property.landlordPhone.isNotEmpty) ...[
                         const SizedBox(width: 10),
-                        GestureDetector(
+                        _MapActionButton(
+                          icon: Icons.phone,
+                          semanticLabel: 'Call landlord',
                           onTap: _callLandlord,
-                          child: Container(
-                            padding: const EdgeInsets.all(14),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFF2C2C2E),
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            child: const Icon(Icons.phone, color: Colors.white, size: 20),
-                          ),
+                          background: const Color(0xFF2C2C2E),
                         ),
                       ],
                     ],
@@ -382,6 +394,90 @@ class _InAppMapPageState extends State<InAppMapPage> {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Circular icon button (back button, recenter controls): a real
+/// Material + InkWell with a guaranteed 44x44 hit target and a
+/// Semantics label, instead of a bare GestureDetector + Container --
+/// which has no accessible name and no minimum-touch-target guarantee.
+/// Mirrors the pattern already used for the favorite button in
+/// PropertyCard.
+class _MapCircleButton extends StatelessWidget {
+  final IconData icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+  final Color background;
+  final Color? borderColor;
+
+  const _MapCircleButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+    required this.background,
+    this.borderColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: Material(
+        color: background,
+        shape: CircleBorder(
+          side: borderColor != null ? BorderSide(color: borderColor!) : BorderSide.none,
+        ),
+        child: InkWell(
+          onTap: onTap,
+          customBorder: const CircleBorder(),
+          child: SizedBox(
+            width: 44,
+            height: 44,
+            child: Center(child: Icon(icon, color: Colors.white, size: 22)),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Rounded-square icon button (call), same accessibility rationale as
+/// [_MapCircleButton] above but matching the "Start Navigation" button's
+/// rounded-rect shape since the two sit side by side in the action row.
+class _MapActionButton extends StatelessWidget {
+  final IconData icon;
+  final String semanticLabel;
+  final VoidCallback onTap;
+  final Color background;
+
+  const _MapActionButton({
+    required this.icon,
+    required this.semanticLabel,
+    required this.onTap,
+    required this.background,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final shape = RoundedRectangleBorder(borderRadius: BorderRadius.circular(14));
+    return Semantics(
+      button: true,
+      label: semanticLabel,
+      child: Material(
+        color: background,
+        shape: shape,
+        child: InkWell(
+          onTap: onTap,
+          customBorder: shape,
+          child: SizedBox(
+            width: 48,
+            height: 48,
+            child: Center(child: Icon(icon, color: Colors.white, size: 20)),
+          ),
+        ),
       ),
     );
   }
