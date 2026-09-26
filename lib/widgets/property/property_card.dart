@@ -555,7 +555,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   padding: const EdgeInsets.symmetric(vertical: 8),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                                 ),
-                                child: smallScreen 
+                                child: smallScreen
                                   ? const Icon(Icons.phone_outlined, size: 16)
                                   : const Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
