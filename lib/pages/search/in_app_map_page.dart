@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -464,12 +465,19 @@ class _InAppMapPageState extends State<InAppMapPage> {
                       if (widget.property.imageUrl != null && widget.property.imageUrl!.isNotEmpty)
                         ClipRRect(
                           borderRadius: BorderRadius.circular(12),
-                          child: Image.network(
-                            widget.property.imageUrl!,
+                          child: CachedNetworkImage(
+                            imageUrl: widget.property.imageUrl!,
                             width: 60,
                             height: 60,
                             fit: BoxFit.cover,
-                            errorBuilder: (context, error, stackTrace) => Container(
+                            memCacheWidth: 120,
+                            memCacheHeight: 120,
+                            placeholder: (context, url) => Container(
+                              width: 60,
+                              height: 60,
+                              color: Colors.grey[900],
+                            ),
+                            errorWidget: (context, url, error) => Container(
                               width: 60,
                               height: 60,
                               color: Colors.grey[900],

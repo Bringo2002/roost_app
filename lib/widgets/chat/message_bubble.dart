@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
@@ -867,12 +868,13 @@ class _LinkPreviewWidgetState extends State<_LinkPreviewWidget> {
             if (preview.imageUrl != null) ...[
               ClipRRect(
                 borderRadius: BorderRadius.circular(6),
-                child: Image.network(
-                  preview.imageUrl!,
+                child: CachedNetworkImage(
+                  imageUrl: preview.imageUrl!,
                   height: 120,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (context, error, stackTrace) => const SizedBox.shrink(),
+                  placeholder: (context, url) => const SizedBox(height: 120),
+                  errorWidget: (context, url, error) => const SizedBox.shrink(),
                 ),
               ),
               const SizedBox(height: 6),

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
@@ -620,12 +621,19 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                 separatorBuilder: (_, __) => const SizedBox(width: 6),
                 itemBuilder: (_, i) => ClipRRect(
                   borderRadius: BorderRadius.circular(8),
-                  child: Image.network(
-                    item.photoUrls[i],
+                  child: CachedNetworkImage(
+                    imageUrl: item.photoUrls[i],
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
-                    errorBuilder: (_, __, ___) => Container(
+                    memCacheWidth: 112,
+                    memCacheHeight: 112,
+                    placeholder: (_, __) => Container(
+                      width: 56,
+                      height: 56,
+                      color: AppColors.grey800,
+                    ),
+                    errorWidget: (_, __, ___) => Container(
                       width: 56,
                       height: 56,
                       color: AppColors.grey800,

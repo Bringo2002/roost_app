@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -286,10 +287,13 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
                             width: 72,
                             height: 72,
                             child: displayImage != null && displayImage.isNotEmpty
-                                ? Image.network(
-                                    displayImage,
+                                ? CachedNetworkImage(
+                                    imageUrl: displayImage,
                                     fit: BoxFit.cover,
-                                    errorBuilder: (_, __, ___) => _buildFallbackThumbnail(),
+                                    memCacheWidth: 144,
+                                    memCacheHeight: 144,
+                                    placeholder: (_, __) => _buildFallbackThumbnail(),
+                                    errorWidget: (_, __, ___) => _buildFallbackThumbnail(),
                                   )
                                 : _buildFallbackThumbnail(),
                           ),

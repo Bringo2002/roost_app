@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
@@ -313,7 +314,16 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: property.imageUrl != null
-                    ? Image.network(property.imageUrl!, width: 62, height: 62, fit: BoxFit.cover)
+                    ? CachedNetworkImage(
+                        imageUrl: property.imageUrl!,
+                        width: 62,
+                        height: 62,
+                        fit: BoxFit.cover,
+                        memCacheWidth: 124,
+                        memCacheHeight: 124,
+                        placeholder: (context, url) => Container(width: 62, height: 62, color: Colors.grey[800], child: const Icon(Icons.home, color: Colors.white38)),
+                        errorWidget: (context, url, error) => Container(width: 62, height: 62, color: Colors.grey[800], child: const Icon(Icons.home, color: Colors.white38)),
+                      )
                     : Container(width: 62, height: 62, color: Colors.grey[800], child: const Icon(Icons.home, color: Colors.white38)),
               ),
               const SizedBox(width: 14),
@@ -707,10 +717,11 @@ class _AuditDocumentSheet extends StatelessWidget {
                       itemBuilder: (ctx, idx) {
                         return ClipRRect(
                           borderRadius: BorderRadius.circular(10),
-                          child: Image.network(
-                            photos[idx],
+                          child: CachedNetworkImage(
+                            imageUrl: photos[idx],
                             fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Container(color: Colors.grey[850]),
+                            placeholder: (_, __) => Container(color: Colors.grey[850]),
+                            errorWidget: (_, __, ___) => Container(color: Colors.grey[850]),
                           ),
                         );
                       },
@@ -789,7 +800,7 @@ class _AuditDocumentSheet extends StatelessWidget {
           builder: (_) => Dialog(
             backgroundColor: Colors.black,
             child: InteractiveViewer(
-              child: Image.network(url, fit: BoxFit.contain),
+              child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
             ),
           ),
         );
@@ -805,11 +816,15 @@ class _AuditDocumentSheet extends StatelessWidget {
             Expanded(
               child: ClipRRect(
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(12)),
-                child: Image.network(
-                  url,
+                child: CachedNetworkImage(
+                  imageUrl: url,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => Container(
+                  placeholder: (_, __) => Container(
+                    color: Colors.grey[900],
+                    child: const Icon(Icons.description, color: Color(0xFF38BDF8), size: 36),
+                  ),
+                  errorWidget: (_, __, ___) => Container(
                     color: Colors.grey[900],
                     child: const Icon(Icons.description, color: Color(0xFF38BDF8), size: 36),
                   ),

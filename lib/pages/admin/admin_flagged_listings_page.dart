@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:roost_app/models/property.dart';
@@ -114,7 +115,16 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                                 ClipRRect(
                                   borderRadius: BorderRadius.circular(10),
                                   child: property.imageUrl != null
-                                      ? Image.network(property.imageUrl!, width: 60, height: 60, fit: BoxFit.cover)
+                                      ? CachedNetworkImage(
+                                          imageUrl: property.imageUrl!,
+                                          width: 60,
+                                          height: 60,
+                                          fit: BoxFit.cover,
+                                          memCacheWidth: 120,
+                                          memCacheHeight: 120,
+                                          placeholder: (context, url) => Container(width: 60, height: 60, color: Colors.grey[800]),
+                                          errorWidget: (context, url, error) => Container(width: 60, height: 60, color: Colors.grey[800]),
+                                        )
                                       : Container(width: 60, height: 60, color: Colors.grey[800]),
                                 ),
                                 const SizedBox(width: 14),

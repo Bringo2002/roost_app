@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -1537,13 +1538,18 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   children: [
                     ClipRRect(
                       borderRadius: BorderRadius.circular(10),
-                      child: Image.network(url,
-                          fit: BoxFit.cover,
-                          errorBuilder: (_, __, ___) => Container(
-                                color: const Color(0xFF1C1C1E),
-                                child: const Icon(Icons.broken_image_outlined,
-                                    color: Colors.grey),
-                              )),
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => Container(
+                          color: const Color(0xFF1C1C1E),
+                        ),
+                        errorWidget: (_, __, ___) => Container(
+                          color: const Color(0xFF1C1C1E),
+                          child: const Icon(Icons.broken_image_outlined,
+                              color: Colors.grey),
+                        ),
+                      ),
                     ),
                     if (index == 0)
                       Positioned(

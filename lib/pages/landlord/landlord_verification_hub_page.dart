@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
@@ -499,12 +500,19 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
               ClipRRect(
                 borderRadius: BorderRadius.circular(10),
                 child: property.imageUrls.isNotEmpty
-                    ? Image.network(
-                        property.imageUrls.first,
+                    ? CachedNetworkImage(
+                        imageUrl: property.imageUrls.first,
                         width: 58,
                         height: 58,
                         fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => Container(
+                        memCacheWidth: 116,
+                        memCacheHeight: 116,
+                        placeholder: (_, __) => Container(
+                          width: 58,
+                          height: 58,
+                          color: Colors.grey[800],
+                        ),
+                        errorWidget: (_, __, ___) => Container(
                           width: 58,
                           height: 58,
                           color: Colors.grey[800],
