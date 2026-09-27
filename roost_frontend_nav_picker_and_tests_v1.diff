@@ -1,0 +1,514 @@
+diff --git a/android/app/src/main/AndroidManifest.xml b/android/app/src/main/AndroidManifest.xml
+index 63b7b6f..25ef355 100644
+--- a/android/app/src/main/AndroidManifest.xml
++++ b/android/app/src/main/AndroidManifest.xml
+@@ -111,5 +111,18 @@
+             <action android:name="android.intent.action.VIEW" />
+             <data android:scheme="tel" />
+         </intent>
++        <!-- Same package-visibility requirement as tel: above, for the
++             in-app-map navigation picker (Google Maps / Waze). Without
++             these, url_launcher can fail to resolve the installed app on
++             Android 11+ and silently fall through to the web fallback
++             even when the app is present. -->
++        <intent>
++            <action android:name="android.intent.action.VIEW" />
++            <data android:scheme="comgooglemaps" />
++        </intent>
++        <intent>
++            <action android:name="android.intent.action.VIEW" />
++            <data android:scheme="waze" />
++        </intent>
+     </queries>
+ </manifest>
+diff --git a/ios/Runner/Info.plist b/ios/Runner/Info.plist
+index dcc785d..98cbd0f 100644
+--- a/ios/Runner/Info.plist
++++ b/ios/Runner/Info.plist
+@@ -6,6 +6,15 @@
+ 	<true/>
+ 	<key>NSLocationWhenInUseUsageDescription</key>
+ 	<string>Roost uses your location to show nearby properties and to help you pin a listing's exact location on the map.</string>
++	<!-- Lets canOpenURL (used by url_launcher for the in-app-map navigation
++	     picker) actually detect whether Google Maps / Waze are installed,
++	     instead of always reporting them absent: required on iOS 9+ for
++	     any scheme the app queries that it doesn't itself open by default. -->
++	<key>LSApplicationQueriesSchemes</key>
++	<array>
++		<string>comgooglemaps</string>
++		<string>waze</string>
++	</array>
+ 	<key>CFBundleDevelopmentRegion</key>
+ 	<string>$(DEVELOPMENT_LANGUAGE)</string>
+ 	<key>CFBundleDisplayName</key>
+diff --git a/lib/pages/search/in_app_map_page.dart b/lib/pages/search/in_app_map_page.dart
+index 0d1b10b..22e9a7d 100644
+--- a/lib/pages/search/in_app_map_page.dart
++++ b/lib/pages/search/in_app_map_page.dart
+@@ -1,3 +1,4 @@
++import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, visibleForTesting;
+ import 'package:flutter/material.dart';
+ import 'package:google_maps_flutter/google_maps_flutter.dart';
+ import 'package:geolocator/geolocator.dart';
+@@ -8,6 +9,88 @@ import 'package:roost_app/services/country_service.dart';
+ import 'package:roost_app/services/location_service.dart';
+ import 'package:roost_app/theme/app_map_style.dart';
+ 
++/// Framework-free description of one marker _buildMarkers would place --
++/// no BitmapDescriptor, no GoogleMap dependency -- so the selection logic
++/// (property pin only once its icon has loaded; each facility only once
++/// its category's icon has loaded) can be unit-tested without spinning up
++/// a real map view or loading real image assets.
++@visibleForTesting
++class MapMarkerSpec {
++  final String id;
++  final double latitude;
++  final double longitude;
++  final String title;
++  final String? snippet;
++
++  const MapMarkerSpec({
++    required this.id,
++    required this.latitude,
++    required this.longitude,
++    required this.title,
++    this.snippet,
++  });
++
++  @override
++  bool operator ==(Object other) =>
++      other is MapMarkerSpec &&
++      other.id == id &&
++      other.latitude == latitude &&
++      other.longitude == longitude &&
++      other.title == title &&
++      other.snippet == snippet;
++
++  @override
++  int get hashCode => Object.hash(id, latitude, longitude, title, snippet);
++
++  @override
++  String toString() => 'MapMarkerSpec($id @ $latitude,$longitude)';
++}
++
++@visibleForTesting
++List<MapMarkerSpec> buildMarkerSpecs({
++  required Property property,
++  required LatLng propertyLatLng,
++  required bool propertyIconLoaded,
++  required Set<String> loadedFacilityIconCategories,
++}) {
++  final specs = <MapMarkerSpec>[];
++
++  if (propertyIconLoaded) {
++    specs.add(MapMarkerSpec(
++      id: 'prop_${property.id}',
++      latitude: propertyLatLng.latitude,
++      longitude: propertyLatLng.longitude,
++      title: property.title,
++      snippet: property.location,
++    ));
++  }
++
++  for (final facility in property.nearbyFacilities) {
++    if (!loadedFacilityIconCategories.contains(facility.category)) {
++      continue; // icon still loading -- skip this pass
++    }
++    specs.add(MapMarkerSpec(
++      id: 'facility_${facility.category}_${facility.name}',
++      latitude: facility.latitude,
++      longitude: facility.longitude,
++      title: facility.name,
++      snippet: facility.label,
++    ));
++  }
++
++  return specs;
++}
++
++/// Navigation providers offered by the "Start Navigation" picker sheet.
++enum _NavProvider { googleMaps, appleMaps, waze }
++
++class _NavOption {
++  final _NavProvider provider;
++  final String label;
++  final IconData icon;
++  const _NavOption(this.provider, this.label, this.icon);
++}
++
+ class InAppMapPage extends StatefulWidget {
+   final Property property;
+ 
+@@ -94,26 +177,98 @@ class _InAppMapPageState extends State<InAppMapPage> {
+     }
+   }
+ 
+-  /// Launches turn-by-turn navigation to the property via the Google
+-  /// Maps app if installed, falling back to the Google Maps web URL in a
+-  /// browser, and finally to a visible error instead of the button
+-  /// silently doing nothing if neither launch succeeds.
+-  ///
+-  /// Still hard-coded to Google Maps rather than offering a picker
+-  /// (Apple Maps / Waze) -- see the map-feature review notes; that's a
+-  /// separate, slightly larger follow-up.
+-  Future<void> _launchNavigation() async {
++  /// Lets the person choose which navigation app to hand the trip off to,
++  /// instead of forcing Google Maps -- a meaningful gap on iOS in
++  /// particular, where Apple Maps or Waze are just as likely to be the
++  /// person's default. Mirrors the picker-sheet pattern used by Uber/
++  /// Airbnb rather than guessing a single provider.
++  Future<void> _showNavigationPicker() async {
++    final options = <_NavOption>[
++      const _NavOption(_NavProvider.googleMaps, 'Google Maps', Icons.map_outlined),
++      // Apple Maps is only ever installed on iOS, so there's no point
++      // offering it (and failing) on Android or web.
++      if (defaultTargetPlatform == TargetPlatform.iOS)
++        const _NavOption(_NavProvider.appleMaps, 'Apple Maps', Icons.map_outlined),
++      const _NavOption(_NavProvider.waze, 'Waze', Icons.navigation_outlined),
++    ];
++
++    final chosen = await showModalBottomSheet<_NavProvider>(
++      context: context,
++      backgroundColor: const Color(0xFF1C1C1E),
++      shape: const RoundedRectangleBorder(
++        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
++      ),
++      builder: (sheetContext) {
++        return SafeArea(
++          child: Column(
++            mainAxisSize: MainAxisSize.min,
++            children: [
++              const SizedBox(height: 12),
++              Container(
++                width: 36,
++                height: 4,
++                decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(2)),
++              ),
++              const Padding(
++                padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
++                child: Align(
++                  alignment: Alignment.centerLeft,
++                  child: Text(
++                    'Navigate with',
++                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
++                  ),
++                ),
++              ),
++              for (final option in options)
++                ListTile(
++                  leading: Icon(option.icon, color: Colors.white),
++                  title: Text(option.label, style: const TextStyle(color: Colors.white)),
++                  onTap: () => Navigator.pop(sheetContext, option.provider),
++                ),
++              const SizedBox(height: 8),
++            ],
++          ),
++        );
++      },
++    );
++
++    if (chosen != null) await _launchNavigation(chosen);
++  }
++
++  /// Launches turn-by-turn navigation to the property with the chosen
++  /// provider's own app if installed, falling back to that provider's
++  /// web URL in a browser, and finally to a visible error instead of the
++  /// button silently doing nothing if neither launch succeeds.
++  Future<void> _launchNavigation(_NavProvider provider) async {
+     final lat = _propertyLatLng.latitude;
+     final lng = _propertyLatLng.longitude;
+-    final mapsUri = Uri.parse(
+-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+-    );
++
++    Uri? appUri;
++    late final Uri webUri;
++    switch (provider) {
++      case _NavProvider.googleMaps:
++        appUri = Uri.parse('comgooglemaps://?daddr=$lat,$lng&directionsmode=driving');
++        webUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
++        break;
++      case _NavProvider.appleMaps:
++        // maps.apple.com is a universal link: iOS hands it to the Apple
++        // Maps app directly when installed (which it always is), no
++        // separate app-scheme URI needed.
++        webUri = Uri.parse('https://maps.apple.com/?daddr=$lat,$lng&dirflg=d');
++        break;
++      case _NavProvider.waze:
++        appUri = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
++        webUri = Uri.parse('https://waze.com/ul?ll=$lat,$lng&navigate=yes');
++        break;
++    }
+ 
+     try {
+-      final launchedApp = await launchUrl(mapsUri, mode: LaunchMode.externalNonBrowserApplication);
+-      if (launchedApp) return;
+-      final launchedBrowser = await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
+-      if (!launchedBrowser) throw Exception('No app or browser could handle the maps link');
++      if (appUri != null) {
++        final launchedApp = await launchUrl(appUri, mode: LaunchMode.externalNonBrowserApplication);
++        if (launchedApp) return;
++      }
++      final launchedWeb = await launchUrl(webUri, mode: LaunchMode.externalApplication);
++      if (!launchedWeb) throw Exception('No app or browser could handle the maps link');
+     } catch (_) {
+       _showActionError("Couldn't open navigation. Is a maps app installed?");
+     }
+@@ -146,37 +301,33 @@ class _InAppMapPageState extends State<InAppMapPage> {
+   /// markers (which only ever render as a colored teardrop) -- the app's
+   /// palette is strictly monochrome, so a stock red pin here would be the
+   /// one thing on this screen breaking the brand.
++  ///
++  /// The which-markers-to-show logic itself lives in [buildMarkerSpecs]
++  /// (framework-free, unit-tested); this just attaches the loaded
++  /// BitmapDescriptor for each spec.
+   Set<Marker> _buildMarkers() {
+-    final markers = <Marker>{};
+-
+-    if (_propertyIcon != null) {
+-      markers.add(
+-        Marker(
+-          markerId: MarkerId('prop_${widget.property.id}'),
+-          position: _propertyLatLng,
+-          infoWindow: InfoWindow(
+-            title: widget.property.title,
+-            snippet: widget.property.location,
+-          ),
+-          icon: _propertyIcon!,
+-        ),
+-      );
+-    }
++    final specs = buildMarkerSpecs(
++      property: widget.property,
++      propertyLatLng: _propertyLatLng,
++      propertyIconLoaded: _propertyIcon != null,
++      loadedFacilityIconCategories: _facilityIcons.keys.toSet(),
++    );
+ 
+-    for (final facility in widget.property.nearbyFacilities) {
+-      final icon = _facilityIcons[facility.category];
+-      if (icon == null) continue; // icons still loading -- skip this pass
++    final markers = <Marker>{};
++    for (final spec in specs) {
++      final isProperty = spec.id.startsWith('prop_');
++      final facilityCategory = isProperty ? null : spec.id.split('_')[1];
++      final icon = isProperty ? _propertyIcon! : _facilityIcons[facilityCategory]!;
+       markers.add(
+         Marker(
+-          markerId: MarkerId('facility_${facility.category}_${facility.name}'),
+-          position: LatLng(facility.latitude, facility.longitude),
+-          infoWindow: InfoWindow(title: facility.name, snippet: facility.label),
++          markerId: MarkerId(spec.id),
++          position: LatLng(spec.latitude, spec.longitude),
++          infoWindow: InfoWindow(title: spec.title, snippet: spec.snippet),
+           icon: icon,
+-          anchor: const Offset(0.5, 0.5),
++          anchor: isProperty ? const Offset(0.5, 1.0) : const Offset(0.5, 0.5),
+         ),
+       );
+     }
+-
+     return markers;
+   }
+ 
+@@ -367,7 +518,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
+                     children: [
+                       Expanded(
+                         child: ElevatedButton.icon(
+-                          onPressed: _launchNavigation,
++                          onPressed: _showNavigationPicker,
+                           icon: const Icon(Icons.navigation, size: 18),
+                           label: const Text('Start Navigation', style: TextStyle(fontWeight: FontWeight.bold)),
+                           style: ElevatedButton.styleFrom(
+diff --git a/test/pages/in_app_map_page_test.dart b/test/pages/in_app_map_page_test.dart
+new file mode 100644
+index 0000000..265e801
+--- /dev/null
++++ b/test/pages/in_app_map_page_test.dart
+@@ -0,0 +1,103 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:google_maps_flutter/google_maps_flutter.dart';
++import 'package:roost_app/models/property.dart';
++import 'package:roost_app/pages/search/in_app_map_page.dart';
++
++Property _property({List<NearbyFacility> nearbyFacilities = const []}) {
++  final base = Property.fromJson({
++    'id': 42,
++    'title': 'Sunny Studio',
++    'description': 'A nice place',
++    'location': 'Kilimani, Nairobi',
++    'price': 30000.0,
++    'bedrooms': 1,
++    'type': 'RENTAL',
++    'houseType': 'STUDIO',
++    'landlordPhone': '+254700000000',
++    'available': true,
++    'lat': -1.2921,
++    'lng': 36.8219,
++    'verified': false,
++    'listedAt': '2026-01-01T10:00:00Z',
++  });
++  return base.copyWith(nearbyFacilities: nearbyFacilities);
++}
++
++const _propertyLatLng = LatLng(-1.2921, 36.8219);
++
++void main() {
++  group('buildMarkerSpecs', () {
++    test('omits the property marker until its icon has loaded', () {
++      final specs = buildMarkerSpecs(
++        property: _property(),
++        propertyLatLng: _propertyLatLng,
++        propertyIconLoaded: false,
++        loadedFacilityIconCategories: {},
++      );
++      expect(specs, isEmpty);
++    });
++
++    test('includes the property marker with its id/title/snippet once loaded', () {
++      final specs = buildMarkerSpecs(
++        property: _property(),
++        propertyLatLng: _propertyLatLng,
++        propertyIconLoaded: true,
++        loadedFacilityIconCategories: {},
++      );
++      expect(specs, hasLength(1));
++      expect(specs.single.id, 'prop_42');
++      expect(specs.single.title, 'Sunny Studio');
++      expect(specs.single.snippet, 'Kilimani, Nairobi');
++      expect(specs.single.latitude, _propertyLatLng.latitude);
++      expect(specs.single.longitude, _propertyLatLng.longitude);
++    });
++
++    test('skips a facility whose category icon has not loaded yet, keeps the rest', () {
++      final facilities = [
++        const NearbyFacility(name: 'TRM Mall', category: 'mall', distanceMeters: 600, latitude: -1.29, longitude: 36.88),
++        const NearbyFacility(name: 'Aga Khan Hospital', category: 'hospital', distanceMeters: 1200, latitude: -1.27, longitude: 36.81),
++      ];
++      final specs = buildMarkerSpecs(
++        property: _property(nearbyFacilities: facilities),
++        propertyLatLng: _propertyLatLng,
++        propertyIconLoaded: true,
++        loadedFacilityIconCategories: {'mall'}, // hospital icon "still loading"
++      );
++
++      final ids = specs.map((s) => s.id).toSet();
++      expect(ids, contains('prop_42'));
++      expect(ids, contains('facility_mall_TRM Mall'));
++      expect(ids.any((id) => id.contains('hospital')), isFalse);
++      expect(specs, hasLength(2));
++    });
++
++    test('facility snippet matches NearbyFacility.label (e.g. "600m from TRM Mall")', () {
++      final facilities = [
++        const NearbyFacility(name: 'TRM Mall', category: 'mall', distanceMeters: 600, latitude: -1.29, longitude: 36.88),
++      ];
++      final specs = buildMarkerSpecs(
++        property: _property(nearbyFacilities: facilities),
++        propertyLatLng: _propertyLatLng,
++        propertyIconLoaded: false, // isolate the facility marker
++        loadedFacilityIconCategories: {'mall'},
++      );
++      expect(specs, hasLength(1));
++      expect(specs.single.snippet, '600m from TRM Mall');
++    });
++
++    test('with everything loaded, returns one marker per facility plus the property', () {
++      final facilities = [
++        const NearbyFacility(name: 'TRM Mall', category: 'mall', distanceMeters: 600, latitude: -1.29, longitude: 36.88),
++        const NearbyFacility(name: 'Aga Khan Hospital', category: 'hospital', distanceMeters: 1200, latitude: -1.27, longitude: 36.81),
++        const NearbyFacility(name: 'Thika Superhighway', category: 'road', distanceMeters: 300, latitude: -1.28, longitude: 36.83),
++      ];
++      final specs = buildMarkerSpecs(
++        property: _property(nearbyFacilities: facilities),
++        propertyLatLng: _propertyLatLng,
++        propertyIconLoaded: true,
++        loadedFacilityIconCategories: {'mall', 'hospital', 'road'},
++      );
++      expect(specs, hasLength(4));
++    });
++  });
++}
+diff --git a/test/services/location_service_test.dart b/test/services/location_service_test.dart
+new file mode 100644
+index 0000000..ee65943
+--- /dev/null
++++ b/test/services/location_service_test.dart
+@@ -0,0 +1,77 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:roost_app/services/location_service.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++
++  group('LocationService.distanceKm', () {
++    test('is ~0 for the same point', () {
++      final km = LocationService.distanceKm(-1.286389, 36.817223, -1.286389, 36.817223);
++      expect(km, closeTo(0, 0.001));
++    });
++
++    test('matches the known Nairobi CBD -> JKIA distance (~15-17 km)', () {
++      // Nairobi CBD to Jomo Kenyatta International Airport.
++      final km = LocationService.distanceKm(-1.286389, 36.817223, -1.319167, 36.927222);
++      expect(km, greaterThan(10));
++      expect(km, lessThan(20));
++    });
++
++    test('is symmetric', () {
++      const aLat = -1.2921, aLng = 36.8219;
++      const bLat = -1.3031, bLng = 36.7073;
++      final ab = LocationService.distanceKm(aLat, aLng, bLat, bLng);
++      final ba = LocationService.distanceKm(bLat, bLng, aLat, aLng);
++      expect(ab, closeTo(ba, 0.0001));
++    });
++  });
++
++  group('LocationService.formatDistance', () {
++    test('renders sub-km distances in meters', () {
++      expect(LocationService.formatDistance(0.45), '450 m away');
++      expect(LocationService.formatDistance(0.005), '5 m away');
++    });
++
++    test('renders 1-10 km with one decimal place', () {
++      expect(LocationService.formatDistance(1.0), '1.0 km away');
++      expect(LocationService.formatDistance(3.24), '3.2 km away');
++      expect(LocationService.formatDistance(9.99), '10.0 km away');
++    });
++
++    test('renders 10+ km rounded to a whole number', () {
++      expect(LocationService.formatDistance(10.0), '10 km away');
++      expect(LocationService.formatDistance(12.6), '13 km away');
++    });
++
++    test('boundary just under 1 km stays in meters, not "1.0 km"', () {
++      // 0.999 km = 999 m: should round to meters, not slip into the
++      // km branch and print "1.0 km away" for something under a km.
++      expect(LocationService.formatDistance(0.999), '999 m away');
++    });
++  });
++
++  group('LocationService graceful degradation (no platform available in unit tests)', () {
++    // These calls hit Geolocator/geocoding platform channels that have no
++    // mock handler registered in a plain `flutter test` run, which is
++    // exactly the same failure shape as "permission denied" or "location
++    // services off" on a real device: the plugin call fails. LocationService
++    // promises it never throws and always degrades to null -- this
++    // exercises that contract for real, rather than asserting it.
++    setUp(() {
++      LocationService.cachedNeighborhood = null;
++    });
++
++    test('getCurrentPosition() resolves to null instead of throwing', () async {
++      expect(await LocationService.getCurrentPosition(), isNull);
++    });
++
++    test('getNeighborhoodName() resolves to null instead of throwing', () async {
++      expect(await LocationService.getNeighborhoodName(), isNull);
++    });
++
++    test('getNeighborhoodName() returns the cached value without touching the platform', () async {
++      LocationService.cachedNeighborhood = 'Kilimani';
++      expect(await LocationService.getNeighborhoodName(), 'Kilimani');
++    });
++  });
++}

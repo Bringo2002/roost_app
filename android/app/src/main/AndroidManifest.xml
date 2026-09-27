@@ -111,5 +111,18 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="tel" />
         </intent>
+        <!-- Same package-visibility requirement as tel: above, for the
+             in-app-map navigation picker (Google Maps / Waze). Without
+             these, url_launcher can fail to resolve the installed app on
+             Android 11+ and silently fall through to the web fallback
+             even when the app is present. -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="comgooglemaps" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="waze" />
+        </intent>
     </queries>
 </manifest>

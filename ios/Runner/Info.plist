@@ -6,6 +6,15 @@
 	<true/>
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>Roost uses your location to show nearby properties and to help you pin a listing's exact location on the map.</string>
+	<!-- Lets canOpenURL (used by url_launcher for the in-app-map navigation
+	     picker) actually detect whether Google Maps / Waze are installed,
+	     instead of always reporting them absent: required on iOS 9+ for
+	     any scheme the app queries that it doesn't itself open by default. -->
+	<key>LSApplicationQueriesSchemes</key>
+	<array>
+		<string>comgooglemaps</string>
+		<string>waze</string>
+	</array>
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show defaultTargetPlatform, TargetPlatform, visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
@@ -7,6 +8,88 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_map_style.dart';
+
+/// Framework-free description of one marker _buildMarkers would place --
+/// no BitmapDescriptor, no GoogleMap dependency -- so the selection logic
+/// (property pin only once its icon has loaded; each facility only once
+/// its category's icon has loaded) can be unit-tested without spinning up
+/// a real map view or loading real image assets.
+@visibleForTesting
+class MapMarkerSpec {
+  final String id;
+  final double latitude;
+  final double longitude;
+  final String title;
+  final String? snippet;
+
+  const MapMarkerSpec({
+    required this.id,
+    required this.latitude,
+    required this.longitude,
+    required this.title,
+    this.snippet,
+  });
+
+  @override
+  bool operator ==(Object other) =>
+      other is MapMarkerSpec &&
+      other.id == id &&
+      other.latitude == latitude &&
+      other.longitude == longitude &&
+      other.title == title &&
+      other.snippet == snippet;
+
+  @override
+  int get hashCode => Object.hash(id, latitude, longitude, title, snippet);
+
+  @override
+  String toString() => 'MapMarkerSpec($id @ $latitude,$longitude)';
+}
+
+@visibleForTesting
+List<MapMarkerSpec> buildMarkerSpecs({
+  required Property property,
+  required LatLng propertyLatLng,
+  required bool propertyIconLoaded,
+  required Set<String> loadedFacilityIconCategories,
+}) {
+  final specs = <MapMarkerSpec>[];
+
+  if (propertyIconLoaded) {
+    specs.add(MapMarkerSpec(
+      id: 'prop_${property.id}',
+      latitude: propertyLatLng.latitude,
+      longitude: propertyLatLng.longitude,
+      title: property.title,
+      snippet: property.location,
+    ));
+  }
+
+  for (final facility in property.nearbyFacilities) {
+    if (!loadedFacilityIconCategories.contains(facility.category)) {
+      continue; // icon still loading -- skip this pass
+    }
+    specs.add(MapMarkerSpec(
+      id: 'facility_${facility.category}_${facility.name}',
+      latitude: facility.latitude,
+      longitude: facility.longitude,
+      title: facility.name,
+      snippet: facility.label,
+    ));
+  }
+
+  return specs;
+}
+
+/// Navigation providers offered by the "Start Navigation" picker sheet.
+enum _NavProvider { googleMaps, appleMaps, waze }
+
+class _NavOption {
+  final _NavProvider provider;
+  final String label;
+  final IconData icon;
+  const _NavOption(this.provider, this.label, this.icon);
+}
 
 class InAppMapPage extends StatefulWidget {
   final Property property;
@@ -94,26 +177,98 @@ class _InAppMapPageState extends State<InAppMapPage> {
     }
   }
 
-  /// Launches turn-by-turn navigation to the property via the Google
-  /// Maps app if installed, falling back to the Google Maps web URL in a
-  /// browser, and finally to a visible error instead of the button
-  /// silently doing nothing if neither launch succeeds.
-  ///
-  /// Still hard-coded to Google Maps rather than offering a picker
-  /// (Apple Maps / Waze) -- see the map-feature review notes; that's a
-  /// separate, slightly larger follow-up.
-  Future<void> _launchNavigation() async {
-    final lat = _propertyLatLng.latitude;
-    final lng = _propertyLatLng.longitude;
-    final mapsUri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
+  /// Lets the person choose which navigation app to hand the trip off to,
+  /// instead of forcing Google Maps -- a meaningful gap on iOS in
+  /// particular, where Apple Maps or Waze are just as likely to be the
+  /// person's default. Mirrors the picker-sheet pattern used by Uber/
+  /// Airbnb rather than guessing a single provider.
+  Future<void> _showNavigationPicker() async {
+    final options = <_NavOption>[
+      const _NavOption(_NavProvider.googleMaps, 'Google Maps', Icons.map_outlined),
+      // Apple Maps is only ever installed on iOS, so there's no point
+      // offering it (and failing) on Android or web.
+      if (defaultTargetPlatform == TargetPlatform.iOS)
+        const _NavOption(_NavProvider.appleMaps, 'Apple Maps', Icons.map_outlined),
+      const _NavOption(_NavProvider.waze, 'Waze', Icons.navigation_outlined),
+    ];
+
+    final chosen = await showModalBottomSheet<_NavProvider>(
+      context: context,
+      backgroundColor: const Color(0xFF1C1C1E),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (sheetContext) {
+        return SafeArea(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 36,
+                height: 4,
+                decoration: BoxDecoration(color: Colors.grey[700], borderRadius: BorderRadius.circular(2)),
+              ),
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 16, 20, 4),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Navigate with',
+                    style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16),
+                  ),
+                ),
+              ),
+              for (final option in options)
+                ListTile(
+                  leading: Icon(option.icon, color: Colors.white),
+                  title: Text(option.label, style: const TextStyle(color: Colors.white)),
+                  onTap: () => Navigator.pop(sheetContext, option.provider),
+                ),
+              const SizedBox(height: 8),
+            ],
+          ),
+        );
+      },
     );
 
+    if (chosen != null) await _launchNavigation(chosen);
+  }
+
+  /// Launches turn-by-turn navigation to the property with the chosen
+  /// provider's own app if installed, falling back to that provider's
+  /// web URL in a browser, and finally to a visible error instead of the
+  /// button silently doing nothing if neither launch succeeds.
+  Future<void> _launchNavigation(_NavProvider provider) async {
+    final lat = _propertyLatLng.latitude;
+    final lng = _propertyLatLng.longitude;
+
+    Uri? appUri;
+    late final Uri webUri;
+    switch (provider) {
+      case _NavProvider.googleMaps:
+        appUri = Uri.parse('comgooglemaps://?daddr=$lat,$lng&directionsmode=driving');
+        webUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving');
+        break;
+      case _NavProvider.appleMaps:
+        // maps.apple.com is a universal link: iOS hands it to the Apple
+        // Maps app directly when installed (which it always is), no
+        // separate app-scheme URI needed.
+        webUri = Uri.parse('https://maps.apple.com/?daddr=$lat,$lng&dirflg=d');
+        break;
+      case _NavProvider.waze:
+        appUri = Uri.parse('waze://?ll=$lat,$lng&navigate=yes');
+        webUri = Uri.parse('https://waze.com/ul?ll=$lat,$lng&navigate=yes');
+        break;
+    }
+
     try {
-      final launchedApp = await launchUrl(mapsUri, mode: LaunchMode.externalNonBrowserApplication);
-      if (launchedApp) return;
-      final launchedBrowser = await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
-      if (!launchedBrowser) throw Exception('No app or browser could handle the maps link');
+      if (appUri != null) {
+        final launchedApp = await launchUrl(appUri, mode: LaunchMode.externalNonBrowserApplication);
+        if (launchedApp) return;
+      }
+      final launchedWeb = await launchUrl(webUri, mode: LaunchMode.externalApplication);
+      if (!launchedWeb) throw Exception('No app or browser could handle the maps link');
     } catch (_) {
       _showActionError("Couldn't open navigation. Is a maps app installed?");
     }
@@ -146,37 +301,33 @@ class _InAppMapPageState extends State<InAppMapPage> {
   /// markers (which only ever render as a colored teardrop) -- the app's
   /// palette is strictly monochrome, so a stock red pin here would be the
   /// one thing on this screen breaking the brand.
+  ///
+  /// The which-markers-to-show logic itself lives in [buildMarkerSpecs]
+  /// (framework-free, unit-tested); this just attaches the loaded
+  /// BitmapDescriptor for each spec.
   Set<Marker> _buildMarkers() {
+    final specs = buildMarkerSpecs(
+      property: widget.property,
+      propertyLatLng: _propertyLatLng,
+      propertyIconLoaded: _propertyIcon != null,
+      loadedFacilityIconCategories: _facilityIcons.keys.toSet(),
+    );
+
     final markers = <Marker>{};
-
-    if (_propertyIcon != null) {
+    for (final spec in specs) {
+      final isProperty = spec.id.startsWith('prop_');
+      final facilityCategory = isProperty ? null : spec.id.split('_')[1];
+      final icon = isProperty ? _propertyIcon! : _facilityIcons[facilityCategory]!;
       markers.add(
         Marker(
-          markerId: MarkerId('prop_${widget.property.id}'),
-          position: _propertyLatLng,
-          infoWindow: InfoWindow(
-            title: widget.property.title,
-            snippet: widget.property.location,
-          ),
-          icon: _propertyIcon!,
-        ),
-      );
-    }
-
-    for (final facility in widget.property.nearbyFacilities) {
-      final icon = _facilityIcons[facility.category];
-      if (icon == null) continue; // icons still loading -- skip this pass
-      markers.add(
-        Marker(
-          markerId: MarkerId('facility_${facility.category}_${facility.name}'),
-          position: LatLng(facility.latitude, facility.longitude),
-          infoWindow: InfoWindow(title: facility.name, snippet: facility.label),
+          markerId: MarkerId(spec.id),
+          position: LatLng(spec.latitude, spec.longitude),
+          infoWindow: InfoWindow(title: spec.title, snippet: spec.snippet),
           icon: icon,
-          anchor: const Offset(0.5, 0.5),
+          anchor: isProperty ? const Offset(0.5, 1.0) : const Offset(0.5, 0.5),
         ),
       );
     }
-
     return markers;
   }
 
@@ -367,7 +518,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _launchNavigation,
+                          onPressed: _showNavigationPicker,
                           icon: const Icon(Icons.navigation, size: 18),
                           label: const Text('Start Navigation', style: TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
