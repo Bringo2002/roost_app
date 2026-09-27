@@ -56,6 +56,13 @@ class PropertyCard extends StatefulWidget {
 }
 
 class _PropertyCardState extends State<PropertyCard> {
+  /// Below this width, the action row switches from "icon + label" buttons
+  /// to icon-only, so three buttons don't get crushed on narrow phones or
+  /// in a compact/half-width card layout. Tuned empirically against the
+  /// Call/Chat/Navigate row specifically -- not a general app breakpoint,
+  /// so it lives here rather than in a shared constants file.
+  static const double _iconOnlyActionsBreakpoint = 340;
+
   Property get property => widget.property;
 
   late List<String> _galleryUrls;
@@ -269,7 +276,7 @@ class _PropertyCardState extends State<PropertyCard> {
                               child: Container(
                                 padding: const EdgeInsets.all(8),
                                 decoration: BoxDecoration(
-                                  color: Colors.black.withValues(alpha: 0.6),
+                                  color: AppColors.black.withValues(alpha: 0.6),
                                   shape: BoxShape.circle,
                                 ),
                                 child: TweenAnimationBuilder<double>(
@@ -280,7 +287,7 @@ class _PropertyCardState extends State<PropertyCard> {
                                   builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
                                   child: Icon(
                                     widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                                    color: widget.isFavorite ? Colors.redAccent : AppColors.white,
+                                    color: widget.isFavorite ? AppColors.favoriteActive : AppColors.white,
                                     size: 20,
                                   ),
                                 ),
@@ -357,7 +364,7 @@ class _PropertyCardState extends State<PropertyCard> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: Colors.black.withValues(alpha: 0.75),
+                          color: AppColors.black.withValues(alpha: 0.75),
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: AppColors.grey600, width: 1),
                         ),
@@ -545,7 +552,7 @@ class _PropertyCardState extends State<PropertyCard> {
                   // Action buttons: Call | Chat | Navigate
                   LayoutBuilder(
                     builder: (context, constraints) {
-                      final smallScreen = constraints.maxWidth < 340;
+                      final smallScreen = constraints.maxWidth < _iconOnlyActionsBreakpoint;
                       return Row(
                         children: [
                           Expanded(

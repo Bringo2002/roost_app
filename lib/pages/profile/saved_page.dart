@@ -552,10 +552,10 @@ class _SavedPageState extends State<SavedPage> {
                               child: Container(
                                 padding: const EdgeInsets.all(6),
                                 decoration: BoxDecoration(
-                                  color: Colors.redAccent.withValues(alpha: 0.12),
+                                  color: AppColors.favoriteActive.withValues(alpha: 0.12),
                                   shape: BoxShape.circle,
                                 ),
-                                child: const Icon(Icons.favorite_rounded, color: Colors.redAccent, size: 18),
+                                child: const Icon(Icons.favorite_rounded, color: AppColors.favoriteActive, size: 18),
                               ),
                             ),
                           ),

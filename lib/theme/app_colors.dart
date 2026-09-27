@@ -54,6 +54,15 @@ class AppColors {
   /// Online-presence dot (avatar indicator).
   static const Color onlineAccent = Colors.white;
 
+  /// The one deliberate exception to "no accent colors": a filled red
+  /// heart is a near-universal, instantly-recognizable "saved" signal
+  /// across major apps (Instagram, X, etc.), and a monochrome heart reads
+  /// to users as unselected/inactive regardless of fill state. Named
+  /// explicitly and used only for this one purpose, rather than
+  /// referencing `Colors.redAccent` directly wherever a favorite icon is
+  /// drawn -- so the decision is documented and grep-able.
+  static const Color favoriteActive = Colors.redAccent;
+
   // ─── Gradient Presets ────────────────────────────────────────────────
 
   /// Subtle surface gradient for premium card backgrounds.
