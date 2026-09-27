@@ -94,7 +94,13 @@ class _RoostSearchBarState extends State<RoostSearchBar> {
                     decoration: InputDecoration(
                       hintText: widget.hintText,
                       hintStyle: const TextStyle(color: AppColors.grey600, fontSize: 15),
+                      filled: false,
                       border: InputBorder.none,
+                      enabledBorder: InputBorder.none,
+                      focusedBorder: InputBorder.none,
+                      disabledBorder: InputBorder.none,
+                      errorBorder: InputBorder.none,
+                      focusedErrorBorder: InputBorder.none,
                       contentPadding: EdgeInsets.zero,
                       isDense: true,
                     ),
