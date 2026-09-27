@@ -8,6 +8,7 @@ import 'package:roost_app/pages/search/in_app_map_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property/property_image.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 
 class PropertyCard extends StatefulWidget {
   const PropertyCard({
@@ -135,9 +136,10 @@ class _PropertyCardState extends State<PropertyCard> {
   }
 
   void _callLandlord() async {
+    final l10n = AppLocalizations.of(context)!;
     final phone = _sanitizePhoneForDialing(property.primaryViewingPhone);
     if (phone == null) {
-      _showActionUnavailable('No phone number available for this listing');
+      _showActionUnavailable(l10n.propertyCardNoPhoneNumber);
       return;
     }
     final uri = Uri(scheme: 'tel', path: phone);
@@ -148,7 +150,7 @@ class _PropertyCardState extends State<PropertyCard> {
       launched = false;
     }
     if (!launched) {
-      _showActionUnavailable('Could not open the phone dialer');
+      _showActionUnavailable(l10n.propertyCardCouldNotOpenDialer);
     }
   }
 
@@ -172,7 +174,7 @@ class _PropertyCardState extends State<PropertyCard> {
         ),
       );
     } else {
-      _showActionUnavailable('Landlord contact unavailable for chat');
+      _showActionUnavailable(AppLocalizations.of(context)!.propertyCardChatUnavailable);
     }
   }
 
@@ -189,13 +191,15 @@ class _PropertyCardState extends State<PropertyCard> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final formattedPrice = CountryService.pricePerMonth(property.price);
+    final bathText = l10n.propertyCardBathCount(property.bathrooms);
     final cardSemanticsLabel = [
       property.title,
       formattedPrice,
-      '${property.bedroomDisplay}, ${property.bathrooms} bath',
+      '${property.bedroomDisplay}, $bathText',
       property.location,
-      if (!property.available) 'currently taken',
+      if (!property.available) l10n.propertyCardCurrentlyTaken,
     ].join(', ');
 
     return Semantics(
@@ -251,7 +255,7 @@ class _PropertyCardState extends State<PropertyCard> {
                     right: 6,
                     child: Semantics(
                       button: true,
-                      label: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                      label: widget.isFavorite ? l10n.propertyCardRemoveFromFavorites : l10n.propertyCardAddToFavorites,
                       child: Material(
                         color: Colors.transparent,
                         shape: const CircleBorder(),
@@ -301,14 +305,14 @@ class _PropertyCardState extends State<PropertyCard> {
                               color: AppColors.white,
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: const Row(
+                            child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.verified, color: AppColors.black, size: 14),
-                                SizedBox(width: 4),
+                                const Icon(Icons.verified, color: AppColors.black, size: 14),
+                                const SizedBox(width: 4),
                                 Text(
-                                  'Verified',
-                                  style: TextStyle(
+                                  l10n.propertyCardVerifiedBadge,
+                                  style: const TextStyle(
                                     color: AppColors.black,
                                     fontSize: 11,
                                     fontWeight: FontWeight.w700,
@@ -324,9 +328,9 @@ class _PropertyCardState extends State<PropertyCard> {
                               color: AppColors.white,
                               borderRadius: BorderRadius.circular(999),
                             ),
-                            child: const Text(
-                              'NEW',
-                              style: TextStyle(
+                            child: Text(
+                              l10n.propertyCardNewBadge,
+                              style: const TextStyle(
                                 color: AppColors.black,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w800,
@@ -357,14 +361,14 @@ class _PropertyCardState extends State<PropertyCard> {
                           borderRadius: BorderRadius.circular(999),
                           border: Border.all(color: AppColors.grey600, width: 1),
                         ),
-                        child: const Row(
+                        child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(Icons.error_outline, color: AppColors.white, size: 14),
-                            SizedBox(width: 4),
+                            const Icon(Icons.error_outline, color: AppColors.white, size: 14),
+                            const SizedBox(width: 4),
                             Text(
-                              'Worth checking',
-                              style: TextStyle(
+                              l10n.propertyCardWorthCheckingBadge,
+                              style: const TextStyle(
                                 color: AppColors.white,
                                 fontSize: 11,
                                 fontWeight: FontWeight.w700,
@@ -407,9 +411,9 @@ class _PropertyCardState extends State<PropertyCard> {
                           ),
                         ),
                         const SizedBox(width: 4),
-                        const Text(
-                          'Taken',
-                          style: TextStyle(
+                        Text(
+                          l10n.propertyCardTakenBadge,
+                          style: const TextStyle(
                             color: AppColors.grey500,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
@@ -519,7 +523,7 @@ class _PropertyCardState extends State<PropertyCard> {
                       const Icon(Icons.bathtub_outlined, color: AppColors.grey500, size: 16),
                       const SizedBox(width: 4),
                       Text(
-                        '${property.bathrooms} bath',
+                        bathText,
                         style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                       ),
                       if (property.houseType.isNotEmpty && property.bedrooms > 0) ...[
@@ -546,7 +550,7 @@ class _PropertyCardState extends State<PropertyCard> {
                         children: [
                           Expanded(
                             child: Tooltip(
-                              message: 'Call',
+                              message: l10n.propertyCardCall,
                               child: OutlinedButton(
                                 onPressed: _handleCall,
                                 style: OutlinedButton.styleFrom(
@@ -557,9 +561,9 @@ class _PropertyCardState extends State<PropertyCard> {
                                 ),
                                 child: smallScreen
                                   ? const Icon(Icons.phone_outlined, size: 16)
-                                  : const Row(
+                                  : Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [Icon(Icons.phone_outlined, size: 16), SizedBox(width: 4), Text('Call')],
+                                      children: [const Icon(Icons.phone_outlined, size: 16), const SizedBox(width: 4), Text(l10n.propertyCardCall)],
                                     ),
                               ),
                             ),
@@ -567,7 +571,7 @@ class _PropertyCardState extends State<PropertyCard> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Tooltip(
-                              message: 'Chat',
+                              message: l10n.propertyCardChat,
                               child: OutlinedButton(
                                 onPressed: () => _handleChat(context),
                                 style: OutlinedButton.styleFrom(
@@ -578,9 +582,9 @@ class _PropertyCardState extends State<PropertyCard> {
                                 ),
                                 child: smallScreen
                                   ? const Icon(Icons.chat_bubble_outline, size: 16)
-                                  : const Row(
+                                  : Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [Icon(Icons.chat_bubble_outline, size: 16), SizedBox(width: 4), Text('Chat')],
+                                      children: [const Icon(Icons.chat_bubble_outline, size: 16), const SizedBox(width: 4), Text(l10n.propertyCardChat)],
                                     ),
                               ),
                             ),
@@ -588,7 +592,7 @@ class _PropertyCardState extends State<PropertyCard> {
                           const SizedBox(width: 8),
                           Expanded(
                             child: Tooltip(
-                              message: 'Navigate',
+                              message: l10n.propertyCardNavigate,
                               child: ElevatedButton(
                                 onPressed: _handleNavigate,
                                 style: ElevatedButton.styleFrom(
@@ -600,9 +604,9 @@ class _PropertyCardState extends State<PropertyCard> {
                                 ),
                                 child: smallScreen
                                   ? const Icon(Icons.navigation_outlined, size: 16)
-                                  : const Row(
+                                  : Row(
                                       mainAxisAlignment: MainAxisAlignment.center,
-                                      children: [Icon(Icons.navigation_outlined, size: 16), SizedBox(width: 4), Text('Navigate')],
+                                      children: [const Icon(Icons.navigation_outlined, size: 16), const SizedBox(width: 4), Text(l10n.propertyCardNavigate)],
                                     ),
                               ),
                             ),

@@ -10,6 +10,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:
+    sdk: flutter
   http: ^1.2.0
   url_launcher: ^6.2.5
   cached_network_image: ^3.4.1
@@ -65,6 +67,7 @@ flutter_native_splash:
 
 flutter:
   uses-material-design: true
+  generate: true
   assets:
     - assets/icon/
     - assets/markers/

@@ -34,6 +34,7 @@ import 'package:roost_app/services/navigator_key.dart';
 import 'package:roost_app/widgets/common/property_card_skeleton.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -63,6 +64,13 @@ class MyApp extends StatelessWidget {
       title: 'Roost',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.darkTheme,
+      // English is the template/source locale; Swahili is wired up as the
+      // first real translation to prove the pipeline actually works end to
+      // end, since it's the natural second language for this app's actual
+      // market (Nairobi). Only PropertyCard's copy is migrated onto this
+      // so far -- see the PropertyCard i18n review notes for what's left.
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: const SplashPage(),
     );
   }

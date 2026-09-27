@@ -1,0 +1,18 @@
+{
+  "@@locale": "sw",
+
+  "propertyCardCall": "Piga simu",
+  "propertyCardChat": "Ongea",
+  "propertyCardNavigate": "Elekeza",
+  "propertyCardVerifiedBadge": "Imethibitishwa",
+  "propertyCardNewBadge": "MPYA",
+  "propertyCardTakenBadge": "Imechukuliwa",
+  "propertyCardWorthCheckingBadge": "Inafaa kuangaliwa",
+  "propertyCardAddToFavorites": "Ongeza kwenye vipendwa",
+  "propertyCardRemoveFromFavorites": "Ondoa kwenye vipendwa",
+  "propertyCardCurrentlyTaken": "imechukuliwa kwa sasa",
+  "propertyCardBathCount": "{count, plural, one {bafu {count}} other {bafu {count}}}",
+  "propertyCardNoPhoneNumber": "Hakuna nambari ya simu inayopatikana kwa tangazo hili",
+  "propertyCardCouldNotOpenDialer": "Imeshindikana kufungua kipiga simu",
+  "propertyCardChatUnavailable": "Anwani ya mwenye nyumba haipatikani kwa mazungumzo"
+}
