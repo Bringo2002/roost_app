@@ -11,6 +11,7 @@ import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
 import 'package:roost_app/pages/landlord/endorsement_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
+import 'package:roost_app/utils/landlord_listing_organizer.dart';
 import 'package:roost_app/widgets/landlord/landlord_property_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -51,9 +52,10 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   /// Draft listings first, published/rented after -- stable within each
   /// group. Re-run after any local mutation that can change `status`
   /// (currently just publish) so the list doesn't wait for a full
-  /// reload to reflect the new grouping.
+  /// reload to reflect the new grouping. See LandlordListingOrganizer
+  /// for the (separately unit-tested) rule itself.
   void _sortListings() {
-    _myListings.sort((a, b) => a.status == b.status ? 0 : (a.status == 'DRAFT' ? -1 : 1));
+    LandlordListingOrganizer.sortDraftsFirst(_myListings);
   }
 
   Future<void> _loadListings() async {
@@ -82,19 +84,8 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
     }
   }
 
-  List<Property> get _filteredListings {
-    switch (_selectedFilter) {
-      case 'PUBLISHED':
-        return _myListings.where((p) => p.status == 'PUBLISHED' && p.available).toList();
-      case 'DRAFT':
-        return _myListings.where((p) => p.status == 'DRAFT').toList();
-      case 'RENTED':
-        return _myListings.where((p) => !p.available).toList();
-      case 'ALL':
-      default:
-        return _myListings;
-    }
-  }
+  List<Property> get _filteredListings =>
+      LandlordListingOrganizer.applyFilter(_myListings, _selectedFilter);
 
   Future<void> _toggleAvailability(Property property) async {
     if (property.id == null || _isBusy(property)) return;
