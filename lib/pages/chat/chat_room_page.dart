@@ -544,7 +544,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     List<User> partners = [];
     try {
       partners = await ChatService.getActiveChats();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load active chats for forwarding: $e');
+    }
 
     if (!mounted) return;
     Navigator.pop(context); // Dismiss loading dialog
@@ -709,7 +711,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         if (path != null) {
           try {
             File(path).delete();
-          } catch (_) {}
+          } catch (e) {
+            debugPrint('ChatRoomPage: failed to delete cancelled recording: $e');
+          }
         }
         return;
       }
@@ -735,7 +739,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       }
       try {
         file.delete();
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('ChatRoomPage: failed to delete sent recording temp file: $e');
+      }
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(

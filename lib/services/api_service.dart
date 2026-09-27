@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:roost_app/config.dart';
 import 'package:roost_app/services/auth_service.dart';
@@ -123,7 +124,16 @@ class ApiService {
         } else if (errorJson['message'] != null) {
           errorMessage = errorJson['message'];
         }
-      } catch (_) {}
+      } catch (e) {
+        // Body wasn't JSON (or didn't have the expected shape) -- fall
+        // back to the raw body if it has anything readable, otherwise
+        // keep the generic message. Either way we still throw below, so
+        // this never swallows the 403 itself, just how we phrase it.
+        debugPrint('Failed to parse 403 error body: $e');
+        if (response.body.isNotEmpty) {
+          errorMessage = response.body;
+        }
+      }
       throw ApiException(errorMessage);
     } else {
       String errorMessage = 'Request failed with status: ${response.statusCode}';

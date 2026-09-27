@@ -80,7 +80,13 @@ class _NotificationsPageState extends State<NotificationsPage> {
           context,
           MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
         );
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Failed to open property $propId from notification: $e');
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('This listing is no longer available.')),
+        );
+      }
     }
   }
 

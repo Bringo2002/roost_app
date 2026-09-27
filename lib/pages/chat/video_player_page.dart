@@ -62,7 +62,9 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
     _controller?.dispose();
     try {
       _tempFile?.delete();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('VideoPlayerPage: failed to delete temp file: $e');
+    }
     super.dispose();
   }
 

@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/encryption_service.dart';
 import 'package:roost_app/models/user.dart';
@@ -64,7 +65,9 @@ class ChatService {
       if (response is Map<String, dynamic>) {
         return User.fromJson(response);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ChatService: failed to refresh profile for user $userId: $e');
+    }
     return null;
   }
 
@@ -332,18 +335,23 @@ class ChatService {
       if (response is Map<String, dynamic>) {
         return response['action'] as String?;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ChatService: failed to toggle reaction on message $messageId: $e');
+    }
     return null;
   }
 
   // ─── Typing indicator ─────────────────────────────────────────────
 
   /// Notifies the server that the current user is typing to [recipientId].
-  /// Fire-and-forget — errors are silently ignored.
+  /// Fire-and-forget — failures are logged but never surfaced to the UI,
+  /// since a missed typing ping isn't worth interrupting the user over.
   static Future<void> sendTyping(int recipientId) async {
     try {
       await ApiService.post('/api/chat/typing/$recipientId', {});
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ChatService: failed to send typing ping to $recipientId: $e');
+    }
   }
 
   /// Returns whether [partnerId] is currently typing to the current user.
@@ -353,7 +361,9 @@ class ChatService {
       if (response is Map<String, dynamic>) {
         return response['typing'] == true;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ChatService: failed to poll typing status for $partnerId: $e');
+    }
     return false;
   }
 
@@ -391,6 +401,8 @@ class ChatService {
   static Future<void> markAsRead(int userId) async {
     try {
       await ApiService.post('/api/chat/mark-read/$userId', {});
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('ChatService: failed to mark conversation with $userId as read: $e');
+    }
   }
 }

@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
+import 'package:flutter/foundation.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -60,7 +61,9 @@ class AuthService {
         } else if (body['message'] != null) {
           errorMsg = body['message'];
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Signup: could not parse error body: $e');
+      }
       return AuthResult(success: false, error: errorMsg);
     } on SocketException {
       return AuthResult(
@@ -107,7 +110,9 @@ class AuthService {
         } else if (body['message'] != null) {
           errorMsg = body['message'];
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Login: could not parse error body: $e');
+      }
       return AuthResult(success: false, error: errorMsg);
     } on SocketException {
       return AuthResult(
@@ -237,7 +242,9 @@ class AuthService {
         } else if (body['message'] != null) {
           errorMsg = body['message'];
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Google sign-in: could not parse error body: $e');
+      }
       return AuthResult(success: false, error: errorMsg);
     } on SocketException {
       return AuthResult(
@@ -300,7 +307,9 @@ class AuthService {
       try {
         final body = jsonDecode(res.body);
         if (body['error'] != null) errorMsg = body['error'];
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Change password: could not parse error body: $e');
+      }
       return AuthResult(success: false, error: errorMsg);
     } on SocketException {
       return AuthResult(success: false, error: 'No internet connection');
@@ -325,7 +334,9 @@ class AuthService {
           await _storage.write(key: _tokenKey, value: token);
           await prefs.remove(_tokenKey);
         }
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('Legacy token migration failed: $e');
+      }
     }
     return token;
   }
@@ -351,7 +362,9 @@ class AuthService {
           return true;
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Token refresh failed: $e');
+    }
     return false;
   }
 
@@ -386,7 +399,9 @@ class AuthService {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(_tokenKey);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Logout: failed to clear legacy SharedPreferences token: $e');
+    }
     await PushNotificationService.reloadForUser();
 
     // Best-effort: only matters for users who signed in with Google, and
@@ -394,7 +409,9 @@ class AuthService {
     try {
       await fb_auth.FirebaseAuth.instance.signOut();
       await GoogleSignIn.instance.signOut();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Logout: Firebase/Google sign-out failed: $e');
+    }
   }
 
   static Future<bool> isLoggedIn() async {

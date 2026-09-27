@@ -194,7 +194,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       setState(() {
         _unreadCount = res['count'] ?? 0;
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to refresh unread chat count: $e');
+    }
   }
 
   Future<void> _loadUserRole() async {
@@ -204,7 +206,9 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       setState(() {
         _userRole = user['role'] ?? 'TENANT';
       });
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load user role: $e');
+    }
   }
 
   @override
@@ -526,7 +530,9 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
         _prefTimeframe = prefs.getString('pref_timeframe');
       });
       _filterProperties();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load onboarding preferences: $e');
+    }
   }
 
   /// Fetches the device location in the background and re-ranks the feed

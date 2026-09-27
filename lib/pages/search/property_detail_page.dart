@@ -80,7 +80,9 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
           });
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to load similar listings for property ${_property.id}: $e');
+    }
   }
 
   @override

@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:typed_data';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:roost_app/config.dart';
 
@@ -26,8 +27,9 @@ class CloudinaryService {
         final data = jsonDecode(resBody);
         return data['secure_url'] as String?;
       }
-    } catch (_) {
+    } catch (e) {
       // Cloudinary fallback: if unsigned preset is unavailable, post to backend api
+      debugPrint('CloudinaryService: direct Cloudinary upload failed, falling back to backend: $e');
     }
 
     // Backend endpoint fallback
@@ -42,7 +44,9 @@ class CloudinaryService {
         final data = jsonDecode(body);
         return data['url'] as String?;
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('CloudinaryService: backend upload fallback also failed: $e');
+    }
 
     return null;
   }

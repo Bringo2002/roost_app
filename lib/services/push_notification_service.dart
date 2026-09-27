@@ -91,7 +91,9 @@ class PushNotificationService {
         );
         return '${_baseHistoryKey}_$sanitized';
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PushNotificationService: failed to resolve history key: $e');
+    }
     return '${_baseHistoryKey}_guest';
   }
 
@@ -105,7 +107,9 @@ class PushNotificationService {
         );
         return '${_baseEnabledKey}_$sanitized';
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PushNotificationService: failed to resolve enabled key: $e');
+    }
     return '${_baseEnabledKey}_guest';
   }
 
@@ -131,7 +135,9 @@ class PushNotificationService {
           registerTokenWithBackend(newToken);
         });
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PushNotificationService: initialize() setup failed: $e');
+    }
 
     // Foreground messages: unlike background/terminated, the OS does NOT
     // auto-display these, so route them through the existing in-app
@@ -198,7 +204,9 @@ class PushNotificationService {
     if (token == null || token.isEmpty) return;
     try {
       await ApiService.post('/api/users/me/fcm-token', {'fcmToken': token});
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PushNotificationService: failed to register FCM token: $e');
+    }
   }
 
   /// Returns all stored notifications for active user
@@ -387,7 +395,9 @@ class PushNotificationService {
         _notifications.map((n) => n.toJson()).toList(),
       );
       await prefs.setString(key, rawJson);
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('PushNotificationService: failed to persist notification history: $e');
+    }
   }
 
   static void _updateUnreadCount() {

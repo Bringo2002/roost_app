@@ -585,6 +585,7 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
   Duration _position = Duration.zero;
   Duration _duration = Duration.zero;
   bool _initialized = false;
+  bool _error = false;
   File? _tempFile;
   StreamSubscription? _posSub;
   StreamSubscription? _durSub;
@@ -626,7 +627,10 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
       if (mounted) {
         setState(() => _initialized = true);
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('VoiceMessagePlayer: failed to load voice note ${widget.message.id}: $e');
+      if (mounted) setState(() => _error = true);
+    }
   }
 
   @override
@@ -637,7 +641,9 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
     _player.dispose();
     try {
       _tempFile?.delete();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('VoiceMessagePlayer: failed to delete temp file: $e');
+    }
     super.dispose();
   }
 
@@ -658,6 +664,27 @@ class _VoiceMessagePlayerState extends State<_VoiceMessagePlayer> {
 
   @override
   Widget build(BuildContext context) {
+    if (_error) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.error_outline,
+            size: 16,
+            color: widget.isMe ? AppColors.black : AppColors.white,
+          ),
+          const SizedBox(width: 8),
+          Text(
+            'Voice note unavailable',
+            style: TextStyle(
+              color: widget.isMe ? AppColors.black : AppColors.white,
+              fontSize: 12,
+            ),
+          ),
+        ],
+      );
+    }
+
     if (!_initialized) {
       return Row(
         mainAxisSize: MainAxisSize.min,

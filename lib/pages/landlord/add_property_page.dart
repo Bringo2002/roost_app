@@ -602,7 +602,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           });
           if (mounted) setState(() => _gpsVerified = true);
         }
-      } catch (_) {}
+      } catch (e) {
+        // _gpsVerified stays false, which is already reflected in the
+        // UI (unverified badge) -- log for diagnosability, but don't
+        // interrupt the flow with a second error on top of the location
+        // fetch above; the user can just retry the confirm action.
+        debugPrint('AddPropertyPage: GPS verification failed: $e');
+      }
     } finally {
       if (mounted) setState(() => _checkingGps = false);
     }
@@ -943,7 +949,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (mounted) setState(() => _autosaving = true);
     try {
       await _persist(_buildPayload(status: 'DRAFT'));
-    } catch (_) {
+    } catch (e) {
+      debugPrint('AddPropertyPage: autosave failed: $e');
     } finally {
       if (mounted) setState(() => _autosaving = false);
     }
@@ -953,7 +960,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     try {
       final me = await ApiService.get('/api/users/me');
       if (me['phoneVerified'] == true) return true;
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('AddPropertyPage: failed to check phone verification status: $e');
+    }
     if (!mounted) return false;
     final verified = await Navigator.push<bool>(
       context,

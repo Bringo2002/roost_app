@@ -63,7 +63,9 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
           });
         }
       }
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Failed to refresh host avatar for ${widget.hostId}: $e');
+    }
   }
 
   Future<void> _loadHostProperties() async {
