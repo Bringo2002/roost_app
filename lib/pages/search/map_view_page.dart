@@ -21,12 +21,10 @@ class MapViewPage extends StatefulWidget {
 
 class _MapViewPageState extends State<MapViewPage> {
   GoogleMapController? _mapController;
-  BitmapDescriptor? _pinIcon;
 
   @override
   void initState() {
     super.initState();
-    _loadPinIcon();
     // Centering on the user happens from onMapCreated, once _mapController
     // actually exists -- calling it here too (as this page previously did)
     // raced two concurrent LocationService.getCurrentPosition() calls,
@@ -38,24 +36,6 @@ class _MapViewPageState extends State<MapViewPage> {
   void dispose() {
     _mapController?.dispose();
     super.dispose();
-  }
-
-  /// Same monochrome pin used on a single property's own map
-  /// (InAppMapPage) -- reused here rather than Google's default marker,
-  /// which only ever renders as a red teardrop and was the one thing
-  /// breaking this app's strict black/white palette.
-  Future<void> _loadPinIcon() async {
-    // width/height are passed explicitly: the PNG is 96x120, far too big
-    // when many pins share one screen. (BitmapDescriptor.asset honours
-    // them; the deprecated fromAssetImage ignored size on mobile.)
-    final icon = await BitmapDescriptor.asset(
-      const ImageConfiguration(),
-      'assets/markers/marker_property.png',
-      width: 32,
-      height: 40,
-    );
-    if (!mounted) return;
-    setState(() => _pinIcon = icon);
   }
 
   Future<void> _centerOnUserLocation() async {
@@ -95,12 +75,7 @@ class _MapViewPageState extends State<MapViewPage> {
                 ],
               ),
             )
-          // Wait for the pin icon before drawing any markers, same
-          // pattern as InAppMapPage -- otherwise every pin briefly
-          // flashes as Google's default red teardrop on first frame.
-          : _pinIcon == null
-              ? const Center(child: CircularProgressIndicator(color: Colors.white))
-              : GoogleMap(
+          : GoogleMap(
                   initialCameraPosition: CameraPosition(
                     target: LatLng(geoProperties.first.latitude!,
                         geoProperties.first.longitude!),
@@ -120,8 +95,6 @@ class _MapViewPageState extends State<MapViewPage> {
                       markerId: MarkerId('property-${p.id}'),
                       position: LatLng(p.latitude!, p.longitude!),
                       infoWindow: InfoWindow(title: p.title, snippet: p.location),
-                      icon: _pinIcon!,
-                      anchor: const Offset(0.5, 1.0),
                       onTap: () {
                         Navigator.push(
                           context,

@@ -27,21 +27,10 @@ const _propertyLatLng = LatLng(-1.2921, 36.8219);
 
 void main() {
   group('buildMarkerSpecs', () {
-    test('omits the property marker until its icon has loaded', () {
+    test('always includes the property marker with its id/title/snippet', () {
       final specs = buildMarkerSpecs(
         property: _property(),
         propertyLatLng: _propertyLatLng,
-        propertyIconLoaded: false,
-        loadedFacilityIconCategories: {},
-      );
-      expect(specs, isEmpty);
-    });
-
-    test('includes the property marker with its id/title/snippet once loaded', () {
-      final specs = buildMarkerSpecs(
-        property: _property(),
-        propertyLatLng: _propertyLatLng,
-        propertyIconLoaded: true,
         loadedFacilityIconCategories: {},
       );
       expect(specs, hasLength(1));
@@ -60,7 +49,6 @@ void main() {
       final specs = buildMarkerSpecs(
         property: _property(nearbyFacilities: facilities),
         propertyLatLng: _propertyLatLng,
-        propertyIconLoaded: true,
         loadedFacilityIconCategories: {'mall'}, // hospital icon "still loading"
       );
 
@@ -78,11 +66,10 @@ void main() {
       final specs = buildMarkerSpecs(
         property: _property(nearbyFacilities: facilities),
         propertyLatLng: _propertyLatLng,
-        propertyIconLoaded: false, // isolate the facility marker
         loadedFacilityIconCategories: {'mall'},
       );
-      expect(specs, hasLength(1));
-      expect(specs.single.snippet, '600m from TRM Mall');
+      final facility = specs.firstWhere((s) => s.id.startsWith('facility_'));
+      expect(facility.snippet, '600m from TRM Mall');
     });
 
     test('with everything loaded, returns one marker per facility plus the property', () {
@@ -94,7 +81,6 @@ void main() {
       final specs = buildMarkerSpecs(
         property: _property(nearbyFacilities: facilities),
         propertyLatLng: _propertyLatLng,
-        propertyIconLoaded: true,
         loadedFacilityIconCategories: {'mall', 'hospital', 'road'},
       );
       expect(specs, hasLength(4));
