@@ -39,6 +39,11 @@ class _FakeUrlLauncher extends UrlLauncherPlatform {
   final bool succeeds;
   final List<String> launchedUrls = [];
 
+  // Abstract getter with no default body in url_launcher_platform_interface
+  // 2.3.x; this fake never renders a Link widget, so null is correct.
+  @override
+  LinkDelegate? get linkDelegate => null;
+
   @override
   Future<bool> launchUrl(String url, LaunchOptions options) async {
     launchedUrls.add(url);
