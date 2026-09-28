@@ -787,6 +787,59 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     );
   }
 
+  /// Filter button: a real Semantics label (including how many filters are
+  /// active, since the count badge is otherwise invisible to a screen
+  /// reader) and an InkWell with a 52x52 hit target instead of a bare
+  /// GestureDetector.
+  Widget _buildFilterButton() {
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(14),
+      side: const BorderSide(color: AppColors.border),
+    );
+    final label = _activeFilterCount > 0
+        ? 'Filters, $_activeFilterCount active'
+        : 'Filters';
+    return Semantics(
+      button: true,
+      label: label,
+      child: Material(
+        color: AppColors.surfaceRaised,
+        shape: shape,
+        child: InkWell(
+          customBorder: shape,
+          onTap: () => _showFilterBottomSheet(context),
+          child: SizedBox(
+            width: 52,
+            height: 52,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                const Icon(Icons.tune, color: AppColors.white),
+                if (_activeFilterCount > 0)
+                  Positioned(
+                    right: 10,
+                    top: 10,
+                    child: ExcludeSemantics(
+                      child: Container(
+                        width: 16,
+                        height: 16,
+                        alignment: Alignment.center,
+                        decoration: const BoxDecoration(color: AppColors.white, shape: BoxShape.circle),
+                        child: Text(
+                          '$_activeFilterCount',
+                          style: const TextStyle(color: AppColors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -819,38 +872,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                 _debounceTimer?.cancel();
                                 _applyClientSideFilters();
                               },
-                              trailing: GestureDetector(
-                                onTap: () => _showFilterBottomSheet(context),
-                                child: Container(
-                                  padding: const EdgeInsets.all(14),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.surfaceRaised,
-                                    borderRadius: BorderRadius.circular(14),
-                                    border: Border.all(color: AppColors.border),
-                                  ),
-                                  child: Stack(
-                                    clipBehavior: Clip.none,
-                                    children: [
-                                      const Icon(Icons.tune, color: AppColors.white),
-                                      if (_activeFilterCount > 0)
-                                        Positioned(
-                                          right: -4,
-                                          top: -4,
-                                          child: Container(
-                                            width: 16,
-                                            height: 16,
-                                            alignment: Alignment.center,
-                                            decoration: const BoxDecoration(color: AppColors.white, shape: BoxShape.circle),
-                                            child: Text(
-                                              '$_activeFilterCount',
-                                              style: const TextStyle(color: AppColors.black, fontSize: 10, fontWeight: FontWeight.bold),
-                                            ),
-                                          ),
-                                        ),
-                                    ],
-                                  ),
-                                ),
-                              ),
+                              trailing: _buildFilterButton(),
                             ),
                           ),
                           if (_aiSearchLoading)
