@@ -9,6 +9,7 @@ import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property/property_image.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
+import 'package:roost_app/l10n/property_labels.dart';
 
 class PropertyCard extends StatefulWidget {
   const PropertyCard({
@@ -201,10 +202,11 @@ class _PropertyCardState extends State<PropertyCard> {
     final l10n = AppLocalizations.of(context)!;
     final formattedPrice = CountryService.pricePerMonth(property.price);
     final bathText = l10n.propertyCardBathCount(property.bathrooms);
+    final bedroomText = property.bedroomLabel(l10n);
     final cardSemanticsLabel = [
       property.title,
       formattedPrice,
-      '${property.bedroomDisplay}, $bathText',
+      '$bedroomText, $bathText',
       property.location,
       if (!property.available) l10n.propertyCardCurrentlyTaken,
     ].join(', ');
@@ -523,7 +525,7 @@ class _PropertyCardState extends State<PropertyCard> {
                       const Icon(Icons.bed_outlined, color: AppColors.grey500, size: 16),
                       const SizedBox(width: 4),
                       Text(
-                        property.bedroomDisplay,
+                        bedroomText,
                         style: const TextStyle(color: AppColors.textSecondary, fontSize: 12),
                       ),
                       const SizedBox(width: 12),

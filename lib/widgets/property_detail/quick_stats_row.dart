@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
+import 'package:roost_app/l10n/property_labels.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 
@@ -11,13 +13,14 @@ class QuickStatsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     return Row(
       children: [
         _buildAnimatedCard(
           icon: Icons.king_bed_outlined,
           value: property.bedrooms,
           isNumeric: property.bedrooms > 0,
-          labelBuilder: (val) => val <= 0 ? property.bedroomDisplay : '$val ${val == 1 ? 'bed' : 'beds'}',
+          labelBuilder: (val) => val <= 0 ? property.bedroomLabel(l10n) : l10n.propertyBedroomCount(val),
           subtitle: 'Bedrooms',
         ),
         const SizedBox(width: 10),

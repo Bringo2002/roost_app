@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
+import 'package:roost_app/l10n/property_labels.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/favorites_service.dart';
 import 'package:roost_app/services/country_service.dart';
@@ -107,7 +109,7 @@ class _SavedPageState extends State<SavedPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: Colors.redAccent, size: 24),
+            Icon(Icons.warning_amber_rounded, color: AppColors.error, size: 24),
             SizedBox(width: 10),
             Text('Clear All Saved?', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           ],
@@ -123,7 +125,7 @@ class _SavedPageState extends State<SavedPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppColors.error,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
             ),
             onPressed: () => Navigator.pop(ctx, true),
@@ -197,13 +199,13 @@ class _SavedPageState extends State<SavedPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
                 decoration: BoxDecoration(
-                  color: Colors.redAccent.withValues(alpha: 0.15),
+                  color: AppColors.favoriteActive.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.redAccent.withValues(alpha: 0.3)),
+                  border: Border.all(color: AppColors.favoriteActive.withValues(alpha: 0.3)),
                 ),
                 child: Text(
                   '${_savedProperties.length}',
-                  style: const TextStyle(color: Colors.redAccent, fontSize: 12, fontWeight: FontWeight.w800),
+                  style: const TextStyle(color: AppColors.favoriteActive, fontSize: 12, fontWeight: FontWeight.w800),
                 ),
               ),
             ],
@@ -232,9 +234,9 @@ class _SavedPageState extends State<SavedPage> {
                   value: 'clear_all',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_sweep_rounded, color: Colors.redAccent, size: 20),
+                      Icon(Icons.delete_sweep_rounded, color: AppColors.error, size: 20),
                       SizedBox(width: 10),
-                      Text('Clear All Saved', style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.w600)),
+                      Text('Clear All Saved', style: TextStyle(color: AppColors.error, fontSize: 14, fontWeight: FontWeight.w600)),
                     ],
                   ),
                 ),
@@ -585,7 +587,7 @@ class _SavedPageState extends State<SavedPage> {
                         spacing: 6,
                         runSpacing: 4,
                         children: [
-                          _buildFAANGChip(property.bedroomDisplay, Icons.bed_rounded),
+                          _buildFAANGChip(property.bedroomLabel(AppLocalizations.of(context)!), Icons.bed_rounded),
                           _buildFAANGChip('${property.bathrooms} Bath', Icons.shower_rounded),
                           if (property.wifi) _buildFAANGChip('WiFi', Icons.wifi_rounded),
                           if (property.furnished) _buildFAANGChip('Furnished', Icons.chair_rounded),
@@ -657,7 +659,7 @@ class _SavedPageState extends State<SavedPage> {
                   height: 130,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.redAccent.withValues(alpha: 0.06),
+                    color: AppColors.favoriteActive.withValues(alpha: 0.06),
                   ),
                 ),
                 // Inner glow halo
@@ -666,8 +668,8 @@ class _SavedPageState extends State<SavedPage> {
                   height: 100,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: Colors.redAccent.withValues(alpha: 0.12),
-                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.25), width: 1.5),
+                    color: AppColors.favoriteActive.withValues(alpha: 0.12),
+                    border: Border.all(color: AppColors.favoriteActive.withValues(alpha: 0.25), width: 1.5),
                   ),
                 ),
                 // Center Icon Container
@@ -685,7 +687,7 @@ class _SavedPageState extends State<SavedPage> {
                       ),
                     ],
                   ),
-                  child: const Icon(Icons.favorite_border_rounded, color: Colors.redAccent, size: 36),
+                  child: const Icon(Icons.favorite_border_rounded, color: AppColors.favoriteActive, size: 36),
                 ),
               ],
             ),

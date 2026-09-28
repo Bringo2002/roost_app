@@ -75,5 +75,24 @@
   "propertyCardChatUnavailable": "Landlord contact unavailable for chat",
   "@propertyCardChatUnavailable": {
     "description": "Snackbar shown when tapping Chat on a listing with no linked owner account to message."
+  },
+  "propertyBedroomCount": "{count, plural, one {{count} bed} other {{count} beds}}",
+  "@propertyBedroomCount": {
+    "description": "Bedroom count shown for a listing that has one or more bedrooms.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+
+  "propertyTypeStudio": "Studio",
+  "@propertyTypeStudio": {
+    "description": "Bedroom label for a zero-bedroom listing that is a studio (also the fallback for unknown zero-bedroom types)."
+  },
+
+  "propertyTypeBedsitter": "Bedsitter",
+  "@propertyTypeBedsitter": {
+    "description": "Bedroom label for a zero-bedroom listing whose house type is a bedsitter (a single room with a shared or partitioned sleeping area, common in Kenya)."
   }
 }

@@ -14,5 +14,8 @@
   "propertyCardBathCount": "{count, plural, one {bafu {count}} other {bafu {count}}}",
   "propertyCardNoPhoneNumber": "Hakuna nambari ya simu inayopatikana kwa tangazo hili",
   "propertyCardCouldNotOpenDialer": "Imeshindikana kufungua kipiga simu",
-  "propertyCardChatUnavailable": "Anwani ya mwenye nyumba haipatikani kwa mazungumzo"
+  "propertyCardChatUnavailable": "Anwani ya mwenye nyumba haipatikani kwa mazungumzo",
+  "propertyBedroomCount": "{count, plural, one {chumba {count}} other {vyumba {count}}}",
+  "propertyTypeStudio": "Studio",
+  "propertyTypeBedsitter": "Bedsitter"
 }
