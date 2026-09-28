@@ -8,6 +8,7 @@ import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/search_intent_api_service.dart';
 import 'package:roost_app/utils/property_sorter.dart';
+import 'package:roost_app/utils/property_search.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
@@ -183,7 +184,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   /// Builds the query string for GET /api/properties/filter from the
   /// filter sheet's own state, plus pagination and (when relevant)
   /// device location. Deliberately does NOT include anything parsed
-  /// from free-text search (_parseSearchIntent) -- the backend has no
+  /// from free-text search (PropertySearch.parse) -- the backend has no
   /// NLP matching, so that stays a client-side pass over whatever this
   /// returns, exactly as before.
   String _buildFilterQuery(int page) {
@@ -273,66 +274,6 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     }
   }
 
-  /// Parses common natural-language patterns out of the search box so
-  /// queries like "Studio under 20k" or "2 bedroom Kilimani" work, per
-  /// the product brief's stated examples -- not just literal keyword
-  /// matching. Recognized tokens are stripped from the query before the
-  /// remainder is used for a plain substring match on title/location.
-  /// Whatever this parses out applies as an ADDITIONAL constraint
-  /// alongside the filter sheet, not a replacement for it.
-  ({String remainingText, double? maxPrice, String? houseType, bool furnished}) _parseSearchIntent(String query) {
-    String text = ' ${query.toLowerCase()} ';
-    double? maxPrice;
-    String? houseType;
-    bool furnished = false;
-
-    // "under/below/less than 20k" -- 'k' suffix means thousands.
-    final priceMatch = RegExp(r'\b(?:under|below|less than)\s+(\d+)(k)?\b').firstMatch(text);
-    if (priceMatch != null) {
-      final n = double.tryParse(priceMatch.group(1)!);
-      if (n != null) {
-        maxPrice = priceMatch.group(2) != null ? n * 1000 : n;
-        text = text.replaceRange(priceMatch.start, priceMatch.end, ' ');
-      }
-    }
-
-    // House type keywords -- first match wins, matching the canonical
-    // backend format (BEDSITTER/STUDIO/1BR/2BR/3BR+).
-    const typeKeywords = {
-      'bedsitter': 'BEDSITTER',
-      'studio': 'STUDIO',
-      'one bedroom': '1BR', '1 bedroom': '1BR', '1br': '1BR',
-      'two bedroom': '2BR', '2 bedroom': '2BR', '2br': '2BR',
-      'three bedroom': '3BR+', '3 bedroom': '3BR+', '3br': '3BR+',
-    };
-    for (final entry in typeKeywords.entries) {
-      if (text.contains(entry.key)) {
-        houseType = entry.value;
-        text = text.replaceFirst(entry.key, ' ');
-        break;
-      }
-    }
-
-    if (text.contains('furnished')) {
-      furnished = true;
-      text = text.replaceFirst('furnished', ' ');
-    }
-
-    // Filler words that add no match value once the constraint above
-    // them has already been extracted (e.g. "near Strathmore" should
-    // just match "Strathmore" against location).
-    for (final filler in ['near', 'in', 'at', 'around']) {
-      text = text.replaceAll(RegExp('\\b$filler\\b'), ' ');
-    }
-
-    return (
-      remainingText: text.trim().replaceAll(RegExp(r'\s+'), ' '),
-      maxPrice: maxPrice,
-      houseType: houseType,
-      furnished: furnished,
-    );
-  }
-
   /// Client-only pass over the already server-filtered [_allProperties]:
   /// free-text NLP matching (the backend has no text search), balcony and
   /// pet-friendly (not supported by /api/properties/filter), and sorting
@@ -352,9 +293,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   Future<void> _onSearchSubmitted() async {
     _debounceTimer?.cancel();
     final query = _searchCtrl.text.trim();
-    final localIntent = _parseSearchIntent(query);
-    final localParseFoundNothing =
-        localIntent.maxPrice == null && localIntent.houseType == null && !localIntent.furnished;
+    final localIntent = PropertySearch.parse(query);
+    final localParseFoundNothing = !localIntent.hasStructuredIntent;
 
     if (query.isEmpty || !localParseFoundNothing) {
       _applyClientSideFilters();
@@ -408,25 +348,16 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   }
 
   void _applyClientSideFilters() {
-    final intent = _parseSearchIntent(_searchCtrl.text.trim());
-    final query = intent.remainingText;
-    
+    final intent = PropertySearch.parse(_searchCtrl.text.trim());
+
     setState(() {
       _results = _allProperties.where((p) {
-        final matchesQuery = query.isEmpty ||
-            p.title.toLowerCase().contains(query) ||
-            p.location.toLowerCase().contains(query) ||
-            p.houseType.toLowerCase().contains(query);
-
-        // House type/price/furnished parsed from the search text itself
-        // (e.g. "Studio under 20k") -- additional constraints on top of
-        // whatever the filter sheet already narrowed server-side, not a
-        // replacement for it.
-        final matchesIntentHouseType = intent.houseType == null ||
-            p.houseType.toUpperCase() == intent.houseType ||
-            (intent.houseType == '3BR+' && p.bedrooms >= 3);
-        final matchesIntentPrice = intent.maxPrice == null || p.price <= intent.maxPrice!;
-        final matchesIntentFurnished = !intent.furnished || p.furnished;
+        // Free text (every word must match somewhere in the listing) plus
+        // whatever structured constraints it contained ("studio under
+        // 20k", "unfurnished", "pool") -- additional constraints on top
+        // of whatever the filter sheet already narrowed server-side, not
+        // a replacement for it. See PropertySearch for the rules.
+        final matchesSearch = PropertySearch.matches(p, intent);
 
         final matchesBalcony = !_balcony || p.balcony;
         final matchesPetFriendly = !_petFriendly || p.petFriendly;
@@ -434,10 +365,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
         final matchesDocVerified = !_docVerifiedOnly || p.documentVerified;
         final matchesGpsVerified = !_gpsVerifiedOnly || p.gpsVerified;
 
-        return matchesQuery &&
-            matchesIntentHouseType &&
-            matchesIntentPrice &&
-            matchesIntentFurnished &&
+        return matchesSearch &&
             matchesBalcony &&
             matchesPetFriendly &&
             matchesVerified &&

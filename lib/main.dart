@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/utils/property_sorter.dart';
+import 'package:roost_app/utils/property_search.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_map_style.dart';
@@ -640,12 +641,11 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
 
 
   void _filterProperties() {
-    final query = searchController.text.toLowerCase();
+    final intent = PropertySearch.parse(searchController.text);
 
     setState(() {
       final matching = properties.where((p) {
-        final matchesQuery = p.location.toLowerCase().contains(query) ||
-            p.title.toLowerCase().contains(query);
+        final matchesQuery = PropertySearch.matches(p, intent);
         final matchesType = selectedType == 'all' ||
             p.type.toLowerCase() == selectedType.toLowerCase();
         return matchesQuery && matchesType;

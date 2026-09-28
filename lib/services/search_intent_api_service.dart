@@ -2,7 +2,7 @@ import 'package:roost_app/services/api_service.dart';
 
 /// Structured filters extracted by GeminiSearchIntentService on the
 /// backend, for search queries the local regex parser
-/// (SearchPage._parseSearchIntent) couldn't handle.
+/// (PropertySearch.parse) couldn't handle.
 class AiSearchIntent {
   const AiSearchIntent({
     this.minPrice,
