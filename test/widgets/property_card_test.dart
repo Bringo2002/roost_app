@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:url_launcher_platform_interface/link.dart';
 import 'package:url_launcher_platform_interface/url_launcher_platform_interface.dart';
 
 import 'package:roost_app/l10n/generated/app_localizations.dart';
@@ -294,22 +295,26 @@ void main() {
 
   group('PropertyCard accessibility', () {
     testWidgets('favorite button semantics label toggles with isFavorite', (tester) async {
+      // Disposed in the body, not addTearDown: flutter_test verifies no
+      // semantics handle is outstanding before teardown callbacks run.
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
 
       await tester.pumpWidget(_wrap(PropertyCard(property: _property(), isFavorite: false)));
       expect(find.bySemanticsLabel('Add to favorites'), findsOneWidget);
 
       await tester.pumpWidget(_wrap(PropertyCard(property: _property(), isFavorite: true)));
       expect(find.bySemanticsLabel('Remove from favorites'), findsOneWidget);
+
+      handle.dispose();
     });
 
     testWidgets('the card exposes one button-role semantics summary including the title', (tester) async {
       final handle = tester.ensureSemantics();
-      addTearDown(handle.dispose);
 
       await tester.pumpWidget(_wrap(PropertyCard(property: _property(title: 'Riverside Studio'))));
       expect(find.bySemanticsLabel(RegExp('Riverside Studio')), findsOneWidget);
+
+      handle.dispose();
     });
   });
 
