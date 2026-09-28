@@ -127,14 +127,21 @@ class _InAppMapPageState extends State<InAppMapPage> {
   /// places, unlike the base map tiles' own POI icons, so they follow the
   /// strict black/white brand rather than Google's native multi-color
   /// icon glyphs (or, for the property pin, the default red teardrop).
+  ///
+  /// Uses BitmapDescriptor.asset (fromAssetImage is deprecated). No
+  /// width/height is passed on purpose: the old fromAssetImage ignored
+  /// ImageConfiguration.size on Android/iOS (only web honoured it), so the
+  /// pins have always rendered at the asset's natural size, while
+  /// BitmapDescriptor.asset WOULD apply a configured size and shrink them.
+  /// To resize the pins deliberately, pass width:/height: here (the PNGs
+  /// are 96x96 for facilities and 96x120 for the property pin).
   Future<void> _loadMarkerIcons() async {
-    const facilityConfig = ImageConfiguration(size: Size(36, 36));
-    const propertyConfig = ImageConfiguration(size: Size(40, 50));
+    const config = ImageConfiguration();
     final results = await Future.wait([
-      BitmapDescriptor.fromAssetImage(facilityConfig, 'assets/markers/marker_mall.png'),
-      BitmapDescriptor.fromAssetImage(facilityConfig, 'assets/markers/marker_hospital.png'),
-      BitmapDescriptor.fromAssetImage(facilityConfig, 'assets/markers/marker_road.png'),
-      BitmapDescriptor.fromAssetImage(propertyConfig, 'assets/markers/marker_property.png'),
+      BitmapDescriptor.asset(config, 'assets/markers/marker_mall.png'),
+      BitmapDescriptor.asset(config, 'assets/markers/marker_hospital.png'),
+      BitmapDescriptor.asset(config, 'assets/markers/marker_road.png'),
+      BitmapDescriptor.asset(config, 'assets/markers/marker_property.png'),
     ]);
     if (!mounted) return;
     setState(() {
