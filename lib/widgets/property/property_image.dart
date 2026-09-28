@@ -99,16 +99,21 @@ class _PropertyImageState extends State<PropertyImage> {
     // a scrolling list decodes a full-size photo into memory just to draw
     // it at a few dozen logical pixels, which is the exact "unbounded
     // memory allocation" this codebase's image-handling rules warn about.
+    //
+    // Cap ONE dimension only (width). Passing both memCacheWidth and
+    // memCacheHeight makes Flutter decode to exactly that width x height
+    // (ResizeImagePolicy.exact), ignoring the photo's own aspect ratio --
+    // which squeezes/stretches any photo whose ratio differs from the
+    // card's. With only the width set, the height follows the photo's
+    // real aspect ratio and BoxFit.cover crops it correctly.
     final dpr = MediaQuery.of(context).devicePixelRatio;
     final logicalWidth = widget.width.isFinite ? widget.width : MediaQuery.of(context).size.width;
     final cacheWidth = (logicalWidth * dpr).round();
-    final cacheHeight = (widget.height * dpr).round();
 
     Widget image = CachedNetworkImage(
       imageUrl: url,
       fit: BoxFit.cover,
       memCacheWidth: cacheWidth,
-      memCacheHeight: cacheHeight,
       fadeInDuration: const Duration(milliseconds: 200),
       placeholder: (context, url) => Shimmer.fromColors(
         baseColor: AppColors.grey800,
