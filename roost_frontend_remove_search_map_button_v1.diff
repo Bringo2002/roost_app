@@ -1,0 +1,74 @@
+diff --git a/lib/pages/search/search_page.dart b/lib/pages/search/search_page.dart
+index b20dc1a..9694c3b 100644
+--- a/lib/pages/search/search_page.dart
++++ b/lib/pages/search/search_page.dart
+@@ -3,7 +3,6 @@ import 'dart:async';
+ import 'package:flutter/material.dart';
+ import 'package:geolocator/geolocator.dart';
+ import 'package:roost_app/models/property.dart';
+-import 'package:roost_app/pages/search/map_view_page.dart';
+ import 'package:roost_app/services/api_service.dart';
+ import 'package:roost_app/services/country_service.dart';
+ import 'package:roost_app/services/location_service.dart';
+@@ -788,38 +787,6 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
+     );
+   }
+ 
+-  /// Opens the current results as pins on a map. Styled to sit beside the
+-  /// filter button, but with a real Semantics label and InkWell (52x52 hit
+-  /// target) rather than a bare GestureDetector.
+-  Widget _buildMapToggleButton() {
+-    final shape = RoundedRectangleBorder(
+-      borderRadius: BorderRadius.circular(14),
+-      side: const BorderSide(color: AppColors.border),
+-    );
+-    return Semantics(
+-      button: true,
+-      label: 'View results on map',
+-      child: Material(
+-        color: AppColors.surfaceRaised,
+-        shape: shape,
+-        child: InkWell(
+-          customBorder: shape,
+-          onTap: () {
+-            Navigator.push(
+-              context,
+-              MaterialPageRoute(builder: (_) => MapViewPage(properties: _results)),
+-            );
+-          },
+-          child: const SizedBox(
+-            width: 52,
+-            height: 52,
+-            child: Icon(Icons.map_outlined, color: AppColors.white),
+-          ),
+-        ),
+-      ),
+-    );
+-  }
+-
+   @override
+   Widget build(BuildContext context) {
+     if (_loading) {
+@@ -852,12 +819,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
+                                 _debounceTimer?.cancel();
+                                 _applyClientSideFilters();
+                               },
+-                              trailing: Row(
+-                                mainAxisSize: MainAxisSize.min,
+-                                children: [
+-                                  _buildMapToggleButton(),
+-                                  const SizedBox(width: 10),
+-                                  GestureDetector(
++                              trailing: GestureDetector(
+                                 onTap: () => _showFilterBottomSheet(context),
+                                 child: Container(
+                                   padding: const EdgeInsets.all(14),
+@@ -888,8 +850,6 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
+                                     ],
+                                   ),
+                                 ),
+-                                  ),
+-                                ],
+                               ),
+                             ),
+                           ),
