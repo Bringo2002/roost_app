@@ -105,9 +105,29 @@ void main() {
   testWidgets('follows the FocusNode when the parent swaps it', (tester) async {
     final other = FocusNode();
     addTearDown(other.dispose);
+    final active = ValueNotifier<FocusNode>(focusNode);
+    addTearDown(active.dispose);
 
-    await tester.pumpWidget(_host(controller: controller, focusNode: focusNode));
-    await tester.pumpWidget(_host(controller: controller, focusNode: other));
+    // The swap has to happen INSIDE the route (via the ValueListenableBuilder).
+    // Re-pumping a fresh MaterialApp(home: ...) doesn't work: the home route
+    // caches its page and only rebuilds it when an inherited dependency
+    // changes, so the new FocusNode would never reach the search bar.
+    await tester.pumpWidget(MaterialApp(
+      theme: AppTheme.darkTheme,
+      home: Scaffold(
+        body: ValueListenableBuilder<FocusNode>(
+          valueListenable: active,
+          builder: (context, node, _) => RoostSearchBar(
+            controller: controller,
+            focusNode: node,
+            hintText: 'Search',
+          ),
+        ),
+      ),
+    ));
+
+    active.value = other;
+    await tester.pump();
 
     other.requestFocus();
     await tester.pump();
@@ -125,7 +145,13 @@ void main() {
     await tester.pumpWidget(_host(
       controller: controller,
       focusNode: focusNode,
-      below: const SizedBox(key: Key('outside'), height: 200, width: 200),
+      // ColoredBox (unlike a bare SizedBox) is hit-testable, so the tap below
+      // really lands on this widget instead of warning that it would miss.
+      below: const ColoredBox(
+        key: Key('outside'),
+        color: Colors.transparent,
+        child: SizedBox(height: 200, width: 200),
+      ),
     ));
 
     await tester.tap(find.byType(TextField));

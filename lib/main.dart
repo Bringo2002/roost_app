@@ -7,7 +7,6 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/chat/active_chats_page.dart';
@@ -25,7 +24,6 @@ import 'package:roost_app/utils/property_sorter.dart';
 import 'package:roost_app/utils/property_search.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/theme/app_colors.dart';
-import 'package:roost_app/theme/app_map_style.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 
 import 'package:roost_app/pages/profile/notifications_page.dart';
@@ -979,104 +977,6 @@ class _StaggeredListItemState extends State<_StaggeredListItem>
     return FadeTransition(
       opacity: _opacity,
       child: SlideTransition(position: _slide, child: widget.child),
-    );
-  }
-}
-
-// ─── Map View Page ────────────────────────────────────────────────────────────────────────────────
-
-class MapViewPage extends StatefulWidget {
-  final List<Property> properties;
-
-  const MapViewPage({super.key, required this.properties});
-
-  @override
-  State<MapViewPage> createState() => _MapViewPageState();
-}
-
-class _MapViewPageState extends State<MapViewPage> {
-  GoogleMapController? _mapController;
-
-  @override
-  void initState() {
-    super.initState();
-    _centerOnUserLocation();
-  }
-
-  @override
-  void dispose() {
-    _mapController?.dispose();
-    super.dispose();
-  }
-
-  Future<void> _centerOnUserLocation() async {
-    final position = await LocationService.getCurrentPosition();
-    if (position == null || !mounted) return;
-    _mapController?.animateCamera(
-      CameraUpdate.newLatLngZoom(
-          LatLng(position.latitude, position.longitude), 13),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final geoProperties = widget.properties
-        .where((p) => p.latitude != null && p.longitude != null)
-        .toList();
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(
-          '${geoProperties.length} on map',
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-        ),
-      ),
-      body: geoProperties.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.map_outlined, color: Colors.grey[700], size: 64),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No properties have\nlocation coordinates yet',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(color: Colors.grey[500], fontSize: 16),
-                  ),
-                ],
-              ),
-            )
-          : GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: LatLng(geoProperties.first.latitude!,
-                    geoProperties.first.longitude!),
-                zoom: 12,
-              ),
-              style: AppMapStyle.darkMapStyle,
-              buildingsEnabled: true,
-              mapToolbarEnabled: false,
-              onMapCreated: (controller) {
-                _mapController = controller;
-                _centerOnUserLocation();
-              },
-              myLocationEnabled: true,
-              myLocationButtonEnabled: true,
-              markers: geoProperties.map((p) {
-                return Marker(
-                  markerId: MarkerId('property-${p.id}'),
-                  position: LatLng(p.latitude!, p.longitude!),
-                  infoWindow: InfoWindow(title: p.title, snippet: p.location),
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (_) => PropertyDetailPage(property: p),
-                      ),
-                    );
-                  },
-                );
-              }).toSet(),
-            ),
     );
   }
 }
