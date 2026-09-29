@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
@@ -119,6 +120,52 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
 
   void _showVerificationDetails() => TrustVerificationCard.showDetails(context, _property);
 
+  /// First photo URL, same precedence [PropertyCard] uses to pick the
+  /// image its own Hero wraps. Used to keep the Hero flight showing the
+  /// exact same flat photo the card animated from -- see
+  /// [_buildHeroFlightShuttle] for why the flight can't just show
+  /// [HeroMediaGallery] itself.
+  String? get _coverPhotoUrl {
+    final url = _property.imageUrl;
+    if (url != null && url.trim().isNotEmpty) return url;
+    for (final candidate in _property.imageUrls) {
+      if (candidate.trim().isNotEmpty) return candidate;
+    }
+    return null;
+  }
+
+  /// Renders the Hero *in flight*, deliberately simpler than the landed
+  /// [HeroMediaGallery]. Flutter's default flightShuttleBuilder reparents
+  /// the destination Hero child -- the full gallery, with its PageView,
+  /// dot indicator, and a photo-counter chip built on `BackdropFilter` --
+  /// into the overlay and re-lays-it-out at a new size on every single
+  /// frame of the ~300ms flight. `BackdropFilter` has to re-sample and
+  /// blur the backdrop at each of those sizes, which is expensive enough
+  /// to drop frames mid-flight; that's what reads as a janky, not-smooth
+  /// expand. A plain `CachedNetworkImage` costs almost nothing to
+  /// rescale, so the flight stays smooth and the interactive gallery
+  /// chrome only appears once the image has finished landing at full
+  /// size -- which is also how this kind of shared-element transition
+  /// looks in other polished apps.
+  Widget _buildHeroFlightShuttle(
+    BuildContext flightContext,
+    Animation<double> animation,
+    HeroFlightDirection direction,
+    BuildContext fromContext,
+    BuildContext toContext,
+  ) {
+    final url = _coverPhotoUrl;
+    if (url == null) {
+      return Container(
+        color: AppColors.surface,
+        child: const Center(
+          child: Icon(Icons.home_outlined, color: AppColors.grey700, size: 64),
+        ),
+      );
+    }
+    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover);
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -183,7 +230,11 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
             flexibleSpace: FlexibleSpaceBar(
               stretchModes: const [StretchMode.zoomBackground, StretchMode.blurBackground],
               background: _property.id != null
-                  ? Hero(tag: 'property-image-${_property.id}', child: HeroMediaGallery(property: _property))
+                  ? Hero(
+                      tag: 'property-image-${_property.id}',
+                      flightShuttleBuilder: _buildHeroFlightShuttle,
+                      child: HeroMediaGallery(property: _property),
+                    )
                   : HeroMediaGallery(property: _property),
             ),
           ),

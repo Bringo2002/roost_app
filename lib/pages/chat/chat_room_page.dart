@@ -542,14 +542,23 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     );
 
     List<User> partners = [];
+    bool loadFailed = false;
     try {
       partners = await ChatService.getActiveChats();
     } catch (e) {
       debugPrint('Failed to load active chats for forwarding: $e');
+      loadFailed = true;
     }
 
     if (!mounted) return;
     Navigator.pop(context); // Dismiss loading dialog
+
+    if (loadFailed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Could not load your chats. Check your connection and try again.')),
+      );
+      return;
+    }
 
     if (partners.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
