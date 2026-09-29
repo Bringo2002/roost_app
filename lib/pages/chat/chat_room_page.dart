@@ -820,7 +820,19 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         decoration: const InputDecoration(
           hintText: 'Search messages...',
           hintStyle: TextStyle(color: AppColors.grey500),
+          // Same fix as RoostSearchBar: the app-wide InputDecorationTheme
+          // fills in enabledBorder/focusedBorder/filled whenever a field
+          // doesn't set them itself -- `border: InputBorder.none` alone
+          // doesn't stop that. Without these, this field (which is meant
+          // to sit borderless in the app bar) would draw the theme's
+          // filled, outlined box instead.
+          filled: false,
           border: InputBorder.none,
+          enabledBorder: InputBorder.none,
+          focusedBorder: InputBorder.none,
+          disabledBorder: InputBorder.none,
+          errorBorder: InputBorder.none,
+          focusedErrorBorder: InputBorder.none,
         ),
         autofocus: true,
         onChanged: (val) {
@@ -1261,7 +1273,27 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 decoration: InputDecoration(
                   hintText: 'Message...',
                   hintStyle: const TextStyle(color: AppColors.grey500),
+                  // `border` alone only covers the default/disabled case --
+                  // the app-wide InputDecorationTheme defines its own
+                  // enabledBorder/focusedBorder (radius 14, visible stroke),
+                  // which otherwise wins over this field's intended borderless
+                  // pill shape once the field is enabled or focused, showing
+                  // a mismatched rounded-rect border poking through the pill
+                  // fill. Repeating the same pill OutlineInputBorder for every
+                  // state keeps the shape (and "no stroke") consistent.
                   border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(AppRadii.pill),
+                    borderSide: BorderSide.none,
+                  ),
+                  disabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(AppRadii.pill),
                     borderSide: BorderSide.none,
                   ),
