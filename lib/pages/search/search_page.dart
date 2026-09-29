@@ -986,6 +986,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               return PropertyCard(
                                 key: ValueKey(property.id ?? identityHashCode(property)),
                                 property: property,
+                                heroTag: property.id != null ? 'property-image-${property.id}' : null,
                                 distanceLabel: km != null ? LocationService.formatDistance(km) : null,
                               );
                             },

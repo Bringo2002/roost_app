@@ -440,6 +440,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                         return PropertyCard(
                           key: ValueKey(property.id ?? identityHashCode(property)),
                           property: property,
+                          heroTag: property.id != null ? 'property-image-${property.id}' : null,
                         );
                       },
                     ),

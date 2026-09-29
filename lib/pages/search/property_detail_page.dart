@@ -438,6 +438,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                     child: PropertyCard(
                       key: ValueKey(similarProp.id ?? identityHashCode(similarProp)),
                       property: similarProp,
+                      heroTag: similarProp.id != null ? 'property-image-${similarProp.id}' : null,
                       margin: const EdgeInsets.only(right: 16),
                       compact: true,
                     ),
