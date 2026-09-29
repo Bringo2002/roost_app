@@ -1,3 +1,5 @@
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+
 /// Budget tier shown during onboarding.
 class BudgetOption {
   final String title;
@@ -26,6 +28,7 @@ class CountryConfig {
   final String searchHint;     // Placeholder in search bar
   final List<BudgetOption> budgets; // Onboarding budget tiers
   final String browsingDesc;   // "Just Browsing" description text
+  final LatLng mapCenter;      // Fallback map center when a listing has no pinned lat/lng
 
   const CountryConfig({
     required this.code,
@@ -41,6 +44,7 @@ class CountryConfig {
     required this.searchHint,
     required this.budgets,
     required this.browsingDesc,
+    required this.mapCenter,
   });
 
   /// Returns a location-aware search placeholder (e.g. "Search rentals in Westlands, 2BR..."
@@ -67,6 +71,7 @@ class CountryConfig {
     priceDivisions: 29,
     searchHint: 'Search rentals by location, e.g. 2BR...',
     browsingDesc: 'Checking Nairobi market prices',
+    mapCenter: LatLng(-1.2921, 36.8219), // Nairobi
     budgets: [
       BudgetOption(title: 'Under KES 15,000', badge: 'Budget Friendly', desc: 'Affordable studio & bedsitter listings'),
       BudgetOption(title: 'KES 15k – 30k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
@@ -88,6 +93,7 @@ class CountryConfig {
     priceDivisions: 19,
     searchHint: 'Search Mumbai, Bangalore, Delhi rentals...',
     browsingDesc: 'Checking Indian rental market prices',
+    mapCenter: LatLng(19.0760, 72.8777), // Mumbai
     budgets: [
       BudgetOption(title: 'Under ₹10,000', badge: 'Budget Friendly', desc: 'Affordable PG & 1RK listings'),
       BudgetOption(title: '₹10k – ₹25k', badge: 'Popular', desc: 'Standard 1BHK & 2BHK flats'),
@@ -109,6 +115,7 @@ class CountryConfig {
     priceDivisions: 39,
     searchHint: 'Search Lagos, Abuja, Port Harcourt rentals...',
     browsingDesc: 'Checking Nigerian rental market prices',
+    mapCenter: LatLng(6.5244, 3.3792), // Lagos
     budgets: [
       BudgetOption(title: 'Under ₦150,000', badge: 'Budget Friendly', desc: 'Affordable self-contain & mini flats'),
       BudgetOption(title: '₦150k – ₦500k', badge: 'Popular', desc: 'Standard 2 & 3 bedroom flats'),
@@ -130,6 +137,7 @@ class CountryConfig {
     priceDivisions: 18,
     searchHint: 'Search NYC, LA, Chicago rentals...',
     browsingDesc: 'Checking US rental market prices',
+    mapCenter: LatLng(40.7128, -74.0060), // New York City
     budgets: [
       BudgetOption(title: 'Under \$1,000', badge: 'Budget Friendly', desc: 'Affordable studio & shared apartments'),
       BudgetOption(title: '\$1,000 – \$2,000', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
@@ -151,6 +159,7 @@ class CountryConfig {
     priceDivisions: 18,
     searchHint: 'Search London, Manchester, Birmingham rentals...',
     browsingDesc: 'Checking UK rental market prices',
+    mapCenter: LatLng(51.5074, -0.1278), // London
     budgets: [
       BudgetOption(title: 'Under £800', badge: 'Budget Friendly', desc: 'Affordable studio & shared flats'),
       BudgetOption(title: '£800 – £1,500', badge: 'Popular', desc: 'Standard 1 & 2 bed flats'),
@@ -172,6 +181,7 @@ class CountryConfig {
     priceDivisions: 18,
     searchHint: 'Search Dubai, Abu Dhabi, Sharjah rentals...',
     browsingDesc: 'Checking UAE rental market prices',
+    mapCenter: LatLng(25.2048, 55.2708), // Dubai
     budgets: [
       BudgetOption(title: 'Under AED 3,000', badge: 'Budget Friendly', desc: 'Affordable studio & sharing options'),
       BudgetOption(title: 'AED 3k – 6k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),

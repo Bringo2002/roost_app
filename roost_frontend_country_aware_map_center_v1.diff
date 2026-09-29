@@ -1,0 +1,158 @@
+diff --git a/lib/config.dart b/lib/config.dart
+index 6c47542..7f9cf81 100644
+--- a/lib/config.dart
++++ b/lib/config.dart
+@@ -1,11 +1,16 @@
+ import 'package:google_maps_flutter/google_maps_flutter.dart';
++import 'package:roost_app/services/country_service.dart';
+ 
+ class AppConfig {
+   static const String baseUrl = 'https://roost-production-336e.up.railway.app';
+   static const String baseurl = baseUrl;
+ 
+-  /// Fallback map center (Nairobi CBD) used whenever a property has no
+-  /// pinned latitude/longitude yet. Was previously duplicated as raw
+-  /// -1.2921/36.8219 literals across the map preview and in-app map page.
+-  static const LatLng defaultMapCenter = LatLng(-1.2921, 36.8219);
++  /// Fallback map center used whenever a property has no pinned
++  /// latitude/longitude yet. Was previously a hardcoded Nairobi constant
++  /// duplicated across the map preview and in-app map page, which put
++  /// renters in the UK or UAE looking at a map centered on Kenya. Now
++  /// follows the user's selected/detected country (CountryService
++  /// defaults to Kenya itself before a country is chosen, so this is
++  /// always safe to read synchronously).
++  static LatLng get defaultMapCenter => CountryService.instance.current.mapCenter;
+ }
+\ No newline at end of file
+diff --git a/lib/models/country_config.dart b/lib/models/country_config.dart
+index 98e952c..20c5e94 100644
+--- a/lib/models/country_config.dart
++++ b/lib/models/country_config.dart
+@@ -1,3 +1,5 @@
++import 'package:google_maps_flutter/google_maps_flutter.dart';
++
+ /// Budget tier shown during onboarding.
+ class BudgetOption {
+   final String title;
+@@ -26,6 +28,7 @@ class CountryConfig {
+   final String searchHint;     // Placeholder in search bar
+   final List<BudgetOption> budgets; // Onboarding budget tiers
+   final String browsingDesc;   // "Just Browsing" description text
++  final LatLng mapCenter;      // Fallback map center when a listing has no pinned lat/lng
+ 
+   const CountryConfig({
+     required this.code,
+@@ -41,6 +44,7 @@ class CountryConfig {
+     required this.searchHint,
+     required this.budgets,
+     required this.browsingDesc,
++    required this.mapCenter,
+   });
+ 
+   /// Returns a location-aware search placeholder (e.g. "Search rentals in Westlands, 2BR..."
+@@ -67,6 +71,7 @@ class CountryConfig {
+     priceDivisions: 29,
+     searchHint: 'Search rentals by location, e.g. 2BR...',
+     browsingDesc: 'Checking Nairobi market prices',
++    mapCenter: LatLng(-1.2921, 36.8219), // Nairobi
+     budgets: [
+       BudgetOption(title: 'Under KES 15,000', badge: 'Budget Friendly', desc: 'Affordable studio & bedsitter listings'),
+       BudgetOption(title: 'KES 15k – 30k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
+@@ -88,6 +93,7 @@ class CountryConfig {
+     priceDivisions: 19,
+     searchHint: 'Search Mumbai, Bangalore, Delhi rentals...',
+     browsingDesc: 'Checking Indian rental market prices',
++    mapCenter: LatLng(19.0760, 72.8777), // Mumbai
+     budgets: [
+       BudgetOption(title: 'Under ₹10,000', badge: 'Budget Friendly', desc: 'Affordable PG & 1RK listings'),
+       BudgetOption(title: '₹10k – ₹25k', badge: 'Popular', desc: 'Standard 1BHK & 2BHK flats'),
+@@ -109,6 +115,7 @@ class CountryConfig {
+     priceDivisions: 39,
+     searchHint: 'Search Lagos, Abuja, Port Harcourt rentals...',
+     browsingDesc: 'Checking Nigerian rental market prices',
++    mapCenter: LatLng(6.5244, 3.3792), // Lagos
+     budgets: [
+       BudgetOption(title: 'Under ₦150,000', badge: 'Budget Friendly', desc: 'Affordable self-contain & mini flats'),
+       BudgetOption(title: '₦150k – ₦500k', badge: 'Popular', desc: 'Standard 2 & 3 bedroom flats'),
+@@ -130,6 +137,7 @@ class CountryConfig {
+     priceDivisions: 18,
+     searchHint: 'Search NYC, LA, Chicago rentals...',
+     browsingDesc: 'Checking US rental market prices',
++    mapCenter: LatLng(40.7128, -74.0060), // New York City
+     budgets: [
+       BudgetOption(title: 'Under \$1,000', badge: 'Budget Friendly', desc: 'Affordable studio & shared apartments'),
+       BudgetOption(title: '\$1,000 – \$2,000', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
+@@ -151,6 +159,7 @@ class CountryConfig {
+     priceDivisions: 18,
+     searchHint: 'Search London, Manchester, Birmingham rentals...',
+     browsingDesc: 'Checking UK rental market prices',
++    mapCenter: LatLng(51.5074, -0.1278), // London
+     budgets: [
+       BudgetOption(title: 'Under £800', badge: 'Budget Friendly', desc: 'Affordable studio & shared flats'),
+       BudgetOption(title: '£800 – £1,500', badge: 'Popular', desc: 'Standard 1 & 2 bed flats'),
+@@ -172,6 +181,7 @@ class CountryConfig {
+     priceDivisions: 18,
+     searchHint: 'Search Dubai, Abu Dhabi, Sharjah rentals...',
+     browsingDesc: 'Checking UAE rental market prices',
++    mapCenter: LatLng(25.2048, 55.2708), // Dubai
+     budgets: [
+       BudgetOption(title: 'Under AED 3,000', badge: 'Budget Friendly', desc: 'Affordable studio & sharing options'),
+       BudgetOption(title: 'AED 3k – 6k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
+diff --git a/test/models/country_config_test.dart b/test/models/country_config_test.dart
+new file mode 100644
+index 0000000..48bb436
+--- /dev/null
++++ b/test/models/country_config_test.dart
+@@ -0,0 +1,52 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:google_maps_flutter/google_maps_flutter.dart';
++import 'package:roost_app/config.dart';
++import 'package:roost_app/models/country_config.dart';
++import 'package:roost_app/services/country_service.dart';
++
++void main() {
++  group('CountryConfig.mapCenter', () {
++    test('every supported country has a distinct, non-zero map center', () {
++      final centers = CountryConfig.all.map((c) => c.mapCenter).toSet();
++      // toSet() de-duplicates by LatLng's value equality, so this also
++      // catches a copy-paste that gave two countries the same center.
++      expect(centers.length, CountryConfig.all.length);
++      for (final country in CountryConfig.all) {
++        expect(country.mapCenter, isNot(const LatLng(0, 0)),
++            reason: '${country.name} has an unset map center');
++      }
++    });
++
++    test('Kenya centers on Nairobi (unchanged default)', () {
++      expect(CountryConfig.kenya.mapCenter, const LatLng(-1.2921, 36.8219));
++    });
++  });
++
++  group('AppConfig.defaultMapCenter', () {
++    // CountryService.setCountry() updates its in-memory _current field
++    // synchronously before it ever awaits SharedPreferences -- see the
++    // service's own implementation -- so it's safe to check the effect
++    // immediately. The SharedPreferences.getInstance() call after that has
++    // no platform mock in a plain unit test and throws; that's expected
++    // and irrelevant to what's being tested here, so it's swallowed.
++    Future<void> setCountryIgnoringPersistenceFailure(CountryConfig country) async {
++      try {
++        await CountryService.instance.setCountry(country);
++      } catch (_) {}
++    }
++
++    setUp(() {
++      // CountryService is a singleton with mutable state; leave it as we
++      // found it so other test files aren't affected by run order.
++      addTearDown(() => setCountryIgnoringPersistenceFailure(CountryConfig.kenya));
++    });
++
++    test('follows the currently selected country, not a hardcoded Nairobi constant', () async {
++      await setCountryIgnoringPersistenceFailure(CountryConfig.unitedKingdom);
++      expect(AppConfig.defaultMapCenter, CountryConfig.unitedKingdom.mapCenter);
++
++      await setCountryIgnoringPersistenceFailure(CountryConfig.nigeria);
++      expect(AppConfig.defaultMapCenter, CountryConfig.nigeria.mapCenter);
++    });
++  });
++}

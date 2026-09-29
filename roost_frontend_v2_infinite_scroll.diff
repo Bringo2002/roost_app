@@ -1,0 +1,617 @@
+diff --git a/lib/pages/landlord/landlord_dashboard_page.dart b/lib/pages/landlord/landlord_dashboard_page.dart
+index a70c771..429b4f0 100644
+--- a/lib/pages/landlord/landlord_dashboard_page.dart
++++ b/lib/pages/landlord/landlord_dashboard_page.dart
+@@ -23,18 +23,41 @@ class LandlordDashboardPage extends StatefulWidget {
+ }
+ 
+ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
++  static const int _pageSize = 20;
++  // How close to the bottom (in logical pixels) triggers loading the next
++  // page, so new rows are ready before the user actually hits the end.
++  static const double _loadMoreThreshold = 400;
++
++  /// Items for the CURRENTLY SELECTED filter only -- GET /api/v2/properties/
++  /// my-listings filters and sorts server-side now, so this is already in
++  /// display order and never needs client-side filtering. Switching filters
++  /// clears this and starts over at page 0 (see [_selectFilter]).
+   List<Property> _myListings = [];
+   bool _loading = true;
++  bool _loadingMore = false;
++  int _nextPage = 0;
++  bool _hasNext = true;
+   String _selectedFilter = 'ALL';
+ 
+-  /// Set only when a load/refresh fails. Cleared on the next attempt.
+-  /// Rendered as a full retry state only when we have nothing else to
+-  /// show (`_myListings` is empty) -- a refresh failure with existing
+-  /// data on screen just surfaces the snackbar below and keeps showing
+-  /// what we already have.
++  /// Whole-portfolio counts from the server (every status/filter bucket,
++  /// regardless of `_selectedFilter` or how many pages are loaded) --
++  /// `_myListings` only ever holds the pages scrolled through for the
++  /// current filter, so the stats header and chip badges can no longer be
++  /// computed from it the way they could before pagination.
++  int _totalCount = 0;
++  int _draftsCount = 0;
++  int _availableCount = 0;
++  int _rentedCount = 0;
++  int _verifiedCount = 0;
++
++  /// Set only when the first page of a load/refresh fails. Cleared on the
++  /// next attempt. Rendered as a full retry state only when we have
++  /// nothing else to show (`_myListings` is empty) -- a load-more failure
++  /// with existing rows on screen just surfaces the snackbar below and
++  /// keeps showing what's already loaded.
+   String? _loadError;
+ 
+-  /// Ids of listings with an action (publish, verify-gps, delete,
++  /// Ids of listings with an action (edit, publish, verify-gps, delete,
+   /// toggle-availability) currently in flight. Guards every per-listing
+   /// action below so a slow round trip can't be fired twice from a
+   /// double-tap, and lets the UI show a spinner instead of sitting
+@@ -43,49 +66,162 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+ 
+   bool _isBusy(Property property) => property.id != null && _busyIds.contains(property.id);
+ 
++  final ScrollController _scrollController = ScrollController();
++
+   @override
+   void initState() {
+     super.initState();
++    _scrollController.addListener(_onScroll);
+     _loadListings();
+   }
+ 
++  @override
++  void dispose() {
++    _scrollController
++      ..removeListener(_onScroll)
++      ..dispose();
++    super.dispose();
++  }
++
++  void _onScroll() {
++    if (_loading || _loadingMore || !_hasNext) return;
++    if (!_scrollController.hasClients) return;
++    final position = _scrollController.position;
++    if (position.maxScrollExtent - position.pixels <= _loadMoreThreshold) {
++      _loadMore();
++    }
++  }
++
+   /// Draft listings first, published/rented after -- stable within each
+   /// group. Re-run after any local mutation that can change `status`
+-  /// (currently just publish) so the list doesn't wait for a full
+-  /// reload to reflect the new grouping. See LandlordListingOrganizer
+-  /// for the (separately unit-tested) rule itself.
++  /// (currently just publish) so the loaded rows don't wait for a reload
++  /// to reflect the new grouping. See LandlordListingOrganizer for the
++  /// (separately unit-tested) rule itself.
+   void _sortListings() {
+     LandlordListingOrganizer.sortDraftsFirst(_myListings);
+   }
+ 
++  void _selectFilter(String filter) {
++    if (filter == _selectedFilter) return;
++    setState(() => _selectedFilter = filter);
++    _loadListings();
++  }
++
++  /// Resets to page 0 for whatever `_selectedFilter` currently is. Bound
++  /// directly to RefreshIndicator.onRefresh and the error state's retry
++  /// button, and called after actions (add/edit a listing, verify a phone,
++  /// endorse) whose effect on this page isn't safe to predict locally.
+   Future<void> _loadListings() async {
+     if (!mounted) return;
+     setState(() {
+       _loading = true;
+       _loadError = null;
++      _hasNext = true;
+     });
++    await _fetchPage(page: 0, isFirstPage: true);
++  }
++
++  Future<void> _loadMore() async {
++    if (_loadingMore || !_hasNext) return;
++    setState(() => _loadingMore = true);
++    await _fetchPage(page: _nextPage, isFirstPage: false);
++  }
++
++  Future<void> _fetchPage({required int page, required bool isFirstPage}) async {
+     try {
+-      final jsonList = await ApiService.get('/api/properties/my-listings');
++      final json = await ApiService.get(
++        '/api/v2/properties/my-listings?page=$page&size=$_pageSize&filter=$_selectedFilter',
++      );
+       if (!mounted) return;
++      final body = json as Map<String, dynamic>;
++      final items = (body['items'] as List)
++          .map((j) => Property.fromJson(j as Map<String, dynamic>))
++          .toList();
++      final counts = body['counts'] as Map<String, dynamic>? ?? const {};
+       setState(() {
+-        _myListings = (jsonList as List).map((j) => Property.fromJson(j)).toList();
+-        _sortListings();
++        if (isFirstPage) {
++          _myListings = items;
++        } else {
++          _myListings.addAll(items);
++        }
++        _nextPage = page + 1;
++        _hasNext = body['hasNext'] == true;
++        _totalCount = (counts['total'] as num?)?.toInt() ?? 0;
++        _draftsCount = (counts['drafts'] as num?)?.toInt() ?? 0;
++        _availableCount = (counts['available'] as num?)?.toInt() ?? 0;
++        _rentedCount = (counts['rented'] as num?)?.toInt() ?? 0;
++        _verifiedCount = (counts['verified'] as num?)?.toInt() ?? 0;
+         _loading = false;
++        _loadingMore = false;
+       });
+     } catch (e) {
+       if (!mounted) return;
+       setState(() {
+         _loading = false;
+-        _loadError = e.toString();
++        _loadingMore = false;
++        if (isFirstPage) _loadError = e.toString();
+       });
+       ScaffoldMessenger.of(context).showSnackBar(
+-        SnackBar(content: Text('Failed to load listings: $e')),
++        SnackBar(content: Text(isFirstPage ? 'Failed to load listings: $e' : 'Failed to load more: $e')),
+       );
+     }
+   }
+ 
+-  List<Property> get _filteredListings =>
+-      LandlordListingOrganizer.applyFilter(_myListings, _selectedFilter);
++  /// Fetches the full record for [fallback]'s id (GET /api/properties/{id})
++  /// so the edit wizard has everything to prefill -- `_myListings` items
++  /// come from the slim v2 list endpoint (no description, amenities,
++  /// deposit terms, etc.), so passing one straight into AddPropertyPage
++  /// would silently blank those fields out on the edit form. Falls back to
++  /// [fallback] itself on failure -- a partially-prefilled form beats no
++  /// form at all.
++  Future<Property> _fetchFullProperty(Property fallback) async {
++    if (fallback.id == null) return fallback;
++    try {
++      final json = await ApiService.get('/api/properties/${fallback.id}');
++      return Property.fromJson(json as Map<String, dynamic>);
++    } catch (e) {
++      if (mounted) {
++        ScaffoldMessenger.of(context).showSnackBar(
++          SnackBar(content: Text("Couldn't load full listing details: $e")),
++        );
++      }
++      return fallback;
++    }
++  }
++
++  /// Applies a local mutation that may move [updated] into or out of one
++  /// or more of the PUBLISHED/DRAFT/RENTED buckets (toggling availability,
++  /// publishing a draft): adjusts the matching server-provided counts by
++  /// however many buckets it entered or left, and removes the item from
++  /// `_myListings` if it no longer matches `_selectedFilter` -- filtering
++  /// happens server-side now, so a row that stops matching the currently
++  /// selected chip has to leave the visible list, not just update in
++  /// place.
++  void _applyBucketMutation(int index, Property previous, Property updated) {
++    for (final bucket in [
++      LandlordListingOrganizer.filterPublished,
++      LandlordListingOrganizer.filterDraft,
++      LandlordListingOrganizer.filterRented,
++    ]) {
++      final was = LandlordListingOrganizer.matches(previous, bucket);
++      final now = LandlordListingOrganizer.matches(updated, bucket);
++      if (was == now) continue;
++      final delta = now ? 1 : -1;
++      switch (bucket) {
++        case LandlordListingOrganizer.filterPublished:
++          _availableCount += delta;
++        case LandlordListingOrganizer.filterDraft:
++          _draftsCount += delta;
++        case LandlordListingOrganizer.filterRented:
++          _rentedCount += delta;
++      }
++    }
++    if (LandlordListingOrganizer.matches(updated, _selectedFilter)) {
++      _myListings[index] = updated;
++    } else {
++      _myListings.removeAt(index);
++    }
++  }
+ 
+   Future<void> _toggleAvailability(Property property) async {
+     if (property.id == null || _isBusy(property)) return;
+@@ -122,21 +258,36 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+     final index = _myListings.indexWhere((p) => p.id == property.id);
+     if (index == -1) return;
+     final previous = _myListings[index];
++    final updated = previous.copyWith(available: !previous.available);
++    final countsSnapshot = (_draftsCount, _availableCount, _rentedCount);
+ 
+     // Flip the switch immediately -- don't make the user wait on a round
+     // trip (and a full-list reload) just to see their own tap reflected.
+     // Revert in place if the server rejects it.
+     setState(() {
+       _busyIds.add(property.id!);
+-      _myListings[index] = previous.copyWith(available: !previous.available);
++      _applyBucketMutation(index, previous, updated);
+     });
+     try {
+       await ApiService.patch('/api/properties/${property.id}/availability', {
+-        'available': !previous.available,
++        'available': updated.available,
+       });
+     } catch (e) {
+       if (!mounted) return;
+-      setState(() => _myListings[index] = previous);
++      setState(() {
++        _draftsCount = countsSnapshot.$1;
++        _availableCount = countsSnapshot.$2;
++        _rentedCount = countsSnapshot.$3;
++        // The row may have been removed by _applyBucketMutation above (if
++        // the toggle took it out of the currently selected filter); put it
++        // back at the same spot rather than assuming it's still there.
++        final stillThere = _myListings.indexWhere((p) => p.id == property.id);
++        if (stillThere != -1) {
++          _myListings[stillThere] = previous;
++        } else {
++          _myListings.insert(index.clamp(0, _myListings.length), previous);
++        }
++      });
+       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: $e')));
+     } finally {
+       if (mounted) setState(() => _busyIds.remove(property.id));
+@@ -174,6 +325,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+     final index = _myListings.indexWhere((p) => p.id == property.id);
+     if (index == -1) return;
+     final removed = _myListings[index];
++    final countsSnapshot = (_totalCount, _draftsCount, _availableCount, _rentedCount);
+ 
+     // Remove immediately; put it back at the same spot if the delete
+     // fails, rather than blocking on a reload just to show the same list
+@@ -181,12 +333,28 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+     setState(() {
+       _busyIds.add(property.id!);
+       _myListings.removeAt(index);
++      _totalCount = (_totalCount - 1).clamp(0, _totalCount);
++      if (LandlordListingOrganizer.matches(removed, LandlordListingOrganizer.filterPublished)) {
++        _availableCount = (_availableCount - 1).clamp(0, _availableCount);
++      }
++      if (LandlordListingOrganizer.matches(removed, LandlordListingOrganizer.filterDraft)) {
++        _draftsCount = (_draftsCount - 1).clamp(0, _draftsCount);
++      }
++      if (LandlordListingOrganizer.matches(removed, LandlordListingOrganizer.filterRented)) {
++        _rentedCount = (_rentedCount - 1).clamp(0, _rentedCount);
++      }
+     });
+     try {
+       await ApiService.delete('/api/properties/${property.id}');
+     } catch (e) {
+       if (!mounted) return;
+-      setState(() => _myListings.insert(index, removed));
++      setState(() {
++        _myListings.insert(index.clamp(0, _myListings.length), removed);
++        _totalCount = countsSnapshot.$1;
++        _draftsCount = countsSnapshot.$2;
++        _availableCount = countsSnapshot.$3;
++        _rentedCount = countsSnapshot.$4;
++      });
+       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to delete: $e')));
+     } finally {
+       if (mounted) setState(() => _busyIds.remove(property.id));
+@@ -244,8 +412,10 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+       await ApiService.patch('/api/properties/${property.id}/publish', {});
+       if (!mounted) return;
+       if (index != -1) {
++        final previous = _myListings[index];
++        final updated = previous.copyWith(status: 'PUBLISHED');
+         setState(() {
+-          _myListings[index] = _myListings[index].copyWith(status: 'PUBLISHED');
++          _applyBucketMutation(index, previous, updated);
+           _sortListings();
+         });
+       }
+@@ -270,9 +440,11 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+         ),
+       );
+       if (proceedToWizard == true && mounted) {
++        final full = await _fetchFullProperty(property);
++        if (!mounted) return;
+         final updated = await Navigator.push<bool>(
+           context,
+-          MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
++          MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: full)),
+         );
+         if (updated == true) _loadListings();
+       }
+@@ -313,10 +485,6 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+   }
+ 
+   Widget _buildStatsHeader() {
+-    final totalCount = _myListings.length;
+-    final draftsCount = _myListings.where((p) => p.status == 'DRAFT').length;
+-    final availableCount = _myListings.where((p) => p.status == 'PUBLISHED' && p.available).length;
+-
+     return Container(
+       padding: const EdgeInsets.all(16),
+       margin: const EdgeInsets.only(bottom: 12),
+@@ -345,7 +513,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+         children: [
+           _buildStatItem(
+             'Total Listings',
+-            totalCount,
++            _totalCount,
+             Icons.home_work_outlined,
+             Colors.white,
+             'ALL',
+@@ -353,7 +521,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+           Container(width: 1, height: 36, color: AppColors.border),
+           _buildStatItem(
+             'Drafts',
+-            draftsCount,
++            _draftsCount,
+             Icons.edit_note_rounded,
+             Colors.amber,
+             'DRAFT',
+@@ -361,7 +529,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+           Container(width: 1, height: 36, color: AppColors.border),
+           _buildStatItem(
+             'Available',
+-            availableCount,
++            _availableCount,
+             Icons.check_circle_outline_rounded,
+             AppColors.accent,
+             'PUBLISHED',
+@@ -377,7 +545,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+     return InkWell(
+       onTap: () {
+         HapticFeedback.selectionClick();
+-        setState(() => _selectedFilter = filterKey);
++        _selectFilter(filterKey);
+       },
+       borderRadius: BorderRadius.circular(12),
+       child: Padding(
+@@ -421,16 +589,11 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+   }
+ 
+   Widget _buildFilterChipsRow() {
+-    final publishedCount = _myListings.where((p) => p.status == 'PUBLISHED' && p.available).length;
+-    final draftsCount = _myListings.where((p) => p.status == 'DRAFT').length;
+-    final rentedCount = _myListings.where((p) => !p.available).length;
+-    final totalCount = _myListings.length;
+-
+     final filterOptions = [
+-      {'key': 'ALL', 'label': 'All ($totalCount)'},
+-      {'key': 'PUBLISHED', 'label': 'Available ($publishedCount)'},
+-      {'key': 'DRAFT', 'label': 'Drafts ($draftsCount)'},
+-      {'key': 'RENTED', 'label': 'Rented ($rentedCount)'},
++      {'key': 'ALL', 'label': 'All ($_totalCount)'},
++      {'key': 'PUBLISHED', 'label': 'Available ($_availableCount)'},
++      {'key': 'DRAFT', 'label': 'Drafts ($_draftsCount)'},
++      {'key': 'RENTED', 'label': 'Rented ($_rentedCount)'},
+     ];
+ 
+     return Container(
+@@ -464,7 +627,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+             onSelected: (selected) {
+               if (selected) {
+                 HapticFeedback.selectionClick();
+-                setState(() => _selectedFilter = key);
++                _selectFilter(key);
+               }
+             },
+           );
+@@ -474,9 +637,6 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+   }
+ 
+   Widget _buildVerificationCenterBanner() {
+-    final verifiedCount = _myListings.where((p) => p.verified).length;
+-    final totalCount = _myListings.length;
+-
+     return Container(
+       margin: const EdgeInsets.only(bottom: 14),
+       padding: const EdgeInsets.all(16),
+@@ -517,9 +677,9 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+                 ),
+                 const SizedBox(height: 2),
+                 Text(
+-                  totalCount == 0
++                  _totalCount == 0
+                       ? 'Complete account & listing proof checks'
+-                      : '$verifiedCount/$totalCount Listings Fully Verified',
++                      : '$_verifiedCount/$_totalCount Listings Fully Verified',
+                   style: const TextStyle(color: Colors.white70, fontSize: 12),
+                 ),
+               ],
+@@ -629,7 +789,9 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+ 
+   @override
+   Widget build(BuildContext context) {
+-    final displayedListings = _filteredListings;
++    // Already filtered and sorted server-side for _selectedFilter -- see
++    // the class doc on `_myListings`.
++    final displayedListings = _myListings;
+     final bottomInset = 16 + MediaQuery.of(context).padding.bottom;
+ 
+     return Scaffold(
+@@ -649,6 +811,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+                   backgroundColor: AppColors.surfaceRaised,
+                   onRefresh: _loadListings,
+                   child: CustomScrollView(
++                    controller: _scrollController,
+                     physics: const AlwaysScrollableScrollPhysics(),
+                     slivers: [
+                       SliverPadding(
+@@ -667,7 +830,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+                         SliverToBoxAdapter(child: _buildEmptyState())
+                       else
+                         SliverPadding(
+-                          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
++                          padding: EdgeInsets.fromLTRB(16, 0, 16, _hasNext ? 0 : bottomInset),
+                           sliver: SliverList(
+                             delegate: SliverChildBuilderDelegate(
+                               (context, index) {
+@@ -690,10 +853,16 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+                                     property: property,
+                                     isBusy: _isBusy(property),
+                                     onEdit: () async {
++                                      if (_isBusy(property) || property.id == null) return;
++                                      setState(() => _busyIds.add(property.id!));
++                                      final full = await _fetchFullProperty(property);
++                                      if (!mounted) return;
+                                       final updated = await Navigator.push<bool>(
+                                         context,
+-                                        MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: property)),
++                                        MaterialPageRoute(builder: (_) => AddPropertyPage(editingProperty: full)),
+                                       );
++                                      if (!mounted) return;
++                                      setState(() => _busyIds.remove(property.id));
+                                       if (updated == true) _loadListings();
+                                     },
+                                     onDelete: () => _deleteListing(property),
+@@ -720,6 +889,28 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
+                             ),
+                           ),
+                         ),
++                      if (_hasNext && displayedListings.isNotEmpty)
++                        SliverPadding(
++                          padding: EdgeInsets.fromLTRB(16, 0, 16, bottomInset),
++                          sliver: SliverToBoxAdapter(
++                            child: Center(
++                              child: Padding(
++                                padding: const EdgeInsets.symmetric(vertical: 16),
++                                child: _loadingMore
++                                    ? const SizedBox(
++                                        width: 22,
++                                        height: 22,
++                                        child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white70),
++                                      )
++                                    // Placeholder height so the sliver's presence
++                                    // (and thus the scroll-distance-to-bottom the
++                                    // _onScroll threshold measures against) doesn't
++                                    // change the instant a page finishes loading.
++                                    : const SizedBox(width: 22, height: 22),
++                              ),
++                            ),
++                          ),
++                        ),
+                     ],
+                   ),
+                 ),
+diff --git a/lib/utils/landlord_listing_organizer.dart b/lib/utils/landlord_listing_organizer.dart
+index 934ac02..702970c 100644
+--- a/lib/utils/landlord_listing_organizer.dart
++++ b/lib/utils/landlord_listing_organizer.dart
+@@ -5,6 +5,14 @@ import 'package:roost_app/models/property.dart';
+ /// Kept out of [LandlordDashboardPage]'s State so both can be unit-tested
+ /// directly -- no widget pump, no network round trip -- the same pattern
+ /// already used for the search feed's [PropertySorter].
++///
++/// The dashboard's own list/count fetch is now paginated and filtered
++/// server-side (GET /api/v2/properties/my-listings) using the identical
++/// predicates below, so [applyFilter] is no longer used to filter the
++/// dashboard's own data -- but [matches] still is, to decide whether an
++/// item that changed status/availability locally (after an optimistic
++/// toggle or publish) should be removed from the currently-selected
++/// filter's view without waiting for a reload.
+ class LandlordListingOrganizer {
+   LandlordListingOrganizer._();
+ 
+@@ -22,20 +30,36 @@ class LandlordListingOrganizer {
+     return properties;
+   }
+ 
+-  /// Applies one of the dashboard's stat-card / filter-chip selections.
+-  /// Unrecognized filter values (including [filterAll]) return the full
+-  /// list unchanged.
+-  static List<Property> applyFilter(List<Property> properties, String filter) {
++  /// Whether [property] belongs to one of the dashboard's stat-card /
++  /// filter-chip buckets. [filterAll] and any unrecognized value match
++  /// everything. Mirrors PropertyRepository#findOwnerListingsPage and
++  /// #countOwnerListings on the backend exactly -- these three predicates
++  /// must stay identical to those, or a chip's badge count (server-side
++  /// now) stops matching what tapping that chip shows.
++  static bool matches(Property property, String filter) {
+     switch (filter) {
+       case filterPublished:
+-        return properties.where((p) => p.status == filterPublished && p.available).toList();
++        return property.status == filterPublished && property.available;
+       case filterDraft:
+-        return properties.where((p) => p.status == filterDraft).toList();
++        return property.status == filterDraft;
+       case filterRented:
+-        return properties.where((p) => !p.available).toList();
++        return !property.available;
+       case filterAll:
+       default:
+-        return properties;
++        return true;
++    }
++  }
++
++  /// Applies one of the dashboard's stat-card / filter-chip selections to
++  /// a whole list. Unrecognized filter values (including [filterAll])
++  /// return the list unchanged.
++  static List<Property> applyFilter(List<Property> properties, String filter) {
++    if (filter != filterAll &&
++        filter != filterPublished &&
++        filter != filterDraft &&
++        filter != filterRented) {
++      return properties;
+     }
++    return properties.where((p) => matches(p, filter)).toList();
+   }
+ }
+diff --git a/test/utils/landlord_listing_organizer_test.dart b/test/utils/landlord_listing_organizer_test.dart
+index cbbac38..f511d23 100644
+--- a/test/utils/landlord_listing_organizer_test.dart
++++ b/test/utils/landlord_listing_organizer_test.dart
+@@ -3,7 +3,7 @@ import 'package:roost_app/models/property.dart';
+ import 'package:roost_app/utils/landlord_listing_organizer.dart';
+ 
+ Property _property({
+-  required int id,
++  int id = 1,
+   String status = 'PUBLISHED',
+   bool available = true,
+ }) {
+@@ -95,4 +95,37 @@ void main() {
+       expect(result.map((p) => p.id), [1, 2, 3, 4]);
+     });
+   });
++
++  group('LandlordListingOrganizer.matches', () {
++    test('ALL matches every property regardless of status/availability', () {
++      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'ALL'), isTrue);
++      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: true), 'ALL'), isTrue);
++    });
++
++    test('PUBLISHED requires status PUBLISHED and available true', () {
++      final published = _property(status: 'PUBLISHED', available: true);
++      final publishedButRented = _property(status: 'PUBLISHED', available: false);
++      final draft = _property(status: 'DRAFT', available: true);
++
++      expect(LandlordListingOrganizer.matches(published, 'PUBLISHED'), isTrue);
++      expect(LandlordListingOrganizer.matches(publishedButRented, 'PUBLISHED'), isFalse);
++      expect(LandlordListingOrganizer.matches(draft, 'PUBLISHED'), isFalse);
++    });
++
++    test('DRAFT only checks status, ignores availability', () {
++      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: true), 'DRAFT'), isTrue);
++      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'DRAFT'), isTrue);
++      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: true), 'DRAFT'), isFalse);
++    });
++
++    test('RENTED only checks availability, ignores status', () {
++      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: false), 'RENTED'), isTrue);
++      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'RENTED'), isTrue);
++      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: true), 'RENTED'), isFalse);
++    });
++
++    test('an unrecognized filter matches everything, same as ALL', () {
++      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'BOGUS'), isTrue);
++    });
++  });
+ }
