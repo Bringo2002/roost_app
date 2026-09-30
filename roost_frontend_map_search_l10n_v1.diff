@@ -1,0 +1,286 @@
+diff --git a/lib/l10n/app_en.arb b/lib/l10n/app_en.arb
+index 98d24c8..8e976fa 100644
+--- a/lib/l10n/app_en.arb
++++ b/lib/l10n/app_en.arb
+@@ -1,57 +1,46 @@
+ {
+   "@@locale": "en",
+   "@@last_modified": "2026-09-27T00:00:00.000Z",
+-
+   "propertyCardCall": "Call",
+   "@propertyCardCall": {
+     "description": "Label on the property card's button that dials the landlord/agent."
+   },
+-
+   "propertyCardChat": "Chat",
+   "@propertyCardChat": {
+     "description": "Label on the property card's button that opens in-app chat with the landlord/agent."
+   },
+-
+   "propertyCardNavigate": "Navigate",
+   "@propertyCardNavigate": {
+     "description": "Label on the property card's button that opens the property's location on a map."
+   },
+-
+   "propertyCardVerifiedBadge": "Verified",
+   "@propertyCardVerifiedBadge": {
+     "description": "Badge shown on a property card when the listing/landlord has been verified."
+   },
+-
+   "propertyCardNewBadge": "NEW",
+   "@propertyCardNewBadge": {
+     "description": "Badge shown on a property card for a listing posted within the last 7 days."
+   },
+-
+   "propertyCardTakenBadge": "Taken",
+   "@propertyCardTakenBadge": {
+     "description": "Badge shown next to the title when a listing is no longer available."
+   },
+-
+   "propertyCardWorthCheckingBadge": "Worth checking",
+   "@propertyCardWorthCheckingBadge": {
+     "description": "Mild caution badge shown on a property card when the listing has one or more risk flags."
+   },
+-
+   "propertyCardAddToFavorites": "Add to favorites",
+   "@propertyCardAddToFavorites": {
+     "description": "Accessibility label for the favorite (heart) button when the property is not currently saved."
+   },
+-
+   "propertyCardRemoveFromFavorites": "Remove from favorites",
+   "@propertyCardRemoveFromFavorites": {
+     "description": "Accessibility label for the favorite (heart) button when the property is currently saved."
+   },
+-
+   "propertyCardCurrentlyTaken": "currently taken",
+   "@propertyCardCurrentlyTaken": {
+     "description": "Fragment appended to the property card's overall accessibility summary when the listing is unavailable."
+   },
+-
+   "propertyCardBathCount": "{count, plural, one {{count} bath} other {{count} baths}}",
+   "@propertyCardBathCount": {
+     "description": "Bathroom count shown on a property card. Also fixes the previous hardcoded copy always saying \"bath\" even for plural counts.",
+@@ -61,17 +50,14 @@
+       }
+     }
+   },
+-
+   "propertyCardNoPhoneNumber": "No phone number available for this listing",
+   "@propertyCardNoPhoneNumber": {
+     "description": "Snackbar shown when tapping Call on a listing with no usable phone number on file."
+   },
+-
+   "propertyCardCouldNotOpenDialer": "Could not open the phone dialer",
+   "@propertyCardCouldNotOpenDialer": {
+     "description": "Snackbar shown when the device's phone dialer could not be launched."
+   },
+-
+   "propertyCardChatUnavailable": "Landlord contact unavailable for chat",
+   "@propertyCardChatUnavailable": {
+     "description": "Snackbar shown when tapping Chat on a listing with no linked owner account to message."
+@@ -85,14 +71,62 @@
+       }
+     }
+   },
+-
+   "propertyTypeStudio": "Studio",
+   "@propertyTypeStudio": {
+     "description": "Bedroom label for a zero-bedroom listing that is a studio (also the fallback for unknown zero-bedroom types)."
+   },
+-
+   "propertyTypeBedsitter": "Bedsitter",
+   "@propertyTypeBedsitter": {
+     "description": "Bedroom label for a zero-bedroom listing whose house type is a bedsitter (a single room with a shared or partitioned sleeping area, common in Kenya)."
++  },
++  "inAppMapBack": "Back",
++  "@inAppMapBack": {
++    "description": "Accessible label for the back button on a property's full-screen map."
++  },
++  "inAppMapCenterOnProperty": "Center map on property",
++  "@inAppMapCenterOnProperty": {
++    "description": "Accessible label for the button that recenters the map on the property pin."
++  },
++  "inAppMapCenterOnUser": "Center map on your location",
++  "@inAppMapCenterOnUser": {
++    "description": "Accessible label for the button that recenters the map on the user's current location."
++  },
++  "inAppMapCallLandlord": "Call landlord",
++  "@inAppMapCallLandlord": {
++    "description": "Accessible label for the phone/call button on a property's full-screen map."
++  },
++  "inAppMapNavigationFailed": "Couldn't open Google Maps. Please check it's installed.",
++  "@inAppMapNavigationFailed": {
++    "description": "Snackbar shown when Start Navigation fails to launch Google Maps, in-app or in a browser."
++  },
++  "inAppMapCallFailed": "Couldn't start a call. Check your phone app is set up.",
++  "@inAppMapCallFailed": {
++    "description": "Snackbar shown when tapping Call landlord on the map screen fails to launch the dialer."
++  },
++  "inAppMapStartNavigation": "Start Navigation",
++  "@inAppMapStartNavigation": {
++    "description": "Label on the button that launches turn-by-turn navigation to the property."
++  },
++  "searchFilters": "Filters",
++  "@searchFilters": {
++    "description": "Label on the search page's filter button when no filters are active."
++  },
++  "inAppMapDistanceAway": "{km} km away",
++  "@inAppMapDistanceAway": {
++    "description": "Distance chip on the map screen, e.g. \"1.2 km away\". km is already formatted (one decimal place) by the caller.",
++    "placeholders": {
++      "km": {
++        "type": "String"
++      }
++    }
++  },
++  "searchFiltersActive": "Filters, {count} active",
++  "@searchFiltersActive": {
++    "description": "Label on the search page's filter button when one or more filters are active.",
++    "placeholders": {
++      "count": {
++        "type": "int"
++      }
++    }
+   }
+ }
+diff --git a/lib/l10n/app_sw.arb b/lib/l10n/app_sw.arb
+index 49fc544..70c30af 100644
+--- a/lib/l10n/app_sw.arb
++++ b/lib/l10n/app_sw.arb
+@@ -1,6 +1,5 @@
+ {
+   "@@locale": "sw",
+-
+   "propertyCardCall": "Piga simu",
+   "propertyCardChat": "Ongea",
+   "propertyCardNavigate": "Elekeza",
+@@ -17,5 +16,15 @@
+   "propertyCardChatUnavailable": "Anwani ya mwenye nyumba haipatikani kwa mazungumzo",
+   "propertyBedroomCount": "{count, plural, one {chumba {count}} other {vyumba {count}}}",
+   "propertyTypeStudio": "Studio",
+-  "propertyTypeBedsitter": "Bedsitter"
++  "propertyTypeBedsitter": "Bedsitter",
++  "inAppMapBack": "Rudi",
++  "inAppMapCenterOnProperty": "Lenga ramani kwenye nyumba",
++  "inAppMapCenterOnUser": "Lenga ramani mahali ulipo",
++  "inAppMapCallLandlord": "Piga simu kwa mwenye nyumba",
++  "inAppMapNavigationFailed": "Imeshindikana kufungua Google Maps. Tafadhali hakikisha imesakinishwa.",
++  "inAppMapCallFailed": "Imeshindikana kuanzisha simu. Hakikisha programu ya simu imesanidiwa.",
++  "inAppMapStartNavigation": "Anza Kuelekeza",
++  "inAppMapDistanceAway": "{km} km mbali",
++  "searchFilters": "Vichujio",
++  "searchFiltersActive": "Vichujio, {count} vinatumika"
+ }
+diff --git a/lib/pages/search/in_app_map_page.dart b/lib/pages/search/in_app_map_page.dart
+index b86e1a3..9c234f1 100644
+--- a/lib/pages/search/in_app_map_page.dart
++++ b/lib/pages/search/in_app_map_page.dart
+@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
+ import 'package:geolocator/geolocator.dart';
+ import 'package:url_launcher/url_launcher.dart';
+ import 'package:roost_app/config.dart';
++import 'package:roost_app/l10n/generated/app_localizations.dart';
+ import 'package:roost_app/models/property.dart';
+ import 'package:roost_app/services/country_service.dart';
+ import 'package:roost_app/services/location_service.dart';
+@@ -184,7 +185,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
+       final launchedBrowser = await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
+       if (!launchedBrowser) throw Exception('No app or browser could handle the maps link');
+     } catch (_) {
+-      _showActionError("Couldn't open Google Maps. Please check it's installed.");
++      if (!mounted) return;
++      _showActionError(AppLocalizations.of(context)!.inAppMapNavigationFailed);
+     }
+   }
+ 
+@@ -196,7 +198,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
+       final launched = await launchUrl(uri);
+       if (!launched) throw Exception('tel: launch returned false');
+     } catch (_) {
+-      _showActionError("Couldn't start a call. Check your phone app is set up.");
++      if (!mounted) return;
++      _showActionError(AppLocalizations.of(context)!.inAppMapCallFailed);
+     }
+   }
+ 
+@@ -286,7 +289,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
+                 children: [
+                   _MapCircleButton(
+                     icon: Icons.arrow_back,
+-                    semanticLabel: 'Back',
++                    semanticLabel: AppLocalizations.of(context)!.inAppMapBack,
+                     onTap: () => Navigator.pop(context),
+                     background: Colors.black,
+                   ),
+@@ -304,7 +307,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
+                         const SizedBox(width: 6),
+                         Text(
+                           _distanceKm != null
+-                              ? '${_distanceKm!.toStringAsFixed(1)} km away'
++                              ? AppLocalizations.of(context)!
++                                  .inAppMapDistanceAway(_distanceKm!.toStringAsFixed(1))
+                               : widget.property.location,
+                           style: const TextStyle(
+                             color: Colors.white,
+@@ -329,7 +333,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
+               children: [
+                 _MapCircleButton(
+                   icon: Icons.home_work_outlined,
+-                  semanticLabel: 'Center map on property',
++                  semanticLabel: AppLocalizations.of(context)!.inAppMapCenterOnProperty,
+                   onTap: _recenterOnProperty,
+                   background: Colors.black.withValues(alpha: 0.9),
+                   borderColor: Colors.grey[800],
+@@ -338,7 +342,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
+                 if (_userPosition != null)
+                   _MapCircleButton(
+                     icon: Icons.my_location,
+-                    semanticLabel: 'Center map on your location',
++                    semanticLabel: AppLocalizations.of(context)!.inAppMapCenterOnUser,
+                     onTap: _recenterOnUser,
+                     background: Colors.black.withValues(alpha: 0.9),
+                     borderColor: Colors.grey[800],
+@@ -438,7 +442,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
+                         child: ElevatedButton.icon(
+                           onPressed: _launchNavigation,
+                           icon: const Icon(Icons.navigation, size: 18),
+-                          label: const Text('Start Navigation', style: TextStyle(fontWeight: FontWeight.bold)),
++                          label: Text(AppLocalizations.of(context)!.inAppMapStartNavigation,
++                              style: const TextStyle(fontWeight: FontWeight.bold)),
+                           style: ElevatedButton.styleFrom(
+                             backgroundColor: Colors.white,
+                             foregroundColor: Colors.black,
+@@ -451,7 +456,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
+                         const SizedBox(width: 10),
+                         _MapActionButton(
+                           icon: Icons.phone,
+-                          semanticLabel: 'Call landlord',
++                          semanticLabel: AppLocalizations.of(context)!.inAppMapCallLandlord,
+                           onTap: _callLandlord,
+                           background: const Color(0xFF2C2C2E),
+                         ),
+diff --git a/lib/pages/search/search_page.dart b/lib/pages/search/search_page.dart
+index c3aa5be..9429b6d 100644
+--- a/lib/pages/search/search_page.dart
++++ b/lib/pages/search/search_page.dart
+@@ -13,6 +13,7 @@ import 'package:roost_app/theme/app_colors.dart';
+ import 'package:roost_app/widgets/common/roost_search_bar.dart';
+ import 'package:roost_app/widgets/property/property_card.dart';
+ import 'package:roost_app/services/favorites_service.dart';
++import 'package:roost_app/l10n/generated/app_localizations.dart';
+ 
+ /// Friendly display labels for the canonical backend house-type values,
+ /// so filter chips read naturally instead of showing raw codes like
+@@ -796,9 +797,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
+       borderRadius: BorderRadius.circular(14),
+       side: const BorderSide(color: AppColors.border),
+     );
++    final l10n = AppLocalizations.of(context)!;
+     final label = _activeFilterCount > 0
+-        ? 'Filters, $_activeFilterCount active'
+-        : 'Filters';
++        ? l10n.searchFiltersActive(_activeFilterCount)
++        : l10n.searchFilters;
+     return Semantics(
+       button: true,
+       label: label,

@@ -1,6 +1,5 @@
 {
   "@@locale": "sw",
-
   "propertyCardCall": "Piga simu",
   "propertyCardChat": "Ongea",
   "propertyCardNavigate": "Elekeza",
@@ -17,5 +16,15 @@
   "propertyCardChatUnavailable": "Anwani ya mwenye nyumba haipatikani kwa mazungumzo",
   "propertyBedroomCount": "{count, plural, one {chumba {count}} other {vyumba {count}}}",
   "propertyTypeStudio": "Studio",
-  "propertyTypeBedsitter": "Bedsitter"
+  "propertyTypeBedsitter": "Bedsitter",
+  "inAppMapBack": "Rudi",
+  "inAppMapCenterOnProperty": "Lenga ramani kwenye nyumba",
+  "inAppMapCenterOnUser": "Lenga ramani mahali ulipo",
+  "inAppMapCallLandlord": "Piga simu kwa mwenye nyumba",
+  "inAppMapNavigationFailed": "Imeshindikana kufungua Google Maps. Tafadhali hakikisha imesakinishwa.",
+  "inAppMapCallFailed": "Imeshindikana kuanzisha simu. Hakikisha programu ya simu imesanidiwa.",
+  "inAppMapStartNavigation": "Anza Kuelekeza",
+  "inAppMapDistanceAway": "{km} km mbali",
+  "searchFilters": "Vichujio",
+  "searchFiltersActive": "Vichujio, {count} vinatumika"
 }

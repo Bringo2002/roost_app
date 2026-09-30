@@ -4,6 +4,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:roost_app/config.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
@@ -184,7 +185,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
       final launchedBrowser = await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
       if (!launchedBrowser) throw Exception('No app or browser could handle the maps link');
     } catch (_) {
-      _showActionError("Couldn't open Google Maps. Please check it's installed.");
+      if (!mounted) return;
+      _showActionError(AppLocalizations.of(context)!.inAppMapNavigationFailed);
     }
   }
 
@@ -196,7 +198,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
       final launched = await launchUrl(uri);
       if (!launched) throw Exception('tel: launch returned false');
     } catch (_) {
-      _showActionError("Couldn't start a call. Check your phone app is set up.");
+      if (!mounted) return;
+      _showActionError(AppLocalizations.of(context)!.inAppMapCallFailed);
     }
   }
 
@@ -286,7 +289,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
                 children: [
                   _MapCircleButton(
                     icon: Icons.arrow_back,
-                    semanticLabel: 'Back',
+                    semanticLabel: AppLocalizations.of(context)!.inAppMapBack,
                     onTap: () => Navigator.pop(context),
                     background: Colors.black,
                   ),
@@ -304,7 +307,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
                         const SizedBox(width: 6),
                         Text(
                           _distanceKm != null
-                              ? '${_distanceKm!.toStringAsFixed(1)} km away'
+                              ? AppLocalizations.of(context)!
+                                  .inAppMapDistanceAway(_distanceKm!.toStringAsFixed(1))
                               : widget.property.location,
                           style: const TextStyle(
                             color: Colors.white,
@@ -329,7 +333,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
               children: [
                 _MapCircleButton(
                   icon: Icons.home_work_outlined,
-                  semanticLabel: 'Center map on property',
+                  semanticLabel: AppLocalizations.of(context)!.inAppMapCenterOnProperty,
                   onTap: _recenterOnProperty,
                   background: Colors.black.withValues(alpha: 0.9),
                   borderColor: Colors.grey[800],
@@ -338,7 +342,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
                 if (_userPosition != null)
                   _MapCircleButton(
                     icon: Icons.my_location,
-                    semanticLabel: 'Center map on your location',
+                    semanticLabel: AppLocalizations.of(context)!.inAppMapCenterOnUser,
                     onTap: _recenterOnUser,
                     background: Colors.black.withValues(alpha: 0.9),
                     borderColor: Colors.grey[800],
@@ -438,7 +442,8 @@ class _InAppMapPageState extends State<InAppMapPage> {
                         child: ElevatedButton.icon(
                           onPressed: _launchNavigation,
                           icon: const Icon(Icons.navigation, size: 18),
-                          label: const Text('Start Navigation', style: TextStyle(fontWeight: FontWeight.bold)),
+                          label: Text(AppLocalizations.of(context)!.inAppMapStartNavigation,
+                              style: const TextStyle(fontWeight: FontWeight.bold)),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
                             foregroundColor: Colors.black,
@@ -451,7 +456,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
                         const SizedBox(width: 10),
                         _MapActionButton(
                           icon: Icons.phone,
-                          semanticLabel: 'Call landlord',
+                          semanticLabel: AppLocalizations.of(context)!.inAppMapCallLandlord,
                           onTap: _callLandlord,
                           background: const Color(0xFF2C2C2E),
                         ),

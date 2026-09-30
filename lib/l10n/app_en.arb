@@ -1,57 +1,46 @@
 {
   "@@locale": "en",
   "@@last_modified": "2026-09-27T00:00:00.000Z",
-
   "propertyCardCall": "Call",
   "@propertyCardCall": {
     "description": "Label on the property card's button that dials the landlord/agent."
   },
-
   "propertyCardChat": "Chat",
   "@propertyCardChat": {
     "description": "Label on the property card's button that opens in-app chat with the landlord/agent."
   },
-
   "propertyCardNavigate": "Navigate",
   "@propertyCardNavigate": {
     "description": "Label on the property card's button that opens the property's location on a map."
   },
-
   "propertyCardVerifiedBadge": "Verified",
   "@propertyCardVerifiedBadge": {
     "description": "Badge shown on a property card when the listing/landlord has been verified."
   },
-
   "propertyCardNewBadge": "NEW",
   "@propertyCardNewBadge": {
     "description": "Badge shown on a property card for a listing posted within the last 7 days."
   },
-
   "propertyCardTakenBadge": "Taken",
   "@propertyCardTakenBadge": {
     "description": "Badge shown next to the title when a listing is no longer available."
   },
-
   "propertyCardWorthCheckingBadge": "Worth checking",
   "@propertyCardWorthCheckingBadge": {
     "description": "Mild caution badge shown on a property card when the listing has one or more risk flags."
   },
-
   "propertyCardAddToFavorites": "Add to favorites",
   "@propertyCardAddToFavorites": {
     "description": "Accessibility label for the favorite (heart) button when the property is not currently saved."
   },
-
   "propertyCardRemoveFromFavorites": "Remove from favorites",
   "@propertyCardRemoveFromFavorites": {
     "description": "Accessibility label for the favorite (heart) button when the property is currently saved."
   },
-
   "propertyCardCurrentlyTaken": "currently taken",
   "@propertyCardCurrentlyTaken": {
     "description": "Fragment appended to the property card's overall accessibility summary when the listing is unavailable."
   },
-
   "propertyCardBathCount": "{count, plural, one {{count} bath} other {{count} baths}}",
   "@propertyCardBathCount": {
     "description": "Bathroom count shown on a property card. Also fixes the previous hardcoded copy always saying \"bath\" even for plural counts.",
@@ -61,17 +50,14 @@
       }
     }
   },
-
   "propertyCardNoPhoneNumber": "No phone number available for this listing",
   "@propertyCardNoPhoneNumber": {
     "description": "Snackbar shown when tapping Call on a listing with no usable phone number on file."
   },
-
   "propertyCardCouldNotOpenDialer": "Could not open the phone dialer",
   "@propertyCardCouldNotOpenDialer": {
     "description": "Snackbar shown when the device's phone dialer could not be launched."
   },
-
   "propertyCardChatUnavailable": "Landlord contact unavailable for chat",
   "@propertyCardChatUnavailable": {
     "description": "Snackbar shown when tapping Chat on a listing with no linked owner account to message."
@@ -85,14 +71,62 @@
       }
     }
   },
-
   "propertyTypeStudio": "Studio",
   "@propertyTypeStudio": {
     "description": "Bedroom label for a zero-bedroom listing that is a studio (also the fallback for unknown zero-bedroom types)."
   },
-
   "propertyTypeBedsitter": "Bedsitter",
   "@propertyTypeBedsitter": {
     "description": "Bedroom label for a zero-bedroom listing whose house type is a bedsitter (a single room with a shared or partitioned sleeping area, common in Kenya)."
+  },
+  "inAppMapBack": "Back",
+  "@inAppMapBack": {
+    "description": "Accessible label for the back button on a property's full-screen map."
+  },
+  "inAppMapCenterOnProperty": "Center map on property",
+  "@inAppMapCenterOnProperty": {
+    "description": "Accessible label for the button that recenters the map on the property pin."
+  },
+  "inAppMapCenterOnUser": "Center map on your location",
+  "@inAppMapCenterOnUser": {
+    "description": "Accessible label for the button that recenters the map on the user's current location."
+  },
+  "inAppMapCallLandlord": "Call landlord",
+  "@inAppMapCallLandlord": {
+    "description": "Accessible label for the phone/call button on a property's full-screen map."
+  },
+  "inAppMapNavigationFailed": "Couldn't open Google Maps. Please check it's installed.",
+  "@inAppMapNavigationFailed": {
+    "description": "Snackbar shown when Start Navigation fails to launch Google Maps, in-app or in a browser."
+  },
+  "inAppMapCallFailed": "Couldn't start a call. Check your phone app is set up.",
+  "@inAppMapCallFailed": {
+    "description": "Snackbar shown when tapping Call landlord on the map screen fails to launch the dialer."
+  },
+  "inAppMapStartNavigation": "Start Navigation",
+  "@inAppMapStartNavigation": {
+    "description": "Label on the button that launches turn-by-turn navigation to the property."
+  },
+  "searchFilters": "Filters",
+  "@searchFilters": {
+    "description": "Label on the search page's filter button when no filters are active."
+  },
+  "inAppMapDistanceAway": "{km} km away",
+  "@inAppMapDistanceAway": {
+    "description": "Distance chip on the map screen, e.g. \"1.2 km away\". km is already formatted (one decimal place) by the caller.",
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "searchFiltersActive": "Filters, {count} active",
+  "@searchFiltersActive": {
+    "description": "Label on the search page's filter button when one or more filters are active.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }

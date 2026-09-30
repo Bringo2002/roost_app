@@ -13,6 +13,7 @@ import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/favorites_service.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 
 /// Friendly display labels for the canonical backend house-type values,
 /// so filter chips read naturally instead of showing raw codes like
@@ -810,9 +811,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       borderRadius: BorderRadius.circular(14),
       side: const BorderSide(color: AppColors.border),
     );
+    final l10n = AppLocalizations.of(context)!;
     final label = _activeFilterCount > 0
-        ? 'Filters, $_activeFilterCount active'
-        : 'Filters';
+        ? l10n.searchFiltersActive(_activeFilterCount)
+        : l10n.searchFilters;
     return Semantics(
       button: true,
       label: label,
