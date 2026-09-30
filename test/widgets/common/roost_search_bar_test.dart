@@ -128,16 +128,25 @@ void main() {
 
     active.value = other;
     await tester.pump();
+    // The widget-tree rebuild above swaps which FocusNode `TextField`
+    // is attached to, but FocusManager only finishes reparenting the
+    // focus tree at the start of the *next* frame -- one more pump
+    // (no state changes here, just letting that settle) before we can
+    // reliably request focus on the newly-attached node. A plain
+    // focus request with no node swap involved only needs one pump
+    // (see the 'focus changes the border colour' test above); it's
+    // specifically the swap that needs this extra beat.
+    await tester.pump();
 
     other.requestFocus();
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(_borderColor(tester), isNot(AppColors.border));
 
     // The old node must no longer drive the visuals.
     other.unfocus();
-    await tester.pump();
+    await tester.pumpAndSettle();
     focusNode.requestFocus();
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(_borderColor(tester), AppColors.border);
   });
 
