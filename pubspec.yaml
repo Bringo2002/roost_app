@@ -31,6 +31,7 @@ dependencies:
   jwt_decoder: ^2.0.1
   video_player: ^2.13.0
   cryptography: ^2.7.0
+  crypto: ^3.0.6
   flutter_secure_storage: ^9.2.2
   file_picker: ^8.1.6
   path_provider: ^2.1.5

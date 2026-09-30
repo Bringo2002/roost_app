@@ -118,9 +118,42 @@ class ApiService {
   ///
   /// Throws [ApiException] if the request fails (auth, validation, or
   /// server error).
-  static Future<PresignedUpload> requestPresignedUpload(String type) async {
-    final response = await post('/api/properties/presign-upload', {'type': type});
+  static Future<PresignedUpload> requestPresignedUpload(
+    String type, {
+    String? contentHash,
+  }) async {
+    final body = <String, String>{'type': type};
+    if (contentHash != null) body['contentHash'] = contentHash;
+    final response = await post('/api/properties/presign-upload', body);
     return PresignedUpload.fromJson(response as Map<String, dynamic>);
+  }
+
+  /// Records a completed direct upload in the content-hash index so future
+  /// identical files can be short-circuited at the presign step.
+  ///
+  /// Called after a successful PUT to R2. Fire-and-forget — failures are
+  /// logged but do not block the user flow (dedup is a best-effort
+  /// optimization, not a correctness requirement).
+  static Future<void> confirmUpload({
+    required String contentHash,
+    required String publicUrl,
+    required String key,
+    required String contentType,
+    required int sizeBytes,
+  }) async {
+    try {
+      await post('/api/properties/confirm-upload', {
+        'contentHash': contentHash,
+        'publicUrl': publicUrl,
+        'key': key,
+        'contentType': contentType,
+        'sizeBytes': sizeBytes.toString(),
+      });
+    } catch (e) {
+      // Best-effort — dedup index miss just means a future re-upload,
+      // which is harmless. Don't interrupt the user flow.
+      debugPrint('confirm-upload failed (non-fatal): $e');
+    }
   }
 
   static dynamic _handleResponse(http.Response response) {
