@@ -9,6 +9,7 @@ import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/main.dart';
+import 'package:roost_app/widgets/common/roost_search_bar.dart';
 
 enum SavedSortOption {
   recent('All Saved', Icons.auto_awesome_rounded),
@@ -33,16 +34,24 @@ class _SavedPageState extends State<SavedPage> {
   String _searchQuery = '';
   SavedSortOption _selectedSort = SavedSortOption.recent;
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
 
   @override
   void initState() {
     super.initState();
     _loadSaved();
+    _searchController.addListener(_onSearchChanged);
+  }
+
+  void _onSearchChanged() {
+    setState(() => _searchQuery = _searchController.text);
   }
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
+    _searchFocusNode.dispose();
     super.dispose();
   }
 
@@ -271,36 +280,15 @@ class _SavedPageState extends State<SavedPage> {
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Column(
               children: [
-                // Search Input
-                TextField(
+                // Search Input -- was its own hand-rolled TextField with
+                // raw hex colors and no focus feedback, unlike every other
+                // search box in the app. Now uses the same shared widget
+                // as the home feed and Search page.
+                RoostSearchBar(
                   controller: _searchController,
-                  style: const TextStyle(color: Colors.white, fontSize: 14),
-                  onChanged: (val) => setState(() => _searchQuery = val),
-                  decoration: InputDecoration(
-                    hintText: 'Search saved by title, area or type...',
-                    hintStyle: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    prefixIcon: Icon(Icons.search_rounded, color: Colors.grey[500], size: 20),
-                    suffixIcon: _searchQuery.isNotEmpty
-                        ? IconButton(
-                            icon: Icon(Icons.cancel_rounded, color: Colors.grey[500], size: 18),
-                            onPressed: () {
-                              _searchController.clear();
-                              setState(() => _searchQuery = '');
-                            },
-                          )
-                        : null,
-                    filled: true,
-                    fillColor: const Color(0xFF1C1C1E),
-                    contentPadding: const EdgeInsets.symmetric(vertical: 12),
-                    enabledBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-                    ),
-                    focusedBorder: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(14),
-                      borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.2)),
-                    ),
-                  ),
+                  focusNode: _searchFocusNode,
+                  hintText: 'Search saved by title, area or type...',
+                  onClear: () => setState(() => _searchQuery = ''),
                 ),
                 const SizedBox(height: 10),
 

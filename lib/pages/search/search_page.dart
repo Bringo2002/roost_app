@@ -93,6 +93,20 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     _loadProperties();
   }
 
+  // _favoriteIds was already being loaded but never actually wired to the
+  // results list's PropertyCard -- lost in an earlier revert alongside
+  // unrelated results-list layout changes it got bundled with.
+  Future<void> _toggleFavorite(int id) async {
+    await FavoritesService.toggle(id);
+    final favIds = await FavoritesService.getFavoriteIds();
+    if (!mounted) return;
+    setState(() {
+      _favoriteIds
+        ..clear()
+        ..addAll(favIds);
+    });
+  }
+
   @override
   void dispose() {
     _searchCtrl.removeListener(_onSearchChanged);
@@ -988,6 +1002,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                 property: property,
                                 heroTag: property.id != null ? 'property-image-${property.id}' : null,
                                 distanceLabel: km != null ? LocationService.formatDistance(km) : null,
+                                isFavorite: property.id != null && _favoriteIds.contains(property.id),
+                                onFavoriteTap: property.id == null
+                                    ? null
+                                    : () => _toggleFavorite(property.id!),
                               );
                             },
                           ),
