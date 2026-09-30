@@ -2,6 +2,8 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
+import 'package:crypto/crypto.dart';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/material.dart';
@@ -679,11 +681,22 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         //    at 4096 px / 90% quality with no visible quality loss
         final compressed = await _compressImage(raw);
 
-        // 3. Obtain a short-lived presigned PUT URL from the backend.
-        //    The backend validates auth and role; no file bytes go through it.
-        final presign = await ApiService.requestPresignedUpload('photo');
+        // 3. Compute SHA-256 of compressed bytes for dedup check
+        final contentHash = sha256.convert(compressed).toString();
 
-        // 4. Upload directly to R2 — backend not involved in the transfer
+        // 4. Obtain presigned URL (or dedup hit) from the backend.
+        final presign = await ApiService.requestPresignedUpload(
+          'photo',
+          contentHash: contentHash,
+        );
+
+        if (presign.existing) {
+          // Dedup hit — same file already exists in R2, skip upload
+          if (mounted) setState(() => _imageUrls.add(presign.publicUrl));
+          continue;
+        }
+
+        // 5. Upload directly to R2 — backend not involved in the transfer
         final response = await http.put(
           Uri.parse(presign.uploadUrl),
           headers: {'Content-Type': 'image/jpeg'},
@@ -693,8 +706,17 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           throw Exception('R2 rejected upload (HTTP ${response.statusCode})');
         }
 
-        // 5. Record the permanent public URL
+        // 6. Record the permanent public URL
         if (mounted) setState(() => _imageUrls.add(presign.publicUrl));
+
+        // 7. Register the hash for future dedup (fire-and-forget)
+        ApiService.confirmUpload(
+          contentHash: contentHash,
+          publicUrl: presign.publicUrl,
+          key: presign.key,
+          contentType: 'image/jpeg',
+          sizeBytes: compressed.length,
+        );
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -806,17 +828,29 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         );
       }
 
-      // Request presigned URL. For MOV files we still use 'video' type —
-      // the backend generates an MP4-signed URL. R2 stores whatever bytes
-      // we send; the stored content-type won't affect playback since
-      // players detect format from the file bytes, not the HTTP header.
-      final presign = await ApiService.requestPresignedUpload('video');
-
-      // Stream the file to R2 instead of loading it entirely into memory.
-      // A 30-minute raw video can be hundreds of MB; readAsBytes() would
-      // exhaust the mobile heap before the upload even begins.
+      // Compute SHA-256 of the video file for dedup. Videos are streamed
+      // for the upload, but we need the hash upfront. For files under ~50 MB
+      // this is fast; for larger files the hash time is negligible vs upload.
       final videoFile = File(file.path);
       final fileLength = await videoFile.length();
+      final videoBytes = await videoFile.readAsBytes();
+      final contentHash = sha256.convert(videoBytes).toString();
+
+      // Request presigned URL (or dedup hit) from the backend.
+      final presign = await ApiService.requestPresignedUpload(
+        'video',
+        contentHash: contentHash,
+      );
+
+      if (presign.existing) {
+        // Dedup hit — same video already exists in R2
+        if (mounted) setState(() => _videoUrl = presign.publicUrl);
+        return;
+      }
+
+      // Stream the file to R2 instead of keeping the full bytes in memory
+      // for the upload. We already have videoBytes for the hash, but
+      // StreamedRequest avoids a second copy in the HTTP client.
       final request = http.StreamedRequest('PUT', Uri.parse(presign.uploadUrl));
       request.headers['Content-Type'] = contentType;
       request.contentLength = fileLength;
@@ -835,6 +869,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       }
 
       if (mounted) setState(() => _videoUrl = presign.publicUrl);
+
+      // Register the hash for future dedup (fire-and-forget)
+      ApiService.confirmUpload(
+        contentHash: contentHash,
+        publicUrl: presign.publicUrl,
+        key: presign.key,
+        contentType: contentType,
+        sizeBytes: fileLength,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
