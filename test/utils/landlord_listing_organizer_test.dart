@@ -3,7 +3,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/utils/landlord_listing_organizer.dart';
 
 Property _property({
-  required int id,
+  int id = 1,
   String status = 'PUBLISHED',
   bool available = true,
 }) {
@@ -93,6 +93,39 @@ void main() {
     test('an unrecognized filter value falls back to the full list', () {
       final result = LandlordListingOrganizer.applyFilter(listings, 'SOMETHING_ELSE');
       expect(result.map((p) => p.id), [1, 2, 3, 4]);
+    });
+  });
+
+  group('LandlordListingOrganizer.matches', () {
+    test('ALL matches every property regardless of status/availability', () {
+      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'ALL'), isTrue);
+      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: true), 'ALL'), isTrue);
+    });
+
+    test('PUBLISHED requires status PUBLISHED and available true', () {
+      final published = _property(status: 'PUBLISHED', available: true);
+      final publishedButRented = _property(status: 'PUBLISHED', available: false);
+      final draft = _property(status: 'DRAFT', available: true);
+
+      expect(LandlordListingOrganizer.matches(published, 'PUBLISHED'), isTrue);
+      expect(LandlordListingOrganizer.matches(publishedButRented, 'PUBLISHED'), isFalse);
+      expect(LandlordListingOrganizer.matches(draft, 'PUBLISHED'), isFalse);
+    });
+
+    test('DRAFT only checks status, ignores availability', () {
+      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: true), 'DRAFT'), isTrue);
+      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'DRAFT'), isTrue);
+      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: true), 'DRAFT'), isFalse);
+    });
+
+    test('RENTED only checks availability, ignores status', () {
+      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: false), 'RENTED'), isTrue);
+      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'RENTED'), isTrue);
+      expect(LandlordListingOrganizer.matches(_property(status: 'PUBLISHED', available: true), 'RENTED'), isFalse);
+    });
+
+    test('an unrecognized filter matches everything, same as ALL', () {
+      expect(LandlordListingOrganizer.matches(_property(status: 'DRAFT', available: false), 'BOGUS'), isTrue);
     });
   });
 }
