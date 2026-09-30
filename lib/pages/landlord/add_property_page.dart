@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'dart:math' as math;
+import 'dart:ui' as ui;
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
@@ -9,6 +10,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
+import 'package:video_player/video_player.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/services/api_service.dart';
@@ -705,22 +707,60 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     }
   }
 
-  /// Compresses a JPEG image to at most 4096 px on the longest edge at 90%
-  /// quality before upload. This eliminates unnecessary bandwidth for raw
-  /// camera output (often 8–12 MP+) while preserving quality well beyond what
-  /// any screen can display — including full-screen pinch-to-zoom.
+  /// Compresses a JPEG image so its longest edge is at most 4096 px, at 90%
+  /// quality. This eliminates unnecessary bandwidth for raw camera output
+  /// (often 8–12 MP+) while preserving quality well beyond what any screen
+  /// can display — including full-screen pinch-to-zoom.
   ///
-  /// Images already smaller than 4096 px are returned unchanged in dimension
-  /// but still re-encoded at 90% quality for consistent output.
+  /// Images already smaller than 4096 px on both edges are re-encoded at 90%
+  /// quality for consistent output.
+  ///
+  /// EXIF metadata (including GPS) is stripped for privacy.
   Future<Uint8List> _compressImage(Uint8List bytes) async {
+    // Decode source dimensions to calculate correct aspect-ratio targets.
+    // flutter_image_compress's minWidth/minHeight scale by
+    // min(src/target) which would cap the SHORT edge, not the long one.
+    // We compute explicit targets so the LONGEST edge is capped at 4096.
+    final codec = await ui.instantiateImageCodec(bytes);
+    final frame = await codec.getNextFrame();
+    final srcWidth = frame.image.width;
+    final srcHeight = frame.image.height;
+    frame.image.dispose();
+    codec.dispose();
+
+    const int maxEdge = 4096;
+    int targetWidth;
+    int targetHeight;
+
+    if (srcWidth <= maxEdge && srcHeight <= maxEdge) {
+      // Already within bounds — just re-encode at 90% quality.
+      targetWidth = srcWidth;
+      targetHeight = srcHeight;
+    } else if (srcWidth >= srcHeight) {
+      // Landscape: cap width at 4096, scale height proportionally.
+      targetWidth = maxEdge;
+      targetHeight = (srcHeight * maxEdge / srcWidth).round();
+    } else {
+      // Portrait: cap height at 4096, scale width proportionally.
+      targetHeight = maxEdge;
+      targetWidth = (srcWidth * maxEdge / srcHeight).round();
+    }
+
     final result = await FlutterImageCompress.compressWithList(
       bytes,
-      minWidth: 4096,
-      minHeight: 4096,
+      minWidth: targetWidth,
+      minHeight: targetHeight,
       quality: 90,
       format: CompressFormat.jpeg,
       keepExif: false, // strip GPS/EXIF for privacy
     );
+
+    // compressWithList returns an empty list on failure — reject it so the
+    // caller’s error path reports the failed photo rather than uploading
+    // a zero-byte object.
+    if (result.isEmpty) {
+      throw Exception('Image compression failed (empty result)');
+    }
     return result;
   }
 
@@ -733,18 +773,65 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       );
       if (file == null) return;
 
-      // Videos are not compressed — raw MP4 is uploaded as recorded.
-      // The presigned URL has a 60-minute TTL to accommodate large uploads.
+      // maxDuration only limits captured video (camera), not gallery picks.
+      // Enforce the 30-minute cap for gallery-sourced videos explicitly.
+      if (source == ImageSource.gallery) {
+        final controller = VideoPlayerController.file(File(file.path));
+        try {
+          await controller.initialize();
+          final duration = controller.value.duration;
+          if (duration > const Duration(minutes: 30)) {
+            throw Exception(
+              'Video is too long (${duration.inMinutes} min). Maximum is 30 minutes.',
+            );
+          }
+        } finally {
+          await controller.dispose();
+        }
+      }
+
+      // Detect file format from extension. iOS camera and gallery can return
+      // QuickTime/MOV files, which have a different container than MP4.
+      // Only MP4 and MOV are accepted; both use ISO BMFF and are broadly
+      // compatible with web/mobile players.
+      final ext = file.path.split('.').last.toLowerCase();
+      final String contentType;
+      if (ext == 'mp4' || ext == 'm4v') {
+        contentType = 'video/mp4';
+      } else if (ext == 'mov') {
+        contentType = 'video/quicktime';
+      } else {
+        throw Exception(
+          'Unsupported video format (.$ext). Please use MP4 or MOV.',
+        );
+      }
+
+      // Request presigned URL. For MOV files we still use 'video' type —
+      // the backend generates an MP4-signed URL. R2 stores whatever bytes
+      // we send; the stored content-type won't affect playback since
+      // players detect format from the file bytes, not the HTTP header.
       final presign = await ApiService.requestPresignedUpload('video');
 
-      final bytes = await file.readAsBytes();
-      final response = await http.put(
-        Uri.parse(presign.uploadUrl),
-        headers: {'Content-Type': 'video/mp4'},
-        body: bytes,
+      // Stream the file to R2 instead of loading it entirely into memory.
+      // A 30-minute raw video can be hundreds of MB; readAsBytes() would
+      // exhaust the mobile heap before the upload even begins.
+      final videoFile = File(file.path);
+      final fileLength = await videoFile.length();
+      final request = http.StreamedRequest('PUT', Uri.parse(presign.uploadUrl));
+      request.headers['Content-Type'] = contentType;
+      request.contentLength = fileLength;
+
+      videoFile.openRead().listen(
+        request.sink.add,
+        onDone: () => request.sink.close(),
+        onError: (e) => request.sink.addError(e),
       );
-      if (response.statusCode != 200) {
-        throw Exception('R2 rejected video upload (HTTP ${response.statusCode})');
+
+      final streamedResponse = await request.send();
+      if (streamedResponse.statusCode != 200) {
+        throw Exception(
+          'R2 rejected video upload (HTTP ${streamedResponse.statusCode})',
+        );
       }
 
       if (mounted) setState(() => _videoUrl = presign.publicUrl);
