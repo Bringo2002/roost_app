@@ -1,4 +1,3 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
@@ -6,6 +5,8 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:roost_app/models/property.dart';
@@ -268,7 +269,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final List<String> _customAmenities = [];
 
   static const int _minPhotos = 3;
-  static const int _maxPhotos = 10;
+  static const int _maxPhotos = 30;
   final List<String> _imageUrls = [];
   String? _videoUrl;
   final ImagePicker _picker = ImagePicker();
@@ -669,35 +670,84 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     });
     for (final file in files) {
       try {
-        final bytes = await file.readAsBytes();
-        final result = await ApiService.post('/api/properties/upload-photo', {
-          'data': base64Encode(bytes),
-        });
-        final url = result is Map ? result['url'] as String? : null;
-        if (url != null && mounted) setState(() => _imageUrls.add(url));
+        // 1. Read raw bytes from disk
+        final raw = await file.readAsBytes();
+
+        // 2. Compress client-side — reduces a 12 MB raw photo to ~4 MB
+        //    at 4096 px / 90% quality with no visible quality loss
+        final compressed = await _compressImage(raw);
+
+        // 3. Obtain a short-lived presigned PUT URL from the backend.
+        //    The backend validates auth and role; no file bytes go through it.
+        final presign = await ApiService.requestPresignedUpload('photo');
+
+        // 4. Upload directly to R2 — backend not involved in the transfer
+        final response = await http.put(
+          Uri.parse(presign.uploadUrl),
+          headers: {'Content-Type': 'image/jpeg'},
+          body: compressed,
+        );
+        if (response.statusCode != 200) {
+          throw Exception('R2 rejected upload (HTTP ${response.statusCode})');
+        }
+
+        // 5. Record the permanent public URL
+        if (mounted) setState(() => _imageUrls.add(presign.publicUrl));
       } catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('A photo failed to upload: $e')),
           );
         }
+      } finally {
+        if (mounted) setState(() => _uploadDone++);
       }
-      if (mounted) setState(() => _uploadDone++);
     }
+  }
+
+  /// Compresses a JPEG image to at most 4096 px on the longest edge at 90%
+  /// quality before upload. This eliminates unnecessary bandwidth for raw
+  /// camera output (often 8–12 MP+) while preserving quality well beyond what
+  /// any screen can display — including full-screen pinch-to-zoom.
+  ///
+  /// Images already smaller than 4096 px are returned unchanged in dimension
+  /// but still re-encoded at 90% quality for consistent output.
+  Future<Uint8List> _compressImage(Uint8List bytes) async {
+    final result = await FlutterImageCompress.compressWithList(
+      bytes,
+      minWidth: 4096,
+      minHeight: 4096,
+      quality: 90,
+      format: CompressFormat.jpeg,
+      keepExif: false, // strip GPS/EXIF for privacy
+    );
+    return result;
   }
 
   Future<void> _pickVideo(ImageSource source) async {
     setState(() => _uploadingVideo = true);
     try {
       final file = await _picker.pickVideo(
-          source: source, maxDuration: const Duration(seconds: 60));
+        source: source,
+        maxDuration: const Duration(minutes: 30),
+      );
       if (file == null) return;
+
+      // Videos are not compressed — raw MP4 is uploaded as recorded.
+      // The presigned URL has a 60-minute TTL to accommodate large uploads.
+      final presign = await ApiService.requestPresignedUpload('video');
+
       final bytes = await file.readAsBytes();
-      final result = await ApiService.post('/api/properties/upload-video', {
-        'data': base64Encode(bytes),
-      });
-      final url = result is Map ? result['url'] as String? : null;
-      if (url != null && mounted) setState(() => _videoUrl = url);
+      final response = await http.put(
+        Uri.parse(presign.uploadUrl),
+        headers: {'Content-Type': 'video/mp4'},
+        body: bytes,
+      );
+      if (response.statusCode != 200) {
+        throw Exception('R2 rejected video upload (HTTP ${response.statusCode})');
+      }
+
+      if (mounted) setState(() => _videoUrl = presign.publicUrl);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

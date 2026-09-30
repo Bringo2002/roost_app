@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:roost_app/config.dart';
+import 'package:roost_app/models/presigned_upload.dart';
 import 'package:roost_app/services/auth_service.dart';
 
 class ApiException implements Exception {
@@ -104,6 +105,22 @@ class ApiService {
       final headers = await _getHeaders();
       return http.delete(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers);
     });
+  }
+
+  // ── Presigned upload helpers ─────────────────────────────────────────
+
+  /// Requests a short-lived presigned PUT URL from the backend for a
+  /// direct client-to-R2 upload, bypassing the application server entirely.
+  ///
+  /// [type] must be `'photo'` or `'video'`. Returns a [PresignedUpload]
+  /// containing the presigned upload URL, the permanent public URL, and
+  /// the R2 object key.
+  ///
+  /// Throws [ApiException] if the request fails (auth, validation, or
+  /// server error).
+  static Future<PresignedUpload> requestPresignedUpload(String type) async {
+    final response = await post('/api/properties/presign-upload', {'type': type});
+    return PresignedUpload.fromJson(response as Map<String, dynamic>);
   }
 
   static dynamic _handleResponse(http.Response response) {
