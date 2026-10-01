@@ -124,7 +124,13 @@ class _PropertyImageState extends State<PropertyImage> {
     );
 
     if (isFirst && widget.heroTag != null) {
-      return Hero(tag: widget.heroTag!, child: image);
+      // transitionOnUserGestures: Hero flights are skipped during a
+      // gesture-driven pop (e.g. the iOS edge-swipe-back) unless BOTH
+      // ends opt in -- without this, swiping back from the detail page
+      // would just cut, with no photo animation, even though tapping a
+      // back button triggers it fine. The matching flag lives on the
+      // destination Hero in property_detail_page.dart.
+      return Hero(tag: widget.heroTag!, transitionOnUserGestures: true, child: image);
     }
     
     return image;

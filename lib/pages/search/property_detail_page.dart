@@ -277,6 +277,9 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                       // photo growing into the header should start moving
                       // immediately and settle smoothly, with no bounce.
                       curve: Curves.easeOutCubic,
+                      // See the matching flag on PropertyImage's Hero for
+                      // why this is needed on both ends.
+                      transitionOnUserGestures: true,
                       child: HeroMediaGallery(property: _property),
                     )
                   : HeroMediaGallery(property: _property),
