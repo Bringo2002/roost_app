@@ -1,0 +1,144 @@
+diff --git a/lib/services/recent_searches_service.dart b/lib/services/recent_searches_service.dart
+new file mode 100644
+index 0000000..ac95f30
+--- /dev/null
++++ b/lib/services/recent_searches_service.dart
+@@ -0,0 +1,64 @@
++import 'dart:convert';
++
++import 'package:shared_preferences/shared_preferences.dart';
++
++/// Per-device "recent searches" for the property search box (SearchPage).
++/// Purely local -- there's no backend concept of search history, and
++/// there doesn't need to be; this is the same kind of per-device,
++/// no-sync-needed data as a draft, not something a user would expect
++/// to follow them to a new phone.
++///
++/// Most-recent-first, deduplicated case-insensitively (typing "Kilimani"
++/// twice shouldn't produce two entries), capped at [_maxEntries] so this
++/// can't grow without bound over the life of an install.
++class RecentSearchesService {
++  RecentSearchesService._();
++
++  static const String _prefsKey = 'recent_searches';
++  static const int _maxEntries = 8;
++
++  static Future<List<String>> getAll() async {
++    final prefs = await SharedPreferences.getInstance();
++    final raw = prefs.getString(_prefsKey);
++    if (raw == null || raw.isEmpty) return [];
++    try {
++      final decoded = jsonDecode(raw);
++      if (decoded is! List) return [];
++      return decoded.whereType<String>().toList();
++    } catch (_) {
++      // Corrupt/old-format value (e.g. a future app version changes the
++      // encoding) -- treat as empty rather than crashing the search page.
++      return [];
++    }
++  }
++
++  /// Records [query] as the most recent search, moving it to the front
++  /// if it (case-insensitively) already appears. Blank queries are
++  /// ignored -- they don't represent a search worth remembering.
++  static Future<void> add(String query) async {
++    final trimmed = query.trim();
++    if (trimmed.isEmpty) return;
++
++    final current = await getAll();
++    final deduped = [
++      trimmed,
++      ...current.where((q) => q.toLowerCase() != trimmed.toLowerCase()),
++    ];
++    final capped = deduped.take(_maxEntries).toList();
++
++    final prefs = await SharedPreferences.getInstance();
++    await prefs.setString(_prefsKey, jsonEncode(capped));
++  }
++
++  static Future<void> remove(String query) async {
++    final current = await getAll();
++    final filtered = current.where((q) => q != query).toList();
++    final prefs = await SharedPreferences.getInstance();
++    await prefs.setString(_prefsKey, jsonEncode(filtered));
++  }
++
++  static Future<void> clear() async {
++    final prefs = await SharedPreferences.getInstance();
++    await prefs.remove(_prefsKey);
++  }
++}
+diff --git a/test/services/recent_searches_service_test.dart b/test/services/recent_searches_service_test.dart
+new file mode 100644
+index 0000000..aff9b18
+--- /dev/null
++++ b/test/services/recent_searches_service_test.dart
+@@ -0,0 +1,68 @@
++import 'package:flutter_test/flutter_test.dart';
++import 'package:shared_preferences/shared_preferences.dart';
++import 'package:roost_app/services/recent_searches_service.dart';
++
++void main() {
++  TestWidgetsFlutterBinding.ensureInitialized();
++
++  setUp(() {
++    SharedPreferences.setMockInitialValues({});
++  });
++
++  group('RecentSearchesService', () {
++    test('starts empty', () async {
++      expect(await RecentSearchesService.getAll(), isEmpty);
++    });
++
++    test('add puts the newest query first', () async {
++      await RecentSearchesService.add('kilimani');
++      await RecentSearchesService.add('westlands');
++      expect(await RecentSearchesService.getAll(), ['westlands', 'kilimani']);
++    });
++
++    test('re-adding an existing query (any case) moves it to the front instead of duplicating', () async {
++      await RecentSearchesService.add('kilimani');
++      await RecentSearchesService.add('westlands');
++      await RecentSearchesService.add('Kilimani');
++      expect(await RecentSearchesService.getAll(), ['Kilimani', 'westlands']);
++    });
++
++    test('blank queries are ignored', () async {
++      await RecentSearchesService.add('   ');
++      expect(await RecentSearchesService.getAll(), isEmpty);
++    });
++
++    test('entries are trimmed before storing', () async {
++      await RecentSearchesService.add('  kilimani  ');
++      expect(await RecentSearchesService.getAll(), ['kilimani']);
++    });
++
++    test('caps at 8 entries, dropping the oldest', () async {
++      for (var i = 1; i <= 9; i++) {
++        await RecentSearchesService.add('query$i');
++      }
++      final all = await RecentSearchesService.getAll();
++      expect(all.length, 8);
++      expect(all.first, 'query9');
++      expect(all.contains('query1'), isFalse);
++    });
++
++    test('remove deletes just that entry', () async {
++      await RecentSearchesService.add('kilimani');
++      await RecentSearchesService.add('westlands');
++      await RecentSearchesService.remove('kilimani');
++      expect(await RecentSearchesService.getAll(), ['westlands']);
++    });
++
++    test('clear empties the list', () async {
++      await RecentSearchesService.add('kilimani');
++      await RecentSearchesService.clear();
++      expect(await RecentSearchesService.getAll(), isEmpty);
++    });
++
++    test('a corrupt stored value is treated as empty rather than throwing', () async {
++      SharedPreferences.setMockInitialValues({'recent_searches': 'not valid json'});
++      expect(await RecentSearchesService.getAll(), isEmpty);
++    });
++  });
++}
