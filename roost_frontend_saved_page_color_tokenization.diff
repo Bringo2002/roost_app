@@ -1,0 +1,112 @@
+diff --git a/lib/pages/profile/saved_page.dart b/lib/pages/profile/saved_page.dart
+index ba6a6a6..91cb09c 100644
+--- a/lib/pages/profile/saved_page.dart
++++ b/lib/pages/profile/saved_page.dart
+@@ -87,7 +87,7 @@ class _SavedPageState extends State<SavedPage> {
+     ScaffoldMessenger.of(context).showSnackBar(
+       SnackBar(
+         content: Text('${property.title} removed from saved'),
+-        backgroundColor: const Color(0xFF2C2C2E),
++        backgroundColor: AppColors.grey800,
+         behavior: SnackBarBehavior.floating,
+         margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+@@ -114,7 +114,7 @@ class _SavedPageState extends State<SavedPage> {
+     final bool? confirm = await showDialog<bool>(
+       context: context,
+       builder: (ctx) => AlertDialog(
+-        backgroundColor: const Color(0xFF1C1C1E),
++        backgroundColor: AppColors.surfaceRaised,
+         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+         title: const Row(
+           children: [
+@@ -180,9 +180,9 @@ class _SavedPageState extends State<SavedPage> {
+   @override
+   Widget build(BuildContext context) {
+     return Scaffold(
+-      backgroundColor: const Color(0xFF101012),
++      backgroundColor: AppColors.background,
+       appBar: AppBar(
+-        backgroundColor: const Color(0xFF101012),
++        backgroundColor: AppColors.background,
+         elevation: 0,
+         scrolledUnderElevation: 0,
+         centerTitle: false,
+@@ -231,7 +231,7 @@ class _SavedPageState extends State<SavedPage> {
+                 ),
+                 child: const Icon(Icons.more_vert_rounded, color: Colors.white, size: 18),
+               ),
+-              color: const Color(0xFF1C1C1E),
++              color: AppColors.surfaceRaised,
+               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+               onSelected: (value) {
+                 if (value == 'clear_all') {
+@@ -279,7 +279,7 @@ class _SavedPageState extends State<SavedPage> {
+ 
+     return RefreshIndicator(
+       color: Colors.greenAccent,
+-      backgroundColor: const Color(0xFF1C1C1E),
++      backgroundColor: AppColors.surfaceRaised,
+       onRefresh: _loadSaved,
+       child: Column(
+         children: [
+@@ -325,7 +325,7 @@ class _SavedPageState extends State<SavedPage> {
+                           ),
+                           selected: isSelected,
+                           selectedColor: Colors.white,
+-                          backgroundColor: const Color(0xFF1C1C1E),
++                          backgroundColor: AppColors.surfaceRaised,
+                           shape: RoundedRectangleBorder(
+                             borderRadius: BorderRadius.circular(20),
+                             side: BorderSide(
+@@ -377,18 +377,14 @@ class _SavedPageState extends State<SavedPage> {
+                     itemBuilder: (context, index) {
+                       final property = displayList[index];
+                       return Dismissible(
+-                        key: Key('saved-faang-${property.id}'),
++                        key: Key('saved-item-${property.id}'),
+                         direction: DismissDirection.endToStart,
+                         background: Container(
+                           alignment: Alignment.centerRight,
+                           padding: const EdgeInsets.only(right: 24),
+                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                           decoration: BoxDecoration(
+-                            gradient: const LinearGradient(
+-                              colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
+-                              begin: Alignment.centerLeft,
+-                              end: Alignment.centerRight,
+-                            ),
++                            gradient: AppColors.destructiveGradient,
+                             borderRadius: BorderRadius.circular(20),
+                           ),
+                           child: const Column(
+@@ -475,7 +471,7 @@ class _SavedPageState extends State<SavedPage> {
+                   height: 74,
+                   decoration: const BoxDecoration(
+                     shape: BoxShape.circle,
+-                    color: Color(0xFF1C1C1E),
++                    color: AppColors.surfaceRaised,
+                     boxShadow: [
+                       BoxShadow(
+                         color: Colors.black45,
+diff --git a/lib/theme/app_colors.dart b/lib/theme/app_colors.dart
+index 49fce57..234073a 100644
+--- a/lib/theme/app_colors.dart
++++ b/lib/theme/app_colors.dart
+@@ -87,6 +87,16 @@ class AppColors {
+     stops: [0.4, 1.0],
+   );
+ 
++  /// Left-to-right red gradient for destructive swipe actions (remove,
++  /// delete). No existing flat color token captures this two-tone
++  /// effect, so it's named here rather than left as raw hex at its one
++  /// call site.
++  static const LinearGradient destructiveGradient = LinearGradient(
++    begin: Alignment.centerLeft,
++    end: Alignment.centerRight,
++    colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
++  );
++
+   // ─── Shadow Presets ─────────────────────────────────────────────────
+ 
+   /// Subtle shadow for flat elements needing minimal depth.
