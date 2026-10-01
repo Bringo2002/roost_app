@@ -1,0 +1,107 @@
+diff --git a/lib/pages/search/in_app_map_page.dart b/lib/pages/search/in_app_map_page.dart
+index 9c234f1..66c16c5 100644
+--- a/lib/pages/search/in_app_map_page.dart
++++ b/lib/pages/search/in_app_map_page.dart
+@@ -266,6 +266,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
+             mapToolbarEnabled: false,
+             onMapCreated: (controller) {
+               _mapController = controller;
++              AppMapStyle.checkStyleApplied(controller);
+             },
+             markers: _buildMarkers(),
+             circles: {
+diff --git a/lib/pages/search/map_view_page.dart b/lib/pages/search/map_view_page.dart
+index ae9aa19..4ce372b 100644
+--- a/lib/pages/search/map_view_page.dart
++++ b/lib/pages/search/map_view_page.dart
+@@ -86,6 +86,7 @@ class _MapViewPageState extends State<MapViewPage> {
+                   mapToolbarEnabled: false,
+                   onMapCreated: (controller) {
+                     _mapController = controller;
++                    AppMapStyle.checkStyleApplied(controller);
+                     _centerOnUserLocation();
+                   },
+                   myLocationEnabled: true,
+diff --git a/lib/pages/search/property_detail_page.dart b/lib/pages/search/property_detail_page.dart
+index c566c4b..df9c352 100644
+--- a/lib/pages/search/property_detail_page.dart
++++ b/lib/pages/search/property_detail_page.dart
+@@ -477,6 +477,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
+               zoomGesturesEnabled: false,
+               tiltGesturesEnabled: false,
+               rotateGesturesEnabled: false,
++              onMapCreated: AppMapStyle.checkStyleApplied,
+               markers: {
+                 Marker(
+                   markerId: MarkerId('detail_prop_${p.id}'),
+diff --git a/lib/theme/app_map_style.dart b/lib/theme/app_map_style.dart
+index 252b7f9..f3dacfc 100644
+--- a/lib/theme/app_map_style.dart
++++ b/lib/theme/app_map_style.dart
+@@ -1,7 +1,37 @@
++import 'package:flutter/foundation.dart' show debugPrint;
++import 'package:google_maps_flutter/google_maps_flutter.dart';
++
+ /// Dark Google Maps style JSON matching Roost's monochrome black/white aesthetic.
++///
++/// IMPORTANT: if the Google Maps SDK finds ANY unrecognized featureType,
++/// unrecognized elementType, or invalid styler key anywhere in this array,
++/// it silently discards the WHOLE style and falls back to the default
++/// light/colorful Google map -- no exception, no visible error, nothing in
++/// logcat by default. This previously happened here: "building" is not a
++/// real featureType (buildings fall under "landscape.man_made" instead),
++/// so the entire style was being rejected and every map in the app was
++/// rendering as plain default Google Maps. See
++/// https://developers.google.com/maps/documentation/android-sdk/style-reference
++/// for the full list of valid featureType/elementType/styler values before
++/// adding new rules here, and call GoogleMapController.getStyleError()
++/// after onMapCreated (see InAppMapPage/MapViewPage) so a future mistake
++/// like this one surfaces immediately instead of silently again.
+ class AppMapStyle {
+   AppMapStyle._();
+ 
++  /// Call from `onMapCreated` on every map that sets [darkMapStyle] (or any
++  /// future style string). The SDK never throws or logs on its own when a
++  /// style is rejected -- see the class doc above -- so without this check
++  /// the only symptom is a map that silently isn't themed, exactly as
++  /// happened before this existed.
++  static void checkStyleApplied(GoogleMapController controller) {
++    controller.getStyleError().then((error) {
++      if (error != null) {
++        debugPrint('AppMapStyle.darkMapStyle was rejected by the Google Maps SDK: $error');
++      }
++    });
++  }
++
+   static const String darkMapStyle = '''
+ [
+   {
+@@ -44,26 +74,19 @@ class AppMapStyle {
+     ]
+   },
+   {
+-    "featureType": "building",
++    "featureType": "landscape.man_made",
+     "elementType": "geometry",
+     "stylers": [
+       { "color": "#252527" }
+     ]
+   },
+   {
+-    "featureType": "building",
++    "featureType": "landscape.man_made",
+     "elementType": "geometry.stroke",
+     "stylers": [
+       { "color": "#1c1c1e" }
+     ]
+   },
+-  {
+-    "featureType": "landscape.man_made",
+-    "elementType": "geometry",
+-    "stylers": [
+-      { "color": "#232325" }
+-    ]
+-  },
+   {
+     "featureType": "poi",
+     "elementType": "labels.text.fill",

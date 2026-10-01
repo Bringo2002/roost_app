@@ -266,6 +266,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
             mapToolbarEnabled: false,
             onMapCreated: (controller) {
               _mapController = controller;
+              AppMapStyle.checkStyleApplied(controller);
             },
             markers: _buildMarkers(),
             circles: {
