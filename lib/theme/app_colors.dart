@@ -87,6 +87,16 @@ class AppColors {
     stops: [0.4, 1.0],
   );
 
+  /// Left-to-right red gradient for destructive swipe actions (remove,
+  /// delete). No existing flat color token captures this two-tone
+  /// effect, so it's named here rather than left as raw hex at its one
+  /// call site.
+  static const LinearGradient destructiveGradient = LinearGradient(
+    begin: Alignment.centerLeft,
+    end: Alignment.centerRight,
+    colors: [Color(0xFFE53935), Color(0xFFB71C1C)],
+  );
+
   // ─── Shadow Presets ─────────────────────────────────────────────────
 
   /// Subtle shadow for flat elements needing minimal depth.
