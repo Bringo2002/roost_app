@@ -268,6 +268,15 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                   ? Hero(
                       tag: 'property-image-${_property.id}',
                       flightShuttleBuilder: _buildHeroFlightShuttle,
+                      // Hero.curve governs the flight (per the framework's
+                      // own _HeroFlightManifest.animation: the destination
+                      // Hero's curve wins on both push and pop -- so this
+                      // is the only place this needs setting). The
+                      // default fastOutSlowIn has a slight ease-in before
+                      // it gets moving, which reads as a hesitation; a
+                      // photo growing into the header should start moving
+                      // immediately and settle smoothly, with no bounce.
+                      curve: Curves.easeOutCubic,
                       child: HeroMediaGallery(property: _property),
                     )
                   : HeroMediaGallery(property: _property),
