@@ -12,6 +12,13 @@ import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/l10n/property_labels.dart';
 
 class PropertyCard extends StatefulWidget {
+  /// The card's corner radius. Public and named (rather than a literal
+  /// `20` on the decoration below) so PropertyDetailPage's Hero flight
+  /// shuttle can interpolate toward the exact same value the card
+  /// actually renders with, instead of a second hardcoded `20` that
+  /// could silently drift out of sync with this one.
+  static const double cardCornerRadius = 20;
+
   const PropertyCard({
     super.key,
     required this.property,
@@ -218,7 +225,7 @@ class _PropertyCardState extends State<PropertyCard> {
         margin: widget.margin,
         decoration: BoxDecoration(
           color: AppColors.surfaceRaised,
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(PropertyCard.cardCornerRadius),
           border: Border.all(color: AppColors.border, width: 1),
           boxShadow: const [
             BoxShadow(
