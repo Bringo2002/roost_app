@@ -524,6 +524,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
               zoomGesturesEnabled: false,
               tiltGesturesEnabled: false,
               rotateGesturesEnabled: false,
+              onMapCreated: AppMapStyle.checkStyleApplied,
               markers: {
                 Marker(
                   markerId: MarkerId('detail_prop_${p.id}'),

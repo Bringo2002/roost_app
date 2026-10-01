@@ -86,6 +86,7 @@ class _MapViewPageState extends State<MapViewPage> {
                   mapToolbarEnabled: false,
                   onMapCreated: (controller) {
                     _mapController = controller;
+                    AppMapStyle.checkStyleApplied(controller);
                     _centerOnUserLocation();
                   },
                   myLocationEnabled: true,
