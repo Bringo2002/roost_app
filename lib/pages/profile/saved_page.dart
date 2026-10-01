@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
-import 'package:shimmer/shimmer.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/l10n/property_labels.dart';
 import 'package:roost_app/models/property.dart';
@@ -10,6 +8,8 @@ import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/main.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
+import 'package:roost_app/widgets/common/property_card_skeleton.dart';
+import 'package:roost_app/widgets/property/property_card.dart';
 
 enum SavedSortOption {
   recent('All Saved', Icons.auto_awesome_rounded),
@@ -260,7 +260,15 @@ class _SavedPageState extends State<SavedPage> {
 
   Widget _buildBody() {
     if (_loading) {
-      return _buildFAANGSkeletonLoader();
+      // Reuses the same skeleton PropertyCard itself uses elsewhere in
+      // the app, now that this page renders real PropertyCards too --
+      // previously this page had its own bespoke skeleton shaped for
+      // the old compact row layout, which no longer matches.
+      return ListView.builder(
+        padding: const EdgeInsets.only(top: 16),
+        itemCount: 4,
+        itemBuilder: (context, index) => const PropertyCardSkeleton(),
+      );
     }
 
     if (_savedProperties.isEmpty) {
@@ -393,388 +401,40 @@ class _SavedPageState extends State<SavedPage> {
                           ),
                         ),
                         onDismissed: (_) => _removeFavorite(property),
-                        child: _buildFAANGPropertyCard(property),
+                        // Previously a bespoke, un-migrated card copy
+                        // (bare Image, no memory-capped decoding, no
+                        // shimmer/error placeholder, no stale-gallery
+                        // fix) -- now the same PropertyCard used on the
+                        // home feed and Search page everywhere else.
+                        child: PropertyCard(
+                          key: ValueKey(property.id ?? identityHashCode(property)),
+                          property: property,
+                          compact: true,
+                          heroTag: property.id != null ? 'property-image-${property.id}' : null,
+                          // Every property on this page is, by definition,
+                          // already saved -- tapping the heart here means
+                          // "remove", same as swiping the row away.
+                          isFavorite: true,
+                          onFavoriteTap: () => _removeFavorite(property),
+                          // Default PropertyCard onTap is a bare
+                          // Navigator.push with no return handling. This
+                          // page specifically needs to reload on return,
+                          // since unfavoriting from the detail page should
+                          // drop the item from this list too.
+                          onTap: () async {
+                            await Navigator.push(
+                              context,
+                              MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
+                            );
+                            _loadSaved();
+                          },
+                        ),
                       );
                     },
                   ),
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFAANGPropertyCard(Property property) {
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.border),
-        // Same shadow recipe as PropertyCard, so saved-list rows and search
-        // results read as the same visual family.
-        boxShadow: const [
-          BoxShadow(
-            color: Color(0x28000000),
-            blurRadius: 16,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () async {
-          await Navigator.push(
-            context,
-            MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
-          );
-          _loadSaved();
-        },
-        child: IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Image Thumbnail with Overlay Badges
-              Stack(
-                children: [
-                  SizedBox(
-                    width: 130,
-                    height: double.infinity,
-                    child: property.imageUrl != null && property.imageUrl!.isNotEmpty
-                        ? CachedNetworkImage(
-                            imageUrl: property.imageUrl!,
-                            fit: BoxFit.cover,
-                            errorWidget: (context, url, error) => Container(
-                              color: AppColors.grey800,
-                              child: const Icon(Icons.home_work_outlined, color: AppColors.grey600, size: 36),
-                            ),
-                          )
-                        : Container(
-                            color: AppColors.grey800,
-                            child: const Icon(Icons.home_work_outlined, color: AppColors.grey600, size: 36),
-                          ),
-                  ),
-
-                  // Dark gradient overlay for bottom badge legibility --
-                  // reuses the shared image-scrim token instead of a
-                  // one-off gradient, so it matches every other image
-                  // overlay in the app (was previously unused).
-                  const Positioned.fill(
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(gradient: AppColors.imageScrimGradient),
-                    ),
-                  ),
-
-                  // Verified badge -- same monochrome white-pill treatment
-                  // as PropertyCard's image badge (this app has no accent
-                  // colors; the previous green border/icon here was the
-                  // only place that broke that rule).
-                  if (property.verified)
-                    Positioned(
-                      top: 8,
-                      left: 8,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(
-                          color: AppColors.white,
-                          borderRadius: BorderRadius.circular(999),
-                        ),
-                        child: const Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(Icons.verified, color: AppColors.black, size: 11),
-                            SizedBox(width: 3),
-                            Text('Verified', style: TextStyle(color: AppColors.black, fontSize: 9, fontWeight: FontWeight.w700)),
-                          ],
-                        ),
-                      ),
-                    ),
-
-                  // House Type Tag Pill
-                  Positioned(
-                    bottom: 8,
-                    left: 8,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-                      decoration: BoxDecoration(
-                        color: AppColors.black.withValues(alpha: 0.7),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        property.houseType.toUpperCase(),
-                        style: const TextStyle(color: AppColors.grey300, fontSize: 9, fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-
-              // Property Info Details
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      // Title & Favorite Toggle Button
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Expanded(
-                            child: Text(
-                              property.title,
-                              style: const TextStyle(
-                                color: AppColors.white,
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                height: 1.2,
-                              ),
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Material(
-                            color: Colors.transparent,
-                            child: InkWell(
-                              onTap: () => _removeFavorite(property),
-                              borderRadius: BorderRadius.circular(20),
-                              child: Container(
-                                padding: const EdgeInsets.all(6),
-                                decoration: BoxDecoration(
-                                  color: AppColors.favoriteActive.withValues(alpha: 0.12),
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(Icons.favorite_rounded, color: AppColors.favoriteActive, size: 18),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 4),
-
-                      // Location Pin
-                      Row(
-                        children: [
-                          const Icon(Icons.location_on_rounded, color: AppColors.grey500, size: 13),
-                          const SizedBox(width: 3),
-                          Expanded(
-                            child: Text(
-                              property.location,
-                              style: const TextStyle(color: AppColors.grey400, fontSize: 12),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Amenity Chips
-                      Wrap(
-                        spacing: 6,
-                        runSpacing: 4,
-                        children: [
-                          _buildFAANGChip(property.bedroomLabel(AppLocalizations.of(context)!), Icons.bed_rounded),
-                          _buildFAANGChip('${property.bathrooms} Bath', Icons.shower_rounded),
-                          if (property.wifi) _buildFAANGChip('WiFi', Icons.wifi_rounded),
-                          if (property.furnished) _buildFAANGChip('Furnished', Icons.chair_rounded),
-                        ],
-                      ),
-                      const SizedBox(height: 8),
-
-                      // Price Tag
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            CountryService.pricePerMonth(property.price),
-                            style: const TextStyle(
-                              color: AppColors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: -0.2,
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right_rounded, color: AppColors.grey600, size: 18),
-                        ],
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFAANGChip(String text, IconData icon) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-      decoration: BoxDecoration(
-        color: AppColors.white.withValues(alpha: 0.06),
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.white.withValues(alpha: 0.05)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: AppColors.grey400, size: 11),
-          const SizedBox(width: 4),
-          Text(text, style: const TextStyle(color: AppColors.grey300, fontSize: 10, fontWeight: FontWeight.w600)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEmptyState() {
-    return Center(
-      child: SingleChildScrollView(
-        physics: const BouncingScrollPhysics(),
-        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Ambient Glowing Heart Badge Icon
-            Stack(
-              alignment: Alignment.center,
-              children: [
-                // Outer subtle glow halo
-                Container(
-                  width: 130,
-                  height: 130,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.favoriteActive.withValues(alpha: 0.06),
-                  ),
-                ),
-                // Inner glow halo
-                Container(
-                  width: 100,
-                  height: 100,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppColors.favoriteActive.withValues(alpha: 0.12),
-                    border: Border.all(color: AppColors.favoriteActive.withValues(alpha: 0.25), width: 1.5),
-                  ),
-                ),
-                // Center Icon Container
-                Container(
-                  width: 74,
-                  height: 74,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Color(0xFF1C1C1E),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black45,
-                        blurRadius: 12,
-                        offset: Offset(0, 4),
-                      ),
-                    ],
-                  ),
-                  child: const Icon(Icons.favorite_border_rounded, color: AppColors.favoriteActive, size: 36),
-                ),
-              ],
-            ),
-            const SizedBox(height: 28),
-
-            const Text(
-              'No Saved Properties',
-              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.3),
-            ),
-            const SizedBox(height: 10),
-
-            Text(
-              'Save your favorite rentals by tapping the heart icon on any listing to compare and access them here anytime.',
-              textAlign: TextAlign.center,
-              style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.45),
-            ),
-            const SizedBox(height: 32),
-
-            // High-Contrast Glass CTA Button
-            ElevatedButton(
-              onPressed: () {
-                Navigator.popUntil(context, (route) => route.isFirst);
-                mainTabNotifier.value = 0;
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                elevation: 4,
-                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.explore_rounded, color: Colors.black, size: 18),
-                  SizedBox(width: 8),
-                  Text('Explore Properties', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildFAANGSkeletonLoader() {
-    return ListView.builder(
-      padding: const EdgeInsets.only(top: 16),
-      itemCount: 4,
-      itemBuilder: (context, index) {
-        return Shimmer.fromColors(
-          baseColor: const Color(0xFF1C1C1E),
-          highlightColor: const Color(0xFF2C2C2E),
-          child: Container(
-            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            height: 130,
-            decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  width: 130,
-                  height: 130,
-                  decoration: const BoxDecoration(
-                    color: Color(0xFF2C2C2E),
-                    borderRadius: BorderRadius.horizontal(left: Radius.circular(20)),
-                  ),
-                ),
-                Expanded(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Container(width: 150, height: 16, color: const Color(0xFF2C2C2E)),
-                        const SizedBox(height: 10),
-                        Container(width: 100, height: 12, color: const Color(0xFF2C2C2E)),
-                        const Spacer(),
-                        Row(
-                          children: [
-                            Container(width: 40, height: 16, color: const Color(0xFF2C2C2E)),
-                            const SizedBox(width: 8),
-                            Container(width: 40, height: 16, color: const Color(0xFF2C2C2E)),
-                          ],
-                        ),
-                        const SizedBox(height: 10),
-                        Container(width: 90, height: 18, color: const Color(0xFF2C2C2E)),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
-      },
     );
   }
 }
