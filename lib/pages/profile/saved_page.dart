@@ -437,4 +437,97 @@ class _SavedPageState extends State<SavedPage> {
       ),
     );
   }
+
+  Widget _buildEmptyState() {
+    return Center(
+      child: SingleChildScrollView(
+        physics: const BouncingScrollPhysics(),
+        padding: const EdgeInsets.symmetric(horizontal: 36, vertical: 40),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            // Ambient Glowing Heart Badge Icon
+            Stack(
+              alignment: Alignment.center,
+              children: [
+                // Outer subtle glow halo
+                Container(
+                  width: 130,
+                  height: 130,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.favoriteActive.withValues(alpha: 0.06),
+                  ),
+                ),
+                // Inner glow halo
+                Container(
+                  width: 100,
+                  height: 100,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AppColors.favoriteActive.withValues(alpha: 0.12),
+                    border: Border.all(color: AppColors.favoriteActive.withValues(alpha: 0.25), width: 1.5),
+                  ),
+                ),
+                // Center Icon Container
+                Container(
+                  width: 74,
+                  height: 74,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Color(0xFF1C1C1E),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black45,
+                        blurRadius: 12,
+                        offset: Offset(0, 4),
+                      ),
+                    ],
+                  ),
+                  child: const Icon(Icons.favorite_border_rounded, color: AppColors.favoriteActive, size: 36),
+                ),
+              ],
+            ),
+            const SizedBox(height: 28),
+
+            const Text(
+              'No Saved Properties',
+              style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w800, letterSpacing: -0.3),
+            ),
+            const SizedBox(height: 10),
+
+            Text(
+              'Save your favorite rentals by tapping the heart icon on any listing to compare and access them here anytime.',
+              textAlign: TextAlign.center,
+              style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.45),
+            ),
+            const SizedBox(height: 32),
+
+            // High-Contrast Glass CTA Button
+            ElevatedButton(
+              onPressed: () {
+                Navigator.popUntil(context, (route) => route.isFirst);
+                mainTabNotifier.value = 0;
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                elevation: 4,
+                padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+              ),
+              child: const Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(Icons.explore_rounded, color: Colors.black, size: 18),
+                  SizedBox(width: 8),
+                  Text('Explore Properties', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 15)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
