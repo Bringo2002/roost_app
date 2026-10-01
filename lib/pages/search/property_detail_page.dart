@@ -43,6 +43,33 @@ class PropertyDetailPage extends StatefulWidget {
   State<PropertyDetailPage> createState() => _PropertyDetailPageState();
 }
 
+/// The corner radius for the Hero-flown property photo at a given point
+/// in its card-to-detail (or detail-to-card) flight.
+///
+/// The card this flight starts (or, on a pop, ends) at has rounded
+/// corners ([PropertyCard.cardCornerRadius]); the full-bleed detail-page
+/// header it flies to (or from) has none. `t` runs 0 -> 1 from
+/// `direction`'s "from" state to its "to" state, so which literal radius
+/// belongs at which end flips with `direction`. Without this
+/// interpolation, the image's corners would just snap from rounded to
+/// square the instant the flight starts, rather than un-rounding
+/// smoothly alongside the resize.
+///
+/// A standalone top-level function -- rather than inlined in the private
+/// [_PropertyDetailPageState]'s flight-shuttle builder -- so the
+/// direction-aware math can be unit tested on its own, without needing
+/// to drive an actual Hero flight through a widget tree.
+@visibleForTesting
+BorderRadius heroFlightCornerRadius(HeroFlightDirection direction, double t) {
+  final beginRadius = direction == HeroFlightDirection.push
+      ? BorderRadius.circular(PropertyCard.cardCornerRadius)
+      : BorderRadius.zero;
+  final endRadius = direction == HeroFlightDirection.push
+      ? BorderRadius.zero
+      : BorderRadius.circular(PropertyCard.cardCornerRadius);
+  return BorderRadius.lerp(beginRadius, endRadius, t)!;
+}
+
 class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTickerProviderStateMixin {
   late final PropertyDetailController _controller;
   late final AnimationController _entranceController;
@@ -164,25 +191,11 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
           )
         : CachedNetworkImage(imageUrl: url, fit: BoxFit.cover);
 
-    // The card this flight starts (or, on a pop, ends) at has rounded
-    // corners; the full-bleed header it flies to (or from) has none.
-    // `animation` runs 0 -> 1 from `fromContext`'s state to `toContext`'s
-    // state, so which literal radius belongs at which end flips with
-    // `direction`. Without this, the image's corners would just snap
-    // from rounded to square the instant the flight starts, rather than
-    // un-rounding smoothly alongside the resize.
-    final beginRadius = direction == HeroFlightDirection.push
-        ? BorderRadius.circular(PropertyCard.cardCornerRadius)
-        : BorderRadius.zero;
-    final endRadius = direction == HeroFlightDirection.push
-        ? BorderRadius.zero
-        : BorderRadius.circular(PropertyCard.cardCornerRadius);
-
     return AnimatedBuilder(
       animation: animation,
       child: image,
       builder: (context, child) => ClipRRect(
-        borderRadius: BorderRadius.lerp(beginRadius, endRadius, animation.value)!,
+        borderRadius: heroFlightCornerRadius(direction, animation.value),
         child: child,
       ),
     );
