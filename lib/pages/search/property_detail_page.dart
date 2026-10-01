@@ -155,15 +155,37 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
     BuildContext toContext,
   ) {
     final url = _coverPhotoUrl;
-    if (url == null) {
-      return Container(
-        color: AppColors.surface,
-        child: const Center(
-          child: Icon(Icons.home_outlined, color: AppColors.grey700, size: 64),
-        ),
-      );
-    }
-    return CachedNetworkImage(imageUrl: url, fit: BoxFit.cover);
+    final image = url == null
+        ? Container(
+            color: AppColors.surface,
+            child: const Center(
+              child: Icon(Icons.home_outlined, color: AppColors.grey700, size: 64),
+            ),
+          )
+        : CachedNetworkImage(imageUrl: url, fit: BoxFit.cover);
+
+    // The card this flight starts (or, on a pop, ends) at has rounded
+    // corners; the full-bleed header it flies to (or from) has none.
+    // `animation` runs 0 -> 1 from `fromContext`'s state to `toContext`'s
+    // state, so which literal radius belongs at which end flips with
+    // `direction`. Without this, the image's corners would just snap
+    // from rounded to square the instant the flight starts, rather than
+    // un-rounding smoothly alongside the resize.
+    final beginRadius = direction == HeroFlightDirection.push
+        ? BorderRadius.circular(PropertyCard.cardCornerRadius)
+        : BorderRadius.zero;
+    final endRadius = direction == HeroFlightDirection.push
+        ? BorderRadius.zero
+        : BorderRadius.circular(PropertyCard.cardCornerRadius);
+
+    return AnimatedBuilder(
+      animation: animation,
+      child: image,
+      builder: (context, child) => ClipRRect(
+        borderRadius: BorderRadius.lerp(beginRadius, endRadius, animation.value)!,
+        child: child,
+      ),
+    );
   }
 
   @override
