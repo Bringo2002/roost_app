@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Production-ready "About Roost" page displaying app information,
 /// core mission, key features, platform stats, open-source licenses,
@@ -40,9 +41,9 @@ class AboutRoostPage extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.symmetric(vertical: 32, horizontal: 20),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
+                color: AppColors.surfaceContainer,
                 borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFF2C2C2E)),
+                border: Border.all(color: AppColors.surfaceContainerHigh),
               ),
               child: Column(
                 children: [
@@ -137,19 +138,19 @@ class AboutRoostPage extends StatelessWidget {
                     title: 'Verified Property Listings',
                     subtitle: 'All listings are vetted for authenticity to protect renters.',
                   ),
-                  const Divider(height: 20, color: Color(0xFF2C2C2E)),
+                  const Divider(height: 20, color: AppColors.surfaceContainerHigh),
                   _buildFeatureTile(
                     icon: Icons.forum_rounded,
                     title: 'Direct Landlord Messaging',
                     subtitle: 'Chat directly with property managers with real-time updates.',
                   ),
-                  const Divider(height: 20, color: Color(0xFF2C2C2E)),
+                  const Divider(height: 20, color: AppColors.surfaceContainerHigh),
                   _buildFeatureTile(
                     icon: Icons.map_rounded,
                     title: 'Interactive Map Search',
                     subtitle: 'Explore rentals by location, neighborhood, and nearby points of interest.',
                   ),
-                  const Divider(height: 20, color: Color(0xFF2C2C2E)),
+                  const Divider(height: 20, color: AppColors.surfaceContainerHigh),
                   _buildFeatureTile(
                     icon: Icons.currency_exchange_rounded,
                     title: 'Multi-Country & Currency Support',
@@ -182,9 +183,9 @@ class AboutRoostPage extends StatelessWidget {
             // Open Source & Legal Actions
             Container(
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
+                color: AppColors.surfaceContainer,
                 borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: const Color(0xFF2C2C2E)),
+                border: Border.all(color: AppColors.surfaceContainerHigh),
               ),
               child: Column(
                 children: [
@@ -244,9 +245,9 @@ class AboutRoostPage extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2C2C2E)),
+        border: Border.all(color: AppColors.surfaceContainerHigh),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

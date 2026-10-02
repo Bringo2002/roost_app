@@ -3,6 +3,7 @@ import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/main.dart';
 import 'package:roost_app/pages/auth/signup_page.dart';
 import 'package:roost_app/pages/onboarding/onboarding_page.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 class LoginPage extends StatefulWidget {
@@ -82,7 +83,7 @@ class _LoginPageState extends State<LoginPage> {
       prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
       suffixIcon: suffixIcon,
       filled: true,
-      fillColor: const Color(0xFF1C1C1E),
+      fillColor: AppColors.surfaceContainer,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
         borderSide: BorderSide.none,
@@ -211,7 +212,7 @@ class _LoginPageState extends State<LoginPage> {
                 child: OutlinedButton.icon(
                   onPressed: _isLoading ? null : _signInWithGoogle,
                   style: OutlinedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1C1C1E),
+                    backgroundColor: AppColors.surfaceContainer,
                     side: BorderSide(color: Colors.grey[850]!),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                   ),
