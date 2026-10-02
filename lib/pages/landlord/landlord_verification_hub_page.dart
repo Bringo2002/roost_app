@@ -5,6 +5,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
 import 'package:roost_app/pages/landlord/endorsement_page.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 class LandlordVerificationHubPage extends StatefulWidget {
   const LandlordVerificationHubPage({super.key});
@@ -183,7 +184,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF1C1C1E),
+                              color: AppColors.surfaceContainer,
                               borderRadius: BorderRadius.circular(12),
                               border: Border.all(color: Colors.white10),
                             ),
@@ -721,7 +722,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF00C896).withValues(alpha: 0.3)),
       ),
