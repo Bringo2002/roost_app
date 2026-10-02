@@ -128,5 +128,21 @@
         "type": "int"
       }
     }
+  },
+  "inAppMapLocationUnavailable": "Location unavailable. Tap to enable.",
+  "@inAppMapLocationUnavailable": {
+    "description": "Accessible label for the recenter-on-me button when location isn't available, replacing 'Center map on your location'."
+  },
+  "inAppMapEnableLocationServices": "Turn on location services to see your distance from this property.",
+  "@inAppMapEnableLocationServices": {
+    "description": "Snackbar shown when tapping the location button while device location services are off entirely (not an app permission)."
+  },
+  "inAppMapEnableLocationPermission": "Location access is off for Roost. Enable it in Settings to see your distance from this property.",
+  "@inAppMapEnableLocationPermission": {
+    "description": "Snackbar shown when tapping the location button after permission was permanently denied (re-requesting in-app would silently no-op)."
+  },
+  "inAppMapOpenSettings": "Open Settings",
+  "@inAppMapOpenSettings": {
+    "description": "Action button on the enable-location snackbars that opens the device's location or app settings screen."
   }
 }

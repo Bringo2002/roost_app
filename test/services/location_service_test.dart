@@ -73,5 +73,13 @@ void main() {
       LocationService.cachedNeighborhood = 'Kilimani';
       expect(await LocationService.getNeighborhoodName(), 'Kilimani');
     });
+
+    test('checkPermissionStatus() resolves to granted (its safe fallback) instead of throwing', () async {
+      // isLocationServiceEnabled() throws here for the same reason
+      // getCurrentPosition() does above; the method deliberately treats
+      // "can't even check" the same as "granted" -- not claiming a
+      // settings prompt would help when it has no idea whether one would.
+      expect(await LocationService.checkPermissionStatus(), LocationPermissionStatus.granted);
+    });
   });
 }

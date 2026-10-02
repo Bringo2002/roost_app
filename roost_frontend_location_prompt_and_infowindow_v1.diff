@@ -1,0 +1,263 @@
+diff --git a/lib/l10n/app_en.arb b/lib/l10n/app_en.arb
+index 8e976fa..ea898b4 100644
+--- a/lib/l10n/app_en.arb
++++ b/lib/l10n/app_en.arb
+@@ -128,5 +128,21 @@
+         "type": "int"
+       }
+     }
++  },
++  "inAppMapLocationUnavailable": "Location unavailable. Tap to enable.",
++  "@inAppMapLocationUnavailable": {
++    "description": "Accessible label for the recenter-on-me button when location isn't available, replacing 'Center map on your location'."
++  },
++  "inAppMapEnableLocationServices": "Turn on location services to see your distance from this property.",
++  "@inAppMapEnableLocationServices": {
++    "description": "Snackbar shown when tapping the location button while device location services are off entirely (not an app permission)."
++  },
++  "inAppMapEnableLocationPermission": "Location access is off for Roost. Enable it in Settings to see your distance from this property.",
++  "@inAppMapEnableLocationPermission": {
++    "description": "Snackbar shown when tapping the location button after permission was permanently denied (re-requesting in-app would silently no-op)."
++  },
++  "inAppMapOpenSettings": "Open Settings",
++  "@inAppMapOpenSettings": {
++    "description": "Action button on the enable-location snackbars that opens the device's location or app settings screen."
+   }
+ }
+diff --git a/lib/l10n/app_sw.arb b/lib/l10n/app_sw.arb
+index 70c30af..2dda4fc 100644
+--- a/lib/l10n/app_sw.arb
++++ b/lib/l10n/app_sw.arb
+@@ -26,5 +26,9 @@
+   "inAppMapStartNavigation": "Anza Kuelekeza",
+   "inAppMapDistanceAway": "{km} km mbali",
+   "searchFilters": "Vichujio",
+-  "searchFiltersActive": "Vichujio, {count} vinatumika"
++  "searchFiltersActive": "Vichujio, {count} vinatumika",
++  "inAppMapLocationUnavailable": "Mahali hapapatikani. Gusa kuwezesha.",
++  "inAppMapEnableLocationServices": "Washa huduma za mahali ili kuona umbali wako kutoka kwa nyumba hii.",
++  "inAppMapEnableLocationPermission": "Ufikiaji wa mahali umezimwa kwa Roost. Uwezeshe kwenye Mipangilio ili kuona umbali wako kutoka kwa nyumba hii.",
++  "inAppMapOpenSettings": "Fungua Mipangilio"
+ }
+diff --git a/lib/pages/search/in_app_map_page.dart b/lib/pages/search/in_app_map_page.dart
+index 66c16c5..c063ed9 100644
+--- a/lib/pages/search/in_app_map_page.dart
++++ b/lib/pages/search/in_app_map_page.dart
+@@ -168,6 +168,65 @@ class _InAppMapPageState extends State<InAppMapPage> {
+     }
+   }
+ 
++  /// Handles the "center on me" button when there's no position yet --
++  /// previously this button simply didn't exist in that case, so denying
++  /// location permission silently removed the feature with no way back
++  /// short of restarting the app. Now the button always shows (muted,
++  /// with a "location disabled" icon) and tapping it explains why and,
++  /// where there's something the user can actually do about it, offers
++  /// to open the right settings screen.
++  Future<void> _handleLocationButtonTap() async {
++    if (_userPosition != null) {
++      _recenterOnUser();
++      return;
++    }
++    final status = await LocationService.checkPermissionStatus();
++    if (!mounted) return;
++    final l10n = AppLocalizations.of(context)!;
++    switch (status) {
++      case LocationPermissionStatus.serviceDisabled:
++        _showEnableLocationPrompt(
++          l10n.inAppMapEnableLocationServices,
++          LocationService.openLocationSettings,
++        );
++        break;
++      case LocationPermissionStatus.deniedForever:
++        _showEnableLocationPrompt(
++          l10n.inAppMapEnableLocationPermission,
++          LocationService.openAppSettings,
++        );
++        break;
++      case LocationPermissionStatus.denied:
++        // Not permanently denied -- retrying in-app re-prompts the OS
++        // permission dialog rather than requiring a trip to Settings.
++        await _getUserLocationAndDistance();
++        break;
++      case LocationPermissionStatus.granted:
++        // Permission's fine; the earlier null was a transient failure
++        // (GPS timeout, etc.) -- just retry rather than claim a settings
++        // screen would help.
++        await _getUserLocationAndDistance();
++        break;
++    }
++  }
++
++  void _showEnableLocationPrompt(String message, Future<void> Function() onOpenSettings) {
++    if (!mounted) return;
++    ScaffoldMessenger.of(context).showSnackBar(
++      SnackBar(
++        content: Text(message),
++        backgroundColor: const Color(0xFF2C2C2E),
++        action: SnackBarAction(
++          label: AppLocalizations.of(context)!.inAppMapOpenSettings,
++          textColor: Colors.white,
++          onPressed: () {
++            onOpenSettings();
++          },
++        ),
++      ),
++    );
++  }
++
+   /// "Start Navigation" goes straight to Google Maps with the property as
+   /// the destination -- no chooser. Tries the Google Maps app first, falls
+   /// back to the Google Maps web page in a browser, and shows a message
+@@ -217,6 +276,13 @@ class _InAppMapPageState extends State<InAppMapPage> {
+   /// The property uses Google's standard pin (a custom one looked off at
+   /// device pixel densities); facilities use the custom monochrome badges.
+   ///
++  /// The property marker gets no InfoWindow: the white default-style
++  /// tooltip bubble it'd pop up (title + location) just repeats what's
++  /// already always on screen in the dark bottom action card, and it
++  /// visually clashes as the one light-colored thing on a dark map.
++  /// Facility markers keep theirs -- "600m from TRM Mall" isn't shown
++  /// anywhere else, so tapping one is the only way to read it.
++  ///
+   /// The which-markers-to-show logic itself lives in [buildMarkerSpecs]
+   /// (framework-free, unit-tested); this just attaches an icon to each spec.
+   Set<Marker> _buildMarkers() {
+@@ -236,7 +302,9 @@ class _InAppMapPageState extends State<InAppMapPage> {
+         Marker(
+           markerId: MarkerId(spec.id),
+           position: LatLng(spec.latitude, spec.longitude),
+-          infoWindow: InfoWindow(title: spec.title, snippet: spec.snippet),
++          infoWindow: isProperty
++              ? InfoWindow.noText
++              : InfoWindow(title: spec.title, snippet: spec.snippet),
+           icon: icon,
+           anchor: isProperty ? const Offset(0.5, 1.0) : const Offset(0.5, 0.5),
+         ),
+@@ -340,14 +408,15 @@ class _InAppMapPageState extends State<InAppMapPage> {
+                   borderColor: Colors.grey[800],
+                 ),
+                 const SizedBox(height: 10),
+-                if (_userPosition != null)
+-                  _MapCircleButton(
+-                    icon: Icons.my_location,
+-                    semanticLabel: AppLocalizations.of(context)!.inAppMapCenterOnUser,
+-                    onTap: _recenterOnUser,
+-                    background: Colors.black.withValues(alpha: 0.9),
+-                    borderColor: Colors.grey[800],
+-                  ),
++                _MapCircleButton(
++                  icon: _userPosition != null ? Icons.my_location : Icons.location_disabled,
++                  semanticLabel: _userPosition != null
++                      ? AppLocalizations.of(context)!.inAppMapCenterOnUser
++                      : AppLocalizations.of(context)!.inAppMapLocationUnavailable,
++                  onTap: _handleLocationButtonTap,
++                  background: Colors.black.withValues(alpha: 0.9),
++                  borderColor: Colors.grey[800],
++                ),
+               ],
+             ),
+           ),
+diff --git a/lib/services/location_service.dart b/lib/services/location_service.dart
+index 8d717bf..7cdb682 100644
+--- a/lib/services/location_service.dart
++++ b/lib/services/location_service.dart
+@@ -1,6 +1,35 @@
+ import 'package:geocoding/geocoding.dart';
+ import 'package:geolocator/geolocator.dart';
+ 
++/// Why [LocationService.checkPermissionStatus] can't currently give the
++/// device's position -- or that it can. Separate from
++/// [LocationService.getCurrentPosition], which deliberately collapses
++/// every failure into `null` for callers that just want a best-effort
++/// position; this is for the minority of callers (the map screens) that
++/// need to tell "nothing we can do here" apart from "the user could fix
++/// this, and here's how" so they can show the right prompt instead of a
++/// feature that silently never works.
++enum LocationPermissionStatus {
++  /// Location services are off at the OS level (not an app permission).
++  /// Fixable via [LocationService.openLocationSettings].
++  serviceDisabled,
++
++  /// Permission was never granted, or was denied but can still be
++  /// re-requested in-app (no OS-level "don't ask again").
++  denied,
++
++  /// Permission was denied with "don't ask again" (Android) or is
++  /// otherwise permanently refused (iOS). Only fixable by the user
++  /// visiting the app's OS settings -- requesting again in-app is a
++  /// silent no-op at this point.
++  deniedForever,
++
++  /// Permission is granted; a `null` from [LocationService.getCurrentPosition]
++  /// despite this means a transient failure (GPS timeout, etc.), not
++  /// something a settings prompt would fix.
++  granted,
++}
++
+ /// Wraps device geolocation for "properties near me" features. Never
+ /// throws -- every method degrades gracefully (returns null / doesn't
+ /// sort) if location services are off or permission is denied, since
+@@ -69,6 +98,44 @@ class LocationService {
+     }
+   }
+ 
++  /// Tells a caller *why* [getCurrentPosition] would return null right
++  /// now, without actually requesting a GPS fix -- for UI that wants to
++  /// show "enable location" rather than just quietly doing nothing. Does
++  /// not prompt for permission itself (unlike [getCurrentPosition]); call
++  /// this to decide what to show, then re-call [getCurrentPosition] if
++  /// the user chooses to proceed.
++  static Future<LocationPermissionStatus> checkPermissionStatus() async {
++    try {
++      if (!await Geolocator.isLocationServiceEnabled()) {
++        return LocationPermissionStatus.serviceDisabled;
++      }
++      switch (await Geolocator.checkPermission()) {
++        case LocationPermission.denied:
++          return LocationPermissionStatus.denied;
++        case LocationPermission.deniedForever:
++          return LocationPermissionStatus.deniedForever;
++        case LocationPermission.whileInUse:
++        case LocationPermission.always:
++        case LocationPermission.unableToDetermine:
++          return LocationPermissionStatus.granted;
++      }
++    } catch (_) {
++      // Unable to even check -- nothing a settings prompt can promise to
++      // fix, so don't claim otherwise.
++      return LocationPermissionStatus.granted;
++    }
++  }
++
++  /// Opens the device's location-services toggle (not the app's own
++  /// settings page) -- for [LocationPermissionStatus.serviceDisabled].
++  static Future<void> openLocationSettings() => Geolocator.openLocationSettings();
++
++  /// Opens this app's OS settings page -- for
++  /// [LocationPermissionStatus.deniedForever], where re-requesting
++  /// permission in-app is a silent no-op and the OS requires the user to
++  /// grant it from Settings instead.
++  static Future<void> openAppSettings() => Geolocator.openAppSettings();
++
+   /// Straight-line distance in kilometers between two coordinates.
+   static double distanceKm(double lat1, double lon1, double lat2, double lon2) {
+     return Geolocator.distanceBetween(lat1, lon1, lat2, lon2) / 1000;
+diff --git a/test/services/location_service_test.dart b/test/services/location_service_test.dart
+index ee65943..9b22bcf 100644
+--- a/test/services/location_service_test.dart
++++ b/test/services/location_service_test.dart
+@@ -73,5 +73,13 @@ void main() {
+       LocationService.cachedNeighborhood = 'Kilimani';
+       expect(await LocationService.getNeighborhoodName(), 'Kilimani');
+     });
++
++    test('checkPermissionStatus() resolves to granted (its safe fallback) instead of throwing', () async {
++      // isLocationServiceEnabled() throws here for the same reason
++      // getCurrentPosition() does above; the method deliberately treats
++      // "can't even check" the same as "granted" -- not claiming a
++      // settings prompt would help when it has no idea whether one would.
++      expect(await LocationService.checkPermissionStatus(), LocationPermissionStatus.granted);
++    });
+   });
+ }
