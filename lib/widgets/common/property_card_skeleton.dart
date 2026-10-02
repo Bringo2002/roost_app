@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Pixel-perfect shimmer skeleton that mirrors [PropertyCard]'s layout.
 ///
@@ -14,7 +15,7 @@ class PropertyCardSkeleton extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
         boxShadow: const [
           BoxShadow(
@@ -26,8 +27,8 @@ class PropertyCardSkeleton extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: Shimmer.fromColors(
-        baseColor: const Color(0xFF2C2C2E),
-        highlightColor: const Color(0xFF3A3A3C),
+        baseColor: AppColors.surfaceContainerHigh,
+        highlightColor: AppColors.surfaceContainerHighest,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
@@ -36,7 +37,7 @@ class PropertyCardSkeleton extends StatelessWidget {
             Container(
               height: 180,
               width: double.infinity,
-              color: const Color(0xFF2C2C2E),
+              color: AppColors.surfaceContainerHigh,
             ),
 
             Padding(
@@ -72,7 +73,7 @@ class PropertyCardSkeleton extends StatelessWidget {
                   _block(width: 160, height: 13),
                   const SizedBox(height: 14),
 
-                  const Divider(height: 1, color: Color(0xFF2C2C2E)),
+                  const Divider(height: 1, color: AppColors.surfaceContainerHigh),
                   const SizedBox(height: 12),
 
                   // Action buttons
@@ -99,7 +100,7 @@ class PropertyCardSkeleton extends StatelessWidget {
       width: width,
       height: height,
       decoration: BoxDecoration(
-        color: const Color(0xFF2C2C2E),
+        color: AppColors.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(6),
       ),
     );

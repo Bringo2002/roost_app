@@ -175,7 +175,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
+                color: AppColors.surfaceContainer,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: Colors.white10),
               ),
@@ -210,7 +210,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
                             hintText: 'e.g. 7f9a8b3c...',
                             hintStyle: TextStyle(color: Colors.grey[600]),
                             filled: true,
-                            fillColor: const Color(0xFF2C2C2E),
+                            fillColor: AppColors.surfaceContainerHigh,
                             contentPadding: const EdgeInsets.symmetric(
                               horizontal: 14,
                               vertical: 12,
@@ -303,7 +303,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: isEndorsed ? const Color(0xFF00C896) : Colors.white12,
@@ -442,7 +442,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
                 Container(
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF2C2C2E),
+                    color: AppColors.surfaceContainerHigh,
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
@@ -548,7 +548,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white10),
       ),
