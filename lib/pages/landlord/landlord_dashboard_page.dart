@@ -388,7 +388,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('📍 On-Site GPS Location Verified! Your physical presence has been confirmed at this property.'),
-          backgroundColor: Color(0xFF10B981),
+          backgroundColor: AppColors.verified,
           behavior: SnackBarBehavior.floating,
         ),
       );
@@ -647,10 +647,10 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF10B981).withValues(alpha: 0.4)),
+        border: Border.all(color: AppColors.verified.withValues(alpha: 0.4)),
         boxShadow: [
           BoxShadow(
-            color: const Color(0xFF10B981).withValues(alpha: 0.1),
+            color: AppColors.verified.withValues(alpha: 0.1),
             blurRadius: 12,
             offset: const Offset(0, 4),
           ),
@@ -664,7 +664,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
               color: Color(0x3010B981),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.verified_user_rounded, color: Color(0xFF10B981), size: 24),
+            child: const Icon(Icons.verified_user_rounded, color: AppColors.verified, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -694,7 +694,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
               ).then((_) => _loadListings());
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF10B981),
+              backgroundColor: AppColors.verified,
               foregroundColor: Colors.white,
               elevation: 0,
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1225,8 +1225,8 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
     Color bg;
     Color fg;
     if (status == 'APPROVED') {
-      bg = const Color(0xFF10B981).withValues(alpha: 0.15);
-      fg = const Color(0xFF10B981);
+      bg = AppColors.verified.withValues(alpha: 0.15);
+      fg = AppColors.verified;
     } else if (status == 'REJECTED') {
       bg = Colors.red.withValues(alpha: 0.15);
       fg = AppColors.destructive;
