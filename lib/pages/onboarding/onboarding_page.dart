@@ -343,7 +343,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
               padding: const EdgeInsets.only(bottom: 12),
               child: Row(
                 children: [
-                  const Icon(Icons.info_outline, color: Colors.orangeAccent, size: 16),
+                  const Icon(Icons.info_outline, color: AppColors.grey400, size: 16),
                   const SizedBox(width: 8),
                   Text(
                     'Could not detect location. Please select manually.',

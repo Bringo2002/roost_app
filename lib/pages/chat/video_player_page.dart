@@ -86,7 +86,7 @@ class _VideoPlayerPageState extends State<VideoPlayerPage> {
 
   Widget _buildBody() {
     if (_error != null) {
-      return Text(_error!, style: const TextStyle(color: Colors.redAccent));
+      return Text(_error!, style: const TextStyle(color: AppColors.destructive));
     }
     if (!_initialized) {
       return const CircularProgressIndicator(color: AppColors.white);

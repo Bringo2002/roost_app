@@ -312,7 +312,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
             child: const Text('Cancel', style: TextStyle(color: AppColors.textTertiary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.destructive),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Delete'),
           ),
@@ -1075,7 +1075,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
                   ? Center(
                       child: Text(
                         'Error: $_error',
-                        style: const TextStyle(color: Colors.redAccent),
+                        style: const TextStyle(color: AppColors.destructive),
                       ),
                     )
                   : _applications.isEmpty
@@ -1176,7 +1176,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
                                       children: [
                                         TextButton(
                                           onPressed: () => _updateStatus(app['id'], 'REJECTED'),
-                                          style: TextButton.styleFrom(foregroundColor: Colors.redAccent),
+                                          style: TextButton.styleFrom(foregroundColor: AppColors.destructive),
                                           child: const Text('Reject'),
                                         ),
                                         const SizedBox(width: 8),
@@ -1229,7 +1229,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
       fg = const Color(0xFF10B981);
     } else if (status == 'REJECTED') {
       bg = Colors.red.withValues(alpha: 0.15);
-      fg = Colors.redAccent;
+      fg = AppColors.destructive;
     } else {
       bg = Colors.amber.withValues(alpha: 0.15);
       fg = Colors.amber;

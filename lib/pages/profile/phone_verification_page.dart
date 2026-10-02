@@ -207,7 +207,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
 
               if (_error != null) ...[
                 const SizedBox(height: 12),
-                Text(_error!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
+                Text(_error!, style: const TextStyle(color: AppColors.destructive, fontSize: 13)),
               ],
 
               const SizedBox(height: 24),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 class EmptyStateWidget extends StatelessWidget {
   const EmptyStateWidget({
@@ -41,7 +42,7 @@ class EmptyStateWidget extends StatelessWidget {
             ElevatedButton(
               onPressed: onButtonPressed,
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF00C853),
+                backgroundColor: AppColors.white,
                 foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

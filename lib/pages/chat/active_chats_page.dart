@@ -105,7 +105,7 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            child: const Text('Delete', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -180,7 +180,7 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
             key: ValueKey(summary.partner.id),
             direction: DismissDirection.endToStart,
             background: Container(
-              color: Colors.redAccent,
+              color: AppColors.destructive,
               alignment: Alignment.centerRight,
               padding: const EdgeInsets.symmetric(horizontal: 24),
               child: const Icon(Icons.delete_outline, color: Colors.white),

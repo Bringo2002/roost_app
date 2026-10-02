@@ -30,4 +30,15 @@ void main() {
       expect(luminances[1], lessThan(luminances[2]));
     });
   });
+
+  group('AppColors brand exceptions', () {
+    test('whatsapp is the official WhatsApp brand green', () {
+      expect(AppColors.whatsapp, const Color(0xFF25D366));
+    });
+
+    test('destructive is value-identical to Colors.redAccent', () {
+      // Guards the no-visual-change guarantee of the red tokenization.
+      expect(AppColors.destructive, Colors.redAccent);
+    });
+  });
 }

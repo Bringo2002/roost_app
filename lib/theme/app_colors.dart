@@ -74,6 +74,21 @@ class AppColors {
   /// drawn -- so the decision is documented and grep-able.
   static const Color favoriteActive = Colors.redAccent;
 
+  /// Second deliberate exception to "no accent colors": the WhatsApp
+  /// contact action. Its recognizable brand green is what lets users spot
+  /// the WhatsApp option at a glance among the other contact buttons.
+  /// Named here, rather than left as a raw hex at its call site, so the
+  /// decision is documented and grep-able.
+  static const Color whatsapp = Color(0xFF25D366);
+
+  /// The app's standard red for errors, validation failures and
+  /// destructive actions (delete, clear, reject). Red is kept as a
+  /// deliberate exception to the monochrome palette because it is the
+  /// universally understood signal for "danger"; a grey delete button or
+  /// error message is easy to miss. Value matches `Colors.redAccent`
+  /// exactly so tokenizing it caused no visual change.
+  static const Color destructive = Color(0xFFFF5252);
+
   // ─── Gradient Presets ────────────────────────────────────────────────
 
   /// Subtle surface gradient for premium card backgrounds.
