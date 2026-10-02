@@ -74,6 +74,13 @@ class AppColors {
   /// drawn -- so the decision is documented and grep-able.
   static const Color favoriteActive = Colors.redAccent;
 
+  /// Second deliberate exception to "no accent colors": the WhatsApp
+  /// contact action. Its recognizable brand green is what lets users spot
+  /// the WhatsApp option at a glance among the other contact buttons.
+  /// Named here, rather than left as a raw hex at its call site, so the
+  /// decision is documented and grep-able.
+  static const Color whatsapp = Color(0xFF25D366);
+
   // ─── Gradient Presets ────────────────────────────────────────────────
 
   /// Subtle surface gradient for premium card backgrounds.
