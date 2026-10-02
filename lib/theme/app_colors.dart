@@ -15,6 +15,17 @@ class AppColors {
   static const Color surface = Color(0xFF121212);
   static const Color surfaceRaised = Color(0xFF1A1A1A);
 
+  // Neutral container ramp (iOS-style dark system greys). Used for cards,
+  // text-field fills, sheets and snackbars (`surfaceContainer`), hairline
+  // borders, dividers and skeleton bases (`surfaceContainerHigh`), and
+  // stronger strokes or unselected foregrounds (`surfaceContainerHighest`).
+  // Values are intentionally kept byte-identical to the literals they
+  // replaced; consolidating them into the grey scale above is a separate,
+  // visible design decision.
+  static const Color surfaceContainer = Color(0xFF1C1C1E);
+  static const Color surfaceContainerHigh = Color(0xFF2C2C2E);
+  static const Color surfaceContainerHighest = Color(0xFF3A3A3C);
+
   // Greys (100 = lightest, 900 = darkest)
   static const Color grey100 = Color(0xFFF5F5F5);
   static const Color grey200 = Color(0xFFE0E0E0);
