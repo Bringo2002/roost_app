@@ -519,7 +519,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF10B981) : const Color(0xFF1C1C1E),
+          color: selected ? const Color(0xFF10B981) : AppColors.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? const Color(0xFF10B981) : Colors.white12,
@@ -540,7 +540,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   void _showFilterBottomSheet(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: AppColors.surfaceContainer,
       isScrollControlled: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(
@@ -574,7 +574,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                         ),
                       ],
                     ),
-                    const Divider(color: Color(0xFF2C2C2E)),
+                    const Divider(color: AppColors.surfaceContainerHigh),
                     const SizedBox(height: 12),
 
                     // House Type
@@ -946,7 +946,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                     onPressed: _loadProperties,
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white,
-                                      side: const BorderSide(color: Color(0xFF3A3A3C)),
+                                      side: const BorderSide(color: AppColors.surfaceContainerHighest),
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                                     ),
                                     child: const Text('Retry'),

@@ -460,7 +460,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: AppColors.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Clear this chat?', style: TextStyle(color: Colors.white, fontSize: 18)),
         content: Text(
@@ -499,7 +499,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: AppColors.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete this chat?', style: TextStyle(color: Colors.white, fontSize: 18)),
         content: Text(
@@ -890,7 +890,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
     final phone = _livePartner.phone;
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF1C1C1E),
+      backgroundColor: AppColors.surfaceContainer,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
       ),
@@ -979,7 +979,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
             ),
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert, size: 20),
-              color: const Color(0xFF1C1C1E),
+              color: AppColors.surfaceContainer,
               onSelected: (value) {
                 if (value == 'clear') _confirmClearChat();
                 if (value == 'delete') _confirmDeleteChat();
