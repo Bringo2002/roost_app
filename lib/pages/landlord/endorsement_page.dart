@@ -106,7 +106,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Listing successfully endorsed! Trust badge granted.'),
-              backgroundColor: Color(0xFF00C896),
+              backgroundColor: AppColors.landlordAccent,
             ),
           );
         } else {
@@ -130,7 +130,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Listing successfully endorsed! Trust badge granted.'),
-              backgroundColor: Color(0xFF00C896),
+              backgroundColor: AppColors.landlordAccent,
             ),
           );
         } else {
@@ -306,7 +306,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
         color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: isEndorsed ? const Color(0xFF00C896) : Colors.white12,
+          color: isEndorsed ? AppColors.landlordAccent : Colors.white12,
           width: isEndorsed ? 1.5 : 1.0,
         ),
       ),
@@ -317,7 +317,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: isEndorsed
-                  ? const Color(0xFF00C896).withValues(alpha: 0.15)
+                  ? AppColors.landlordAccent.withValues(alpha: 0.15)
                   : Colors.amber.withValues(alpha: 0.15),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
@@ -328,7 +328,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
               children: [
                 Icon(
                   isEndorsed ? Icons.verified : Icons.pending_actions,
-                  color: isEndorsed ? const Color(0xFF00C896) : Colors.amber,
+                  color: isEndorsed ? AppColors.landlordAccent : Colors.amber,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -337,7 +337,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
                       ? 'Landlord Endorsed Listing'
                       : 'Pending Landlord Endorsement',
                   style: TextStyle(
-                    color: isEndorsed ? const Color(0xFF00C896) : Colors.amber,
+                    color: isEndorsed ? AppColors.landlordAccent : Colors.amber,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
@@ -391,7 +391,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
                     Text(
                       '${_currencyFormat.format(p.price)}/mo',
                       style: const TextStyle(
-                        color: Color(0xFF00C896),
+                        color: AppColors.landlordAccent,
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
                       ),
@@ -462,14 +462,14 @@ class _EndorsementPageState extends State<EndorsementPage> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00C896).withValues(alpha: 0.1),
+                      color: AppColors.landlordAccent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFF00C896)),
+                      border: Border.all(color: AppColors.landlordAccent),
                     ),
                     child: const Column(
                       children: [
                         Icon(Icons.check_circle,
-                            color: Color(0xFF00C896), size: 36),
+                            color: AppColors.landlordAccent, size: 36),
                         SizedBox(height: 8),
                         Text(
                           'Listing Fully Endorsed!',
@@ -495,7 +495,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
                     child: ElevatedButton(
                       onPressed: _submitting ? null : () => _submitEndorsement(true),
                       style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF00C896),
+                        backgroundColor: AppColors.landlordAccent,
                         foregroundColor: Colors.black,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
@@ -557,7 +557,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
         children: [
           const Row(
             children: [
-              Icon(Icons.shield_outlined, color: Color(0xFF00C896), size: 24),
+              Icon(Icons.shield_outlined, color: AppColors.landlordAccent, size: 24),
               SizedBox(width: 10),
               Text(
                 'How Landlord Endorsement Works',
@@ -600,7 +600,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
           width: 24,
           height: 24,
           decoration: const BoxDecoration(
-            color: Color(0xFF00C896),
+            color: AppColors.landlordAccent,
             shape: BoxShape.circle,
           ),
           alignment: Alignment.center,
