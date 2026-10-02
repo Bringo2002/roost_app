@@ -113,7 +113,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Listing reported. Our compliance team will review it.'),
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppColors.destructive,
             ),
           );
           Navigator.pop(context);
@@ -137,7 +137,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Endorsement request declined.'),
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppColors.destructive,
             ),
           );
           Navigator.pop(context);
@@ -269,12 +269,12 @@ class _EndorsementPageState extends State<EndorsementPage> {
                 ),
                 child: Row(
                   children: [
-                    const Icon(Icons.error_outline, color: Colors.redAccent, size: 20),
+                    const Icon(Icons.error_outline, color: AppColors.destructive, size: 20),
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
                         _error!,
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                        style: const TextStyle(color: AppColors.destructive, fontSize: 13),
                       ),
                     ),
                   ],
@@ -527,7 +527,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
                     child: TextButton(
                       onPressed: _submitting ? null : () => _submitEndorsement(false),
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.redAccent,
+                        foregroundColor: AppColors.destructive,
                       ),
                       child: const Text(
                         'Decline / Report Unauthorized Listing',

@@ -5,6 +5,7 @@ import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/models/property.dart';
 
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 class ApplicationsPage extends StatefulWidget {
   const ApplicationsPage({super.key});
@@ -61,7 +62,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Text('Error: $_error', style: const TextStyle(color: Colors.redAccent)),
+                      Text('Error: $_error', style: const TextStyle(color: AppColors.destructive)),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _loadApplications,

@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Admin-only screen for reviewing listings with report activity. Shows
 /// every listing with at least one unreviewed report (see
@@ -84,7 +85,7 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Failed to load: $_error', style: const TextStyle(color: Colors.redAccent)),
+                      Text('Failed to load: $_error', style: const TextStyle(color: AppColors.destructive)),
                       const SizedBox(height: 12),
                       ElevatedButton(onPressed: _loadFlagged, child: const Text('Retry')),
                     ],
@@ -108,7 +109,7 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                             decoration: BoxDecoration(
                               color: Colors.grey[900],
                               borderRadius: BorderRadius.circular(16),
-                              border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                              border: Border.all(color: AppColors.destructive.withValues(alpha: 0.4)),
                             ),
                             child: Row(
                               children: [
@@ -151,13 +152,13 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: (hidden ? Colors.redAccent : Colors.amber).withValues(alpha: 0.15),
+                                              color: (hidden ? AppColors.destructive : Colors.amber).withValues(alpha: 0.15),
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Text(
                                               hidden ? 'Hidden' : 'Still live',
                                               style: TextStyle(
-                                                color: hidden ? Colors.redAccent : Colors.amber,
+                                                color: hidden ? AppColors.destructive : Colors.amber,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.bold,
                                               ),
@@ -175,7 +176,7 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                                 ),
                                 TextButton(
                                   onPressed: () => _openReports(property),
-                                  child: const Text('Review', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+                                  child: const Text('Review', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
                                 ),
                               ],
                             ),
@@ -419,7 +420,7 @@ class _ReportsSheetState extends State<_ReportsSheet> {
                       child: ElevatedButton(
                         onPressed: _submitting ? null : _hide,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.redAccent,
+                          backgroundColor: AppColors.destructive,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                         ),

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Admin-only FAANG Verification Audit Portal for reviewing landlord proof documents,
 /// GPS coordinates, and listing photos before granting full "VERIFIED" status.
@@ -159,7 +160,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text('Failed to load: $_error', style: const TextStyle(color: Colors.redAccent)),
+                      Text('Failed to load: $_error', style: const TextStyle(color: AppColors.destructive)),
                       const SizedBox(height: 12),
                       ElevatedButton(onPressed: _loadPending, child: const Text('Retry')),
                     ],
@@ -747,8 +748,8 @@ class _AuditDocumentSheet extends StatelessWidget {
                       icon: const Icon(Icons.cancel_outlined, size: 16),
                       label: const Text('Reject Proofs'),
                       style: OutlinedButton.styleFrom(
-                        foregroundColor: Colors.redAccent,
-                        side: const BorderSide(color: Colors.redAccent),
+                        foregroundColor: AppColors.destructive,
+                        side: const BorderSide(color: AppColors.destructive),
                         padding: const EdgeInsets.symmetric(vertical: 14),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       ),
@@ -938,7 +939,7 @@ class _AuditDocumentSheet extends StatelessWidget {
             child: const Text('Cancel', style: TextStyle(color: Colors.white54)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+            style: ElevatedButton.styleFrom(backgroundColor: AppColors.destructive, foregroundColor: Colors.white),
             onPressed: () {
               Navigator.pop(ctx);
               onReject(controller.text.trim().isEmpty ? 'Invalid document proof' : controller.text.trim());
