@@ -250,7 +250,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                         builder: (context, scale, child) => Transform.scale(scale: scale, child: child),
                         child: Icon(
                           _controller.isFavorite ? Icons.favorite : Icons.favorite_border,
-                          color: _controller.isFavorite ? Colors.redAccent : AppColors.white,
+                          color: _controller.isFavorite ? AppColors.favoriteActive : AppColors.white,
                           size: 20,
                         ),
                       ),

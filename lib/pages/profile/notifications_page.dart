@@ -51,7 +51,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear All', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            child: const Text('Clear All', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -162,9 +162,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   value: 'clear_all',
                   child: Row(
                     children: [
-                      Icon(Icons.delete_sweep_outlined, color: Colors.redAccent, size: 20),
+                      Icon(Icons.delete_sweep_outlined, color: AppColors.destructive, size: 20),
                       SizedBox(width: 10),
-                      Text('Clear all', style: TextStyle(color: Colors.redAccent, fontSize: 14)),
+                      Text('Clear all', style: TextStyle(color: AppColors.destructive, fontSize: 14)),
                     ],
                   ),
                 ),

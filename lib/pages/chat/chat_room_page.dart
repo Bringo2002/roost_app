@@ -475,7 +475,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Clear', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            child: const Text('Clear', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -514,7 +514,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Delete', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
+            child: const Text('Delete', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -991,7 +991,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 ),
                 const PopupMenuItem(
                   value: 'delete',
-                  child: Text('Delete chat', style: TextStyle(color: Colors.redAccent)),
+                  child: Text('Delete chat', style: TextStyle(color: AppColors.destructive)),
                 ),
               ],
             ),
@@ -1220,7 +1220,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
           child: Row(
             children: [
               IconButton(
-                icon: const Icon(Icons.delete_outline, color: Colors.redAccent),
+                icon: const Icon(Icons.delete_outline, color: AppColors.destructive),
                 onPressed: () => _stopRecording(cancel: true),
               ),
               const SizedBox(width: 8),
@@ -1354,7 +1354,7 @@ class _FlashingDotState extends State<_FlashingDot> with SingleTickerProviderSta
         width: 8,
         height: 8,
         decoration: const BoxDecoration(
-          color: Colors.redAccent,
+          color: AppColors.destructive,
           shape: BoxShape.circle,
         ),
       ),

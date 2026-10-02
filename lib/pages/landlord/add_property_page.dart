@@ -1651,7 +1651,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: _errors.containsKey('photos')
-                    ? Colors.redAccent.withValues(alpha: 0.6)
+                    ? AppColors.destructive.withValues(alpha: 0.6)
                     : AppColors.surfaceContainerHigh,
                 width: 1.5,
                 strokeAlign: BorderSide.strokeAlignInside,
@@ -1681,7 +1681,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   Text(
                     _errors['photos']!,
                     style: const TextStyle(
-                        color: Colors.redAccent,
+                        color: AppColors.destructive,
                         fontSize: 12,
                         fontWeight: FontWeight.w600),
                   ),
@@ -2584,7 +2584,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         setState(() => _uploadingDocument = false);
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Document rejected: ${tier1.tier1RejectionReason}'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.destructive,
           duration: const Duration(seconds: 5),
         ));
         return;
@@ -2633,7 +2633,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         });
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Upload failed: $e'),
-          backgroundColor: Colors.redAccent,
+          backgroundColor: AppColors.destructive,
         ));
       }
     }
@@ -3388,14 +3388,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         borderSide: const BorderSide(color: Colors.white30, width: 1.2),
       ),
       errorText: errorText,
-      errorStyle: const TextStyle(color: Colors.redAccent, fontSize: 12),
+      errorStyle: const TextStyle(color: AppColors.destructive, fontSize: 12),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.2),
+        borderSide: const BorderSide(color: AppColors.destructive, width: 1.2),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.6),
+        borderSide: const BorderSide(color: AppColors.destructive, width: 1.6),
       ),
     );
   }
@@ -3679,7 +3679,7 @@ class _GpsPromptCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: hasError
-              ? Colors.redAccent.withValues(alpha: 0.6)
+              ? AppColors.destructive.withValues(alpha: 0.6)
               : Colors.amber.withValues(alpha: 0.4),
           width: 1.3,
         ),
@@ -3721,7 +3721,7 @@ class _GpsPromptCard extends StatelessWidget {
             const SizedBox(height: 8),
             const Text('Required to continue',
                 style: TextStyle(
-                    color: Colors.redAccent,
+                    color: AppColors.destructive,
                     fontSize: 12,
                     fontWeight: FontWeight.w600)),
           ],
@@ -3870,7 +3870,7 @@ class _ReviewRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 18, color: isOk ? Colors.white60 : Colors.redAccent),
+          Icon(icon, size: 18, color: isOk ? Colors.white60 : AppColors.destructive),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

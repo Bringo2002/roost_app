@@ -385,7 +385,7 @@ class LandlordPropertyCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 12),
                       IconButton(
-                        icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent, size: 20),
+                        icon: const Icon(Icons.delete_outline_rounded, color: AppColors.destructive, size: 20),
                         tooltip: 'Delete listing',
                         onPressed: isBusy ? null : () {
                           HapticFeedback.lightImpact();
