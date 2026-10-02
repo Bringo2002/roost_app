@@ -482,7 +482,7 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
                     icon: const Icon(Icons.chat_bubble_outline_rounded, color: Colors.black, size: 18),
                     label: const Text('WhatsApp', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF25D366),
+                      backgroundColor: AppColors.whatsapp,
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),

@@ -47,7 +47,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
   }
 
   Color _getStrengthColor(double strength) {
-    if (strength <= 0.3) return Colors.redAccent;
+    if (strength <= 0.3) return AppColors.destructive;
     if (strength <= 0.75) return Colors.amber;
     return Colors.greenAccent;
   }
@@ -179,18 +179,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.redAccent.withValues(alpha: 0.15),
+                    color: AppColors.destructive.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.redAccent.withValues(alpha: 0.4)),
+                    border: Border.all(color: AppColors.destructive.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline_rounded, color: Colors.redAccent, size: 20),
+                      const Icon(Icons.error_outline_rounded, color: AppColors.destructive, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _errorMessage!,
-                          style: const TextStyle(color: Colors.redAccent, fontSize: 13),
+                          style: const TextStyle(color: AppColors.destructive, fontSize: 13),
                         ),
                       ),
                     ],
@@ -400,11 +400,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent),
+        borderSide: const BorderSide(color: AppColors.destructive),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.destructive, width: 1.5),
       ),
     );
   }

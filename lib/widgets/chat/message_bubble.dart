@@ -172,8 +172,8 @@ class _MessageBubbleState extends State<MessageBubble> with SingleTickerProvider
                   },
                 ),
               ListTile(
-                leading: const Icon(Icons.delete_outline, color: Colors.redAccent),
-                title: const Text('Delete', style: TextStyle(color: Colors.redAccent)),
+                leading: const Icon(Icons.delete_outline, color: AppColors.destructive),
+                title: const Text('Delete', style: TextStyle(color: AppColors.destructive)),
                 onTap: () {
                   Navigator.pop(context);
                   widget.onDelete();

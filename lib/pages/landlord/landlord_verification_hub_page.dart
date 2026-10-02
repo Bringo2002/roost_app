@@ -128,7 +128,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text('Error loading verification status: $_error',
-                          style: const TextStyle(color: Colors.redAccent), textAlign: TextAlign.center),
+                          style: const TextStyle(color: AppColors.destructive), textAlign: TextAlign.center),
                       const SizedBox(height: 16),
                       ElevatedButton(
                         onPressed: _fetchVerificationData,
