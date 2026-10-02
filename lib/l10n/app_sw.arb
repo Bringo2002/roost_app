@@ -26,5 +26,9 @@
   "inAppMapStartNavigation": "Anza Kuelekeza",
   "inAppMapDistanceAway": "{km} km mbali",
   "searchFilters": "Vichujio",
-  "searchFiltersActive": "Vichujio, {count} vinatumika"
+  "searchFiltersActive": "Vichujio, {count} vinatumika",
+  "inAppMapLocationUnavailable": "Mahali hapapatikani. Gusa kuwezesha.",
+  "inAppMapEnableLocationServices": "Washa huduma za mahali ili kuona umbali wako kutoka kwa nyumba hii.",
+  "inAppMapEnableLocationPermission": "Ufikiaji wa mahali umezimwa kwa Roost. Uwezeshe kwenye Mipangilio ili kuona umbali wako kutoka kwa nyumba hii.",
+  "inAppMapOpenSettings": "Fungua Mipangilio"
 }

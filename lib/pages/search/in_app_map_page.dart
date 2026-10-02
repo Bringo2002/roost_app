@@ -168,6 +168,65 @@ class _InAppMapPageState extends State<InAppMapPage> {
     }
   }
 
+  /// Handles the "center on me" button when there's no position yet --
+  /// previously this button simply didn't exist in that case, so denying
+  /// location permission silently removed the feature with no way back
+  /// short of restarting the app. Now the button always shows (muted,
+  /// with a "location disabled" icon) and tapping it explains why and,
+  /// where there's something the user can actually do about it, offers
+  /// to open the right settings screen.
+  Future<void> _handleLocationButtonTap() async {
+    if (_userPosition != null) {
+      _recenterOnUser();
+      return;
+    }
+    final status = await LocationService.checkPermissionStatus();
+    if (!mounted) return;
+    final l10n = AppLocalizations.of(context)!;
+    switch (status) {
+      case LocationPermissionStatus.serviceDisabled:
+        _showEnableLocationPrompt(
+          l10n.inAppMapEnableLocationServices,
+          LocationService.openLocationSettings,
+        );
+        break;
+      case LocationPermissionStatus.deniedForever:
+        _showEnableLocationPrompt(
+          l10n.inAppMapEnableLocationPermission,
+          LocationService.openAppSettings,
+        );
+        break;
+      case LocationPermissionStatus.denied:
+        // Not permanently denied -- retrying in-app re-prompts the OS
+        // permission dialog rather than requiring a trip to Settings.
+        await _getUserLocationAndDistance();
+        break;
+      case LocationPermissionStatus.granted:
+        // Permission's fine; the earlier null was a transient failure
+        // (GPS timeout, etc.) -- just retry rather than claim a settings
+        // screen would help.
+        await _getUserLocationAndDistance();
+        break;
+    }
+  }
+
+  void _showEnableLocationPrompt(String message, Future<void> Function() onOpenSettings) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: const Color(0xFF2C2C2E),
+        action: SnackBarAction(
+          label: AppLocalizations.of(context)!.inAppMapOpenSettings,
+          textColor: Colors.white,
+          onPressed: () {
+            onOpenSettings();
+          },
+        ),
+      ),
+    );
+  }
+
   /// "Start Navigation" goes straight to Google Maps with the property as
   /// the destination -- no chooser. Tries the Google Maps app first, falls
   /// back to the Google Maps web page in a browser, and shows a message
@@ -217,6 +276,13 @@ class _InAppMapPageState extends State<InAppMapPage> {
   /// The property uses Google's standard pin (a custom one looked off at
   /// device pixel densities); facilities use the custom monochrome badges.
   ///
+  /// The property marker gets no InfoWindow: the white default-style
+  /// tooltip bubble it'd pop up (title + location) just repeats what's
+  /// already always on screen in the dark bottom action card, and it
+  /// visually clashes as the one light-colored thing on a dark map.
+  /// Facility markers keep theirs -- "600m from TRM Mall" isn't shown
+  /// anywhere else, so tapping one is the only way to read it.
+  ///
   /// The which-markers-to-show logic itself lives in [buildMarkerSpecs]
   /// (framework-free, unit-tested); this just attaches an icon to each spec.
   Set<Marker> _buildMarkers() {
@@ -236,7 +302,9 @@ class _InAppMapPageState extends State<InAppMapPage> {
         Marker(
           markerId: MarkerId(spec.id),
           position: LatLng(spec.latitude, spec.longitude),
-          infoWindow: InfoWindow(title: spec.title, snippet: spec.snippet),
+          infoWindow: isProperty
+              ? InfoWindow.noText
+              : InfoWindow(title: spec.title, snippet: spec.snippet),
           icon: icon,
           anchor: isProperty ? const Offset(0.5, 1.0) : const Offset(0.5, 0.5),
         ),
@@ -340,14 +408,15 @@ class _InAppMapPageState extends State<InAppMapPage> {
                   borderColor: Colors.grey[800],
                 ),
                 const SizedBox(height: 10),
-                if (_userPosition != null)
-                  _MapCircleButton(
-                    icon: Icons.my_location,
-                    semanticLabel: AppLocalizations.of(context)!.inAppMapCenterOnUser,
-                    onTap: _recenterOnUser,
-                    background: Colors.black.withValues(alpha: 0.9),
-                    borderColor: Colors.grey[800],
-                  ),
+                _MapCircleButton(
+                  icon: _userPosition != null ? Icons.my_location : Icons.location_disabled,
+                  semanticLabel: _userPosition != null
+                      ? AppLocalizations.of(context)!.inAppMapCenterOnUser
+                      : AppLocalizations.of(context)!.inAppMapLocationUnavailable,
+                  onTap: _handleLocationButtonTap,
+                  background: Colors.black.withValues(alpha: 0.9),
+                  borderColor: Colors.grey[800],
+                ),
               ],
             ),
           ),
