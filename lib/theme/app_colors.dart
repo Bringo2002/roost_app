@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 
-/// Roost's monochrome brand palette. Black, white, and a grey scale only —
-/// no accent colors. Every widget should pull colors from here rather than
-/// referencing `Colors.xxx` directly.
+/// Roost's monochrome brand palette. Black, white, and a grey scale, with a
+/// small set of documented, named exceptions where color carries meaning
+/// (favorite heart, WhatsApp, destructive red, and the landlord-surface
+/// accents). Every widget should pull colors from here rather than
+/// referencing `Colors.xxx` or raw hex literals directly.
 class AppColors {
   AppColors._();
 
@@ -88,6 +90,26 @@ class AppColors {
   /// error message is easy to miss. Value matches `Colors.redAccent`
   /// exactly so tokenizing it caused no visual change.
   static const Color destructive = Color(0xFFFF5252);
+
+  // ─── Landlord-surface accents ───────────────────────────────────────
+  // Intentionally colored: the landlord flows (listing creation,
+  // verification, dashboard) use color to signal progress, verification
+  // tier and category. Values are byte-identical to the literals they
+  // replaced.
+
+  /// Mint accent for landlord primary actions, progress and confirmation.
+  static const Color landlordAccent = Color(0xFF00C896);
+
+  /// Emerald for verified / completed states.
+  static const Color verified = Color(0xFF10B981);
+
+  /// Lighter emerald for the active or highlighted verified state.
+  static const Color verifiedLight = Color(0xFF34D399);
+
+  static const Color indigo = Color(0xFF6C63FF);
+  static const Color skyBlue = Color(0xFF38BDF8);
+  static const Color blue = Color(0xFF3B82F6);
+  static const Color gold = Color(0xFFFFD700);
 
   // ─── Gradient Presets ────────────────────────────────────────────────
 

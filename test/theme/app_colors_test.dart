@@ -41,4 +41,24 @@ void main() {
       expect(AppColors.destructive, Colors.redAccent);
     });
   });
+
+  group('AppColors landlord accents', () {
+    // Exact-value locks: these replaced raw literals as a no-visual-change
+    // refactor, so a silent shift would change the landlord screens.
+    const expected = <String, List<Object>>{
+      'landlordAccent': [AppColors.landlordAccent, Color(0xFF00C896)],
+      'verified': [AppColors.verified, Color(0xFF10B981)],
+      'verifiedLight': [AppColors.verifiedLight, Color(0xFF34D399)],
+      'indigo': [AppColors.indigo, Color(0xFF6C63FF)],
+      'skyBlue': [AppColors.skyBlue, Color(0xFF38BDF8)],
+      'blue': [AppColors.blue, Color(0xFF3B82F6)],
+      'gold': [AppColors.gold, Color(0xFFFFD700)],
+    };
+
+    expected.forEach((name, pair) {
+      test('$name keeps its original value', () {
+        expect(pair[0], pair[1]);
+      });
+    });
+  });
 }
