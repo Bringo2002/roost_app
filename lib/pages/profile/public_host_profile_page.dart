@@ -70,13 +70,15 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
 
   Future<void> _loadHostProperties() async {
     try {
-      final List<dynamic> list = await ApiService.get('/api/properties');
-      final all = list.map((json) => Property.fromJson(json)).toList();
-      // Filter properties listed by this host (or match by landlord/creator ID or title)
-      final hostProps = all.where((p) {
-        if (p.landlordId != null && p.landlordId == widget.hostId) return true;
-        return true; // Show all properties in demo mode if single host
-      }).toList();
+      // Scoped server-side to this host and PUBLISHED-only -- the old
+      // code fetched the entire unbounded /api/properties catalog and
+      // ran a client-side filter that always matched (a leftover
+      // `return true;`), so every profile showed every listing on the
+      // platform. by-owner/{hostId} fixes both the correctness bug and
+      // the unbounded fetch.
+      final List<dynamic> list =
+          await ApiService.get('/api/properties/by-owner/${widget.hostId}');
+      final hostProps = list.map((json) => Property.fromJson(json)).toList();
 
       // Check if any property owner object contains avatarUrl
       for (final p in hostProps) {
