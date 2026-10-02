@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// FAANG-inspired host completion modal sheet with custom confetti celebration,
 /// property snapshot card, and quick host actions (Preview, Share, Done).
@@ -148,12 +149,12 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
               color: const Color(0xFF141416),
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
-                color: const Color(0xFF00C896).withValues(alpha: 0.3),
+                color: AppColors.landlordAccent.withValues(alpha: 0.3),
                 width: 1.5,
               ),
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFF00C896).withValues(alpha: 0.15),
+                  color: AppColors.landlordAccent.withValues(alpha: 0.15),
                   blurRadius: 32,
                   spreadRadius: 4,
                 ),
@@ -172,10 +173,10 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF00C896).withValues(alpha: 0.12),
+                      color: AppColors.landlordAccent.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                        color: const Color(0xFF00C896).withValues(alpha: 0.3),
+                        color: AppColors.landlordAccent.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
@@ -186,14 +187,14 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
                           height: 8,
                           decoration: const BoxDecoration(
                             shape: BoxShape.circle,
-                            color: Color(0xFF00C896),
+                            color: AppColors.landlordAccent,
                           ),
                         ),
                         const SizedBox(width: 6),
                         Text(
                           widget.isEditing ? 'LISTING UPDATED' : 'LIVE ON ROOST',
                           style: const TextStyle(
-                            color: Color(0xFF00C896),
+                            color: AppColors.landlordAccent,
                             fontSize: 11,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 1.1,
@@ -215,19 +216,19 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
                         shape: BoxShape.circle,
                         gradient: RadialGradient(
                           colors: [
-                            const Color(0xFF00C896).withValues(alpha: 0.25),
-                            const Color(0xFF00C896).withValues(alpha: 0.05),
+                            AppColors.landlordAccent.withValues(alpha: 0.25),
+                            AppColors.landlordAccent.withValues(alpha: 0.05),
                           ],
                         ),
                         border: Border.all(
-                          color: const Color(0xFF00C896).withValues(alpha: 0.5),
+                          color: AppColors.landlordAccent.withValues(alpha: 0.5),
                           width: 2,
                         ),
                       ),
                       child: const Center(
                         child: Icon(
                           Icons.check_rounded,
-                          color: Color(0xFF00C896),
+                          color: AppColors.landlordAccent,
                           size: 46,
                         ),
                       ),
@@ -344,7 +345,7 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
                                   Text(
                                     '$symbol ${widget.property.price.toInt()}',
                                     style: const TextStyle(
-                                      color: Color(0xFF00C896),
+                                      color: AppColors.landlordAccent,
                                       fontSize: 14,
                                       fontWeight: FontWeight.w800,
                                     ),
@@ -471,7 +472,7 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
       child: const Center(
         child: Icon(
           Icons.home_work_outlined,
-          color: Color(0xFF00C896),
+          color: AppColors.landlordAccent,
           size: 32,
         ),
       ),
@@ -506,9 +507,9 @@ class _ConfettiParticle {
 
   static final _rnd = math.Random();
   static const _palette = [
-    Color(0xFF00C896), // Emerald
-    Color(0xFFFFD700), // Gold
-    Color(0xFF6C63FF), // Indigo
+    AppColors.landlordAccent, // Emerald
+    AppColors.gold, // Gold
+    AppColors.indigo, // Indigo
     Color(0xFFFF6B6B), // Coral
     Color(0xFF00E5FF), // Cyan
     Colors.white,

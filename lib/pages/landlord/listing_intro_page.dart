@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 class ListingIntroPage extends StatefulWidget {
   const ListingIntroPage({super.key});
@@ -15,13 +16,13 @@ class _ListingIntroPageState extends State<ListingIntroPage>
   static const _requirements = [
     (
       icon: Icons.photo_library_outlined,
-      color: Color(0xFF6C63FF),
+      color: AppColors.indigo,
       title: 'A few clear photos',
       subtitle: 'At least 3 shots — your first becomes the cover',
     ),
     (
       icon: Icons.my_location,
-      color: Color(0xFF00C896),
+      color: AppColors.landlordAccent,
       title: 'Your exact GPS location',
       subtitle: 'Stand at the property — this earns your Verified badge',
     ),
