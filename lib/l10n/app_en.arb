@@ -144,5 +144,13 @@
   "inAppMapOpenSettings": "Open Settings",
   "@inAppMapOpenSettings": {
     "description": "Action button on the enable-location snackbars that opens the device's location or app settings screen."
+  },
+  "mapEnableLocationServices": "Turn on location services to center the map on your location.",
+  "@mapEnableLocationServices": {
+    "description": "Snackbar shown on the browse-listings map when tapping the location button while device location services are off entirely."
+  },
+  "mapEnableLocationPermission": "Location access is off for Roost. Enable it in Settings to center the map on your location.",
+  "@mapEnableLocationPermission": {
+    "description": "Snackbar shown on the browse-listings map when tapping the location button after permission was permanently denied."
   }
 }

@@ -30,5 +30,7 @@
   "inAppMapLocationUnavailable": "Mahali hapapatikani. Gusa kuwezesha.",
   "inAppMapEnableLocationServices": "Washa huduma za mahali ili kuona umbali wako kutoka kwa nyumba hii.",
   "inAppMapEnableLocationPermission": "Ufikiaji wa mahali umezimwa kwa Roost. Uwezeshe kwenye Mipangilio ili kuona umbali wako kutoka kwa nyumba hii.",
-  "inAppMapOpenSettings": "Fungua Mipangilio"
+  "inAppMapOpenSettings": "Fungua Mipangilio",
+  "mapEnableLocationServices": "Washa huduma za mahali ili kulenga ramani mahali ulipo.",
+  "mapEnableLocationPermission": "Ufikiaji wa mahali umezimwa kwa Roost. Uwezeshe kwenye Mipangilio ili kulenga ramani mahali ulipo."
 }
