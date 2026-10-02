@@ -2,6 +2,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/material.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Verifies the current user's phone number via Firebase's SMS OTP flow,
 /// then submits the resulting Firebase ID token to our backend
@@ -160,7 +161,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 16),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
+                        color: AppColors.surfaceContainer,
                         borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(_dialCode, style: const TextStyle(color: Colors.white, fontSize: 16)),
@@ -175,7 +176,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
                           hintText: '712 345 678',
                           hintStyle: TextStyle(color: Colors.grey[600]),
                           filled: true,
-                          fillColor: const Color(0xFF1C1C1E),
+                          fillColor: AppColors.surfaceContainer,
                           border: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(14),
                             borderSide: BorderSide.none,
@@ -195,7 +196,7 @@ class _PhoneVerificationPageState extends State<PhoneVerificationPage> {
                     hintText: '000000',
                     hintStyle: TextStyle(color: Colors.grey[700], letterSpacing: 8),
                     filled: true,
-                    fillColor: const Color(0xFF1C1C1E),
+                    fillColor: AppColors.surfaceContainer,
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(14),
                       borderSide: BorderSide.none,

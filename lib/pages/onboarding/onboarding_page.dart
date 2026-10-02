@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/main.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 import 'package:roost_app/models/country_config.dart';
 import 'package:roost_app/services/country_service.dart';
@@ -200,7 +201,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       height: 4,
                       margin: const EdgeInsets.symmetric(horizontal: 3),
                       decoration: BoxDecoration(
-                        color: index <= _step ? goldAccent : const Color(0xFF1C1C1E),
+                        color: index <= _step ? goldAccent : AppColors.surfaceContainer,
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -372,7 +373,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1C1C1E),
+                      color: AppColors.surfaceContainer,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(
                         color: isSelected ? Colors.white : Colors.transparent,
@@ -427,7 +428,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.grey[850]!),
       ),
@@ -467,7 +468,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white, width: 2),
       ),
@@ -580,7 +581,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
         Container(
           padding: const EdgeInsets.all(10),
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
+            color: AppColors.surfaceContainer,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: Colors.grey[850]!),
           ),
@@ -619,7 +620,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           width: 88,
           height: 88,
           decoration: BoxDecoration(
-            color: const Color(0xFF1C1C1E),
+            color: AppColors.surfaceContainer,
             borderRadius: BorderRadius.circular(24),
             border: Border.all(color: Colors.grey[850]!),
           ),
@@ -690,7 +691,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: selected ? goldAccent.withValues(alpha: 0.1) : const Color(0xFF1C1C1E),
+                    color: selected ? goldAccent.withValues(alpha: 0.1) : AppColors.surfaceContainer,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: selected ? goldAccent : Colors.grey[900]!,
@@ -771,7 +772,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: selected ? goldAccent.withValues(alpha: 0.1) : const Color(0xFF1C1C1E),
+                    color: selected ? goldAccent.withValues(alpha: 0.1) : AppColors.surfaceContainer,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: selected ? goldAccent : Colors.grey[900]!,
@@ -858,7 +859,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   margin: const EdgeInsets.only(bottom: 12),
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: selected ? goldAccent.withValues(alpha: 0.1) : const Color(0xFF1C1C1E),
+                    color: selected ? goldAccent.withValues(alpha: 0.1) : AppColors.surfaceContainer,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
                       color: selected ? goldAccent : Colors.grey[900]!,

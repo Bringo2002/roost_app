@@ -3,6 +3,7 @@ import 'package:roost_app/services/push_notification_service.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 class NotificationsPage extends StatefulWidget {
   const NotificationsPage({super.key});
@@ -36,7 +37,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: AppColors.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Clear All Notifications?', style: TextStyle(color: Colors.white, fontSize: 18)),
         content: const Text(
@@ -108,9 +109,9 @@ class _NotificationsPageState extends State<NotificationsPage> {
         : _notifications;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF121212),
+      backgroundColor: AppColors.surface,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppColors.surface,
         elevation: 0,
         centerTitle: false,
         leading: IconButton(
@@ -140,7 +141,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
           if (_notifications.isNotEmpty)
             PopupMenuButton<String>(
               icon: const Icon(Icons.more_vert_rounded, color: Colors.white),
-              color: const Color(0xFF1C1C1E),
+              color: AppColors.surfaceContainer,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               onSelected: (val) {
                 if (val == 'mark_read') _markAllRead();
@@ -279,7 +280,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       decoration: BoxDecoration(
-        color: item.isRead ? const Color(0xFF1C1C1E) : const Color(0xFF2C2C2E),
+        color: item.isRead ? AppColors.surfaceContainer : AppColors.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color: item.isRead ? Colors.transparent : Colors.white.withValues(alpha: 0.08),
