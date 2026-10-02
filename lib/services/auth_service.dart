@@ -323,7 +323,22 @@ class AuthService {
     await PushNotificationService.reloadForUser();
   }
 
-  static Future<String?> getToken() async {
+  /// Test seam for [getToken]. Unlike `shared_preferences`'s
+  /// `setMockInitialValues`, `flutter_secure_storage` ships no built-in
+  /// test mode -- its real platform channel throws
+  /// `MissingPluginException` in the widget-test environment. Set this to
+  /// skip storage entirely and return a fixed token; reset to `null` in
+  /// `tearDown` so one test's override can't leak into the next.
+  @visibleForTesting
+  static Future<String?> Function()? getTokenOverride;
+
+  static Future<String?> getToken() {
+    final override = getTokenOverride;
+    if (override != null) return override();
+    return _getTokenFromStorage();
+  }
+
+  static Future<String?> _getTokenFromStorage() async {
     String? token = await _storage.read(key: _tokenKey);
     if (token == null || token.isEmpty) {
       // Check SharedPreferences for legacy token and migrate to FlutterSecureStorage
@@ -341,7 +356,17 @@ class AuthService {
     return token;
   }
 
-  static Future<bool> refreshToken() async {
+  /// Test seam for [refreshToken], same rationale as [getTokenOverride].
+  @visibleForTesting
+  static Future<bool> Function()? refreshTokenOverride;
+
+  static Future<bool> refreshToken() {
+    final override = refreshTokenOverride;
+    if (override != null) return override();
+    return _refreshTokenFromServer();
+  }
+
+  static Future<bool> _refreshTokenFromServer() async {
     try {
       final token = await getToken();
       if (token == null) return false;
