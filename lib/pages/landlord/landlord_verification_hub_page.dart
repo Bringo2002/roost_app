@@ -73,7 +73,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
       messenger.showSnackBar(
         const SnackBar(
           content: Text('📍 On-Site GPS position verified successfully!'),
-          backgroundColor: Color(0xFF10B981),
+          backgroundColor: AppColors.verified,
         ),
       );
       await _fetchVerificationData();
@@ -121,7 +121,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.verified))
           : _error != null
               ? Center(
                   child: Column(
@@ -190,7 +190,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                             ),
                             child: Text(
                               '$_verifiedCount/${_properties.length} Verified',
-                              style: const TextStyle(color: Color(0xFF10B981), fontSize: 12, fontWeight: FontWeight.bold),
+                              style: const TextStyle(color: AppColors.verified, fontSize: 12, fontWeight: FontWeight.bold),
                             ),
                           ),
                         ],
@@ -246,12 +246,12 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
         ),
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
-          color: tier == 3 ? const Color(0xFF10B981).withAlpha(100) : Colors.white12,
+          color: tier == 3 ? AppColors.verified.withAlpha(100) : Colors.white12,
           width: 1.5,
         ),
         boxShadow: [
           BoxShadow(
-            color: (tier == 3 ? const Color(0xFF10B981) : const Color(0xFF3B82F6)).withAlpha(30),
+            color: (tier == 3 ? AppColors.verified : AppColors.blue).withAlpha(30),
             blurRadius: 20,
             spreadRadius: 2,
           ),
@@ -265,12 +265,12 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: (tier == 3 ? const Color(0xFF10B981) : const Color(0xFF3B82F6)).withAlpha(40),
+                  color: (tier == 3 ? AppColors.verified : AppColors.blue).withAlpha(40),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   tier == 3 ? Icons.verified : Icons.security,
-                  color: tier == 3 ? const Color(0xFF10B981) : const Color(0xFF60A5FA),
+                  color: tier == 3 ? AppColors.verified : const Color(0xFF60A5FA),
                   size: 26,
                 ),
               ),
@@ -292,7 +292,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                     Text(
                       'Roost Trust Score: ${tier == 3 ? '100%' : tier == 2 ? '66%' : '33%'}',
                       style: TextStyle(
-                        color: tier == 3 ? const Color(0xFF34D399) : Colors.white70,
+                        color: tier == 3 ? AppColors.verifiedLight : Colors.white70,
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
                       ),
@@ -321,7 +321,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                   minHeight: 7,
                   backgroundColor: Colors.white10,
                   valueColor: AlwaysStoppedAnimation<Color>(
-                    tier == 3 ? const Color(0xFF10B981) : const Color(0xFF3B82F6),
+                    tier == 3 ? AppColors.verified : AppColors.blue,
                   ),
                 ),
               );
@@ -404,12 +404,12 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: isDone ? const Color(0xFF10B981).withAlpha(30) : Colors.white10,
+              color: isDone ? AppColors.verified.withAlpha(30) : Colors.white10,
               shape: BoxShape.circle,
             ),
             child: Icon(
               icon,
-              color: isDone ? const Color(0xFF10B981) : Colors.white54,
+              color: isDone ? AppColors.verified : Colors.white54,
               size: 20,
             ),
           ),
@@ -433,13 +433,13 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: isDone ? const Color(0xFF10B981).withAlpha(30) : Colors.amber.withAlpha(30),
+              color: isDone ? AppColors.verified.withAlpha(30) : Colors.amber.withAlpha(30),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               statusText,
               style: TextStyle(
-                color: isDone ? const Color(0xFF34D399) : Colors.amber,
+                color: isDone ? AppColors.verifiedLight : Colors.amber,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
@@ -488,7 +488,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
         color: const Color(0xFF18181B),
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
-          color: property.verified ? const Color(0xFF10B981).withAlpha(80) : Colors.white.withAlpha(20),
+          color: property.verified ? AppColors.verified.withAlpha(80) : Colors.white.withAlpha(20),
         ),
       ),
       child: Column(
@@ -546,17 +546,17 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF10B981).withAlpha(40),
+                              color: AppColors.verified.withAlpha(40),
                               borderRadius: BorderRadius.circular(8),
                             ),
                             child: const Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.verified, color: Color(0xFF10B981), size: 12),
+                                Icon(Icons.verified, color: AppColors.verified, size: 12),
                                 SizedBox(width: 4),
                                 Text(
                                   'VERIFIED',
-                                  style: TextStyle(color: Color(0xFF34D399), fontSize: 10, fontWeight: FontWeight.w800),
+                                  style: TextStyle(color: AppColors.verifiedLight, fontSize: 10, fontWeight: FontWeight.w800),
                                 ),
                               ],
                             ),
@@ -609,7 +609,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                         : const Icon(Icons.my_location, size: 14),
                     label: const Text('Verify GPS On-Site', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
-                      foregroundColor: const Color(0xFF38BDF8),
+                      foregroundColor: AppColors.skyBlue,
                       side: const BorderSide(color: Color(0xFF0284C7)),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
@@ -637,7 +637,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                   style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: property.verified ? Colors.white12 : const Color(0xFF10B981),
+                  backgroundColor: property.verified ? Colors.white12 : AppColors.verified,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                 ),
@@ -653,7 +653,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: active ? const Color(0xFF10B981).withAlpha(25) : Colors.white10,
+        color: active ? AppColors.verified.withAlpha(25) : Colors.white10,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
@@ -662,13 +662,13 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
           Icon(
             active ? Icons.check_circle : Icons.circle_outlined,
             size: 10,
-            color: active ? const Color(0xFF34D399) : Colors.white38,
+            color: active ? AppColors.verifiedLight : Colors.white38,
           ),
           const SizedBox(width: 4),
           Text(
             label,
             style: TextStyle(
-              color: active ? const Color(0xFF34D399) : Colors.white38,
+              color: active ? AppColors.verifiedLight : Colors.white38,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),
@@ -684,7 +684,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
       decoration: BoxDecoration(
         color: const Color(0xFF18181B),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF38BDF8).withAlpha(60)),
+        border: Border.all(color: AppColors.skyBlue.withAlpha(60)),
       ),
       child: Row(
         children: [
@@ -694,7 +694,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
               color: Color(0x2038BDF8),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.trending_up, color: Color(0xFF38BDF8), size: 24),
+            child: const Icon(Icons.trending_up, color: AppColors.skyBlue, size: 24),
           ),
           const SizedBox(width: 14),
           const Expanded(
@@ -724,17 +724,17 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
       decoration: BoxDecoration(
         color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF00C896).withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.landlordAccent.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: const Color(0xFF00C896).withValues(alpha: 0.15),
+              color: AppColors.landlordAccent.withValues(alpha: 0.15),
               shape: BoxShape.circle,
             ),
-            child: const Icon(Icons.verified_user, color: Color(0xFF00C896), size: 24),
+            child: const Icon(Icons.verified_user, color: AppColors.landlordAccent, size: 24),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -767,7 +767,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
               _fetchVerificationData();
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF00C896),
+              backgroundColor: AppColors.landlordAccent,
               foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10),
