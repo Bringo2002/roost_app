@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
@@ -98,6 +100,19 @@ class _InAppMapPageState extends State<InAppMapPage> {
 
   final Map<String, BitmapDescriptor> _facilityIcons = {};
 
+  /// The Google Maps SDK has no onMapCreated-failed/error callback -- if
+  /// something stops the native map from ever initializing (no Google
+  /// Play Services, no network for tiles, a transient SDK hiccup), the
+  /// widget just sits there forever with no signal at all. This is a
+  /// best-effort "it's been too long" fallback, not a diagnosed error:
+  /// if onMapCreated hasn't fired within [_mapLoadTimeout], show a retry
+  /// option instead of leaving the screen looking permanently broken.
+  static const _mapLoadTimeout = Duration(seconds: 10);
+  bool _mapReady = false;
+  bool _mapLoadTimedOut = false;
+  int _mapInstanceKey = 0;
+  Timer? _mapLoadTimer;
+
   @override
   void initState() {
     super.initState();
@@ -107,6 +122,30 @@ class _InAppMapPageState extends State<InAppMapPage> {
         : AppConfig.defaultMapCenter;
     _getUserLocationAndDistance();
     _loadMarkerIcons();
+    _startMapLoadTimer();
+  }
+
+  @override
+  void dispose() {
+    _mapLoadTimer?.cancel();
+    super.dispose();
+  }
+
+  void _startMapLoadTimer() {
+    _mapLoadTimer?.cancel();
+    _mapLoadTimer = Timer(_mapLoadTimeout, () {
+      if (!mounted || _mapReady) return;
+      setState(() => _mapLoadTimedOut = true);
+    });
+  }
+
+  void _retryMapLoad() {
+    setState(() {
+      _mapReady = false;
+      _mapLoadTimedOut = false;
+      _mapInstanceKey++; // forces GoogleMap to remount with a fresh native view
+    });
+    _startMapLoadTimer();
   }
 
   /// Custom monochrome pins for nearby facilities (mall/hospital/road) --
@@ -321,34 +360,43 @@ class _InAppMapPageState extends State<InAppMapPage> {
       body: Stack(
         children: [
           // ── Embedded Dark Google Map ───────────────────────────────────────
-          GoogleMap(
-            initialCameraPosition: CameraPosition(
-              target: _propertyLatLng,
-              zoom: 15,
-            ),
-            style: AppMapStyle.darkMapStyle,
-            myLocationEnabled: true,
-            myLocationButtonEnabled: false,
-            zoomControlsEnabled: false,
-            compassEnabled: true,
-            buildingsEnabled: true,
-            mapToolbarEnabled: false,
-            onMapCreated: (controller) {
-              _mapController = controller;
-              AppMapStyle.checkStyleApplied(controller);
-            },
-            markers: _buildMarkers(),
-            circles: {
-              Circle(
-                circleId: CircleId('radius_${widget.property.id}'),
-                center: _propertyLatLng,
-                radius: 400, // 400 meter neighborhood radius highlight
-                fillColor: Colors.white.withValues(alpha: 0.08),
-                strokeColor: Colors.white.withValues(alpha: 0.3),
-                strokeWidth: 2,
+          Semantics(
+            label: AppLocalizations.of(context)!.inAppMapSemanticLabel(widget.property.title),
+            child: GoogleMap(
+              key: ValueKey('property_map_$_mapInstanceKey'),
+              initialCameraPosition: CameraPosition(
+                target: _propertyLatLng,
+                zoom: 15,
               ),
-            },
+              style: AppMapStyle.darkMapStyle,
+              myLocationEnabled: true,
+              myLocationButtonEnabled: false,
+              zoomControlsEnabled: false,
+              compassEnabled: true,
+              buildingsEnabled: true,
+              mapToolbarEnabled: false,
+              onMapCreated: (controller) {
+                _mapController = controller;
+                AppMapStyle.checkStyleApplied(controller);
+                _mapLoadTimer?.cancel();
+                if (mounted) setState(() => _mapReady = true);
+              },
+              markers: _buildMarkers(),
+              circles: {
+                Circle(
+                  circleId: CircleId('radius_${widget.property.id}'),
+                  center: _propertyLatLng,
+                  radius: 400, // 400 meter neighborhood radius highlight
+                  fillColor: Colors.white.withValues(alpha: 0.08),
+                  strokeColor: Colors.white.withValues(alpha: 0.3),
+                  strokeWidth: 2,
+                ),
+              },
+            ),
           ),
+
+          // ── Loading / load-failed states ─────────────────────────────────
+          if (!_mapReady) _MapLoadOverlay(timedOut: _mapLoadTimedOut, onRetry: _retryMapLoad),
 
           // ── Header Bar ────────────────────────────────────────────────────
           SafeArea(
@@ -622,6 +670,56 @@ class _MapActionButton extends StatelessWidget {
             height: 48,
             child: Center(child: Icon(icon, color: Colors.white, size: 20)),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Covers the map while it's initializing (solid black, so there's no
+/// flash of unstyled default-colored tiles before the dark style and
+/// markers are ready), or shows a retry option if it never finished
+/// within the load timeout. See the timeout fields on
+/// _InAppMapPageState for why this exists rather than reacting to a
+/// specific SDK error.
+class _MapLoadOverlay extends StatelessWidget {
+  final bool timedOut;
+  final VoidCallback onRetry;
+
+  const _MapLoadOverlay({required this.timedOut, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black,
+        child: Center(
+          child: timedOut
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.map_outlined, color: Colors.grey[600], size: 48),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        AppLocalizations.of(context)!.mapLoadFailed,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[400], fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: onRetry,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(color: Colors.grey[700]!),
+                      ),
+                      child: Text(AppLocalizations.of(context)!.mapRetry),
+                    ),
+                  ],
+                )
+              : const CircularProgressIndicator(color: Colors.white),
         ),
       ),
     );

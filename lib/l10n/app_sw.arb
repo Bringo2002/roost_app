@@ -32,5 +32,9 @@
   "inAppMapEnableLocationPermission": "Ufikiaji wa mahali umezimwa kwa Roost. Uwezeshe kwenye Mipangilio ili kuona umbali wako kutoka kwa nyumba hii.",
   "inAppMapOpenSettings": "Fungua Mipangilio",
   "mapEnableLocationServices": "Washa huduma za mahali ili kulenga ramani mahali ulipo.",
-  "mapEnableLocationPermission": "Ufikiaji wa mahali umezimwa kwa Roost. Uwezeshe kwenye Mipangilio ili kulenga ramani mahali ulipo."
+  "mapEnableLocationPermission": "Ufikiaji wa mahali umezimwa kwa Roost. Uwezeshe kwenye Mipangilio ili kulenga ramani mahali ulipo.",
+  "mapLoadFailed": "Ramani imeshindwa kupakia. Angalia muunganisho wako kisha ujaribu tena.",
+  "mapRetry": "Jaribu Tena",
+  "inAppMapSemanticLabel": "Ramani inayoonyesha {title} na huduma za karibu",
+  "mapViewSemanticLabel": "{count, plural, =0{Ramani haionyeshi nyumba} one{Ramani inaonyesha nyumba 1} other{Ramani inaonyesha nyumba {count}}}"
 }

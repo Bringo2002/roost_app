@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
@@ -25,10 +27,44 @@ class _MapViewPageState extends State<MapViewPage> {
   GoogleMapController? _mapController;
   bool _centeredOnUser = false;
 
+  /// See the matching fields on InAppMapPage for why this exists: the
+  /// Google Maps SDK has no onMapCreated-failed callback, so this is a
+  /// best-effort "it's been too long" fallback rather than a diagnosed
+  /// error.
+  static const _mapLoadTimeout = Duration(seconds: 10);
+  bool _mapReady = false;
+  bool _mapLoadTimedOut = false;
+  int _mapInstanceKey = 0;
+  Timer? _mapLoadTimer;
+
+  @override
+  void initState() {
+    super.initState();
+    _startMapLoadTimer();
+  }
+
   @override
   void dispose() {
+    _mapLoadTimer?.cancel();
     _mapController?.dispose();
     super.dispose();
+  }
+
+  void _startMapLoadTimer() {
+    _mapLoadTimer?.cancel();
+    _mapLoadTimer = Timer(_mapLoadTimeout, () {
+      if (!mounted || _mapReady) return;
+      setState(() => _mapLoadTimedOut = true);
+    });
+  }
+
+  void _retryMapLoad() {
+    setState(() {
+      _mapReady = false;
+      _mapLoadTimedOut = false;
+      _mapInstanceKey++; // forces GoogleMap to remount with a fresh native view
+    });
+    _startMapLoadTimer();
   }
 
   /// Called from onMapCreated, once _mapController actually exists --
@@ -126,42 +162,49 @@ class _MapViewPageState extends State<MapViewPage> {
             )
           : Stack(
               children: [
-                GoogleMap(
-                  initialCameraPosition: CameraPosition(
-                    target: LatLng(geoProperties.first.latitude!,
-                        geoProperties.first.longitude!),
-                    zoom: 12,
+                Semantics(
+                  label: AppLocalizations.of(context)!.mapViewSemanticLabel(geoProperties.length),
+                  child: GoogleMap(
+                    key: ValueKey('browse_map_$_mapInstanceKey'),
+                    initialCameraPosition: CameraPosition(
+                      target: LatLng(geoProperties.first.latitude!,
+                          geoProperties.first.longitude!),
+                      zoom: 12,
+                    ),
+                    style: AppMapStyle.darkMapStyle,
+                    buildingsEnabled: true,
+                    mapToolbarEnabled: false,
+                    onMapCreated: (controller) {
+                      _mapController = controller;
+                      AppMapStyle.checkStyleApplied(controller);
+                      _mapLoadTimer?.cancel();
+                      if (mounted) setState(() => _mapReady = true);
+                      _centerOnUserLocation();
+                    },
+                    myLocationEnabled: true,
+                    myLocationButtonEnabled: false,
+                    markers: geoProperties.map((p) {
+                      return Marker(
+                        markerId: MarkerId('property-${p.id}'),
+                        position: LatLng(p.latitude!, p.longitude!),
+                        // No InfoWindow text: tapping a pin always navigates
+                        // straight to the property's detail page below, so a
+                        // title/location bubble would only flash on screen
+                        // for an instant before being replaced by that page.
+                        infoWindow: InfoWindow.noText,
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => PropertyDetailPage(property: p),
+                            ),
+                          );
+                        },
+                      );
+                    }).toSet(),
                   ),
-                  style: AppMapStyle.darkMapStyle,
-                  buildingsEnabled: true,
-                  mapToolbarEnabled: false,
-                  onMapCreated: (controller) {
-                    _mapController = controller;
-                    AppMapStyle.checkStyleApplied(controller);
-                    _centerOnUserLocation();
-                  },
-                  myLocationEnabled: true,
-                  myLocationButtonEnabled: false,
-                  markers: geoProperties.map((p) {
-                    return Marker(
-                      markerId: MarkerId('property-${p.id}'),
-                      position: LatLng(p.latitude!, p.longitude!),
-                      // No InfoWindow text: tapping a pin always navigates
-                      // straight to the property's detail page below, so a
-                      // title/location bubble would only flash on screen
-                      // for an instant before being replaced by that page.
-                      infoWindow: InfoWindow.noText,
-                      onTap: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => PropertyDetailPage(property: p),
-                          ),
-                        );
-                      },
-                    );
-                  }).toSet(),
                 ),
+                if (!_mapReady) _MapLoadOverlay(timedOut: _mapLoadTimedOut, onRetry: _retryMapLoad),
                 Positioned(
                   right: 16,
                   bottom: 16,
@@ -211,6 +254,55 @@ class _MapCircleButton extends StatelessWidget {
             height: 44,
             child: Center(child: Icon(icon, color: Colors.white, size: 22)),
           ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Covers the map while it's initializing (solid black, so there's no
+/// flash of unstyled default-colored tiles before the dark style and
+/// markers are ready), or shows a retry option if it never finished
+/// within the load timeout. See _MapViewPageState's timeout fields for
+/// why this exists rather than reacting to a specific SDK error.
+class _MapLoadOverlay extends StatelessWidget {
+  final bool timedOut;
+  final VoidCallback onRetry;
+
+  const _MapLoadOverlay({required this.timedOut, required this.onRetry});
+
+  @override
+  Widget build(BuildContext context) {
+    return Positioned.fill(
+      child: Container(
+        color: Colors.black,
+        child: Center(
+          child: timedOut
+              ? Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.map_outlined, color: Colors.grey[600], size: 48),
+                    const SizedBox(height: 16),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                        AppLocalizations.of(context)!.mapLoadFailed,
+                        textAlign: TextAlign.center,
+                        style: TextStyle(color: Colors.grey[400], fontSize: 15),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    OutlinedButton(
+                      onPressed: onRetry,
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.white,
+                        side: BorderSide(color: Colors.grey[700]!),
+                      ),
+                      child: Text(AppLocalizations.of(context)!.mapRetry),
+                    ),
+                  ],
+                )
+              : const CircularProgressIndicator(color: Colors.white),
         ),
       ),
     );
