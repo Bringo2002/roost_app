@@ -19,6 +19,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/cloudinary_service.dart';
 import 'package:roost_app/services/doc_verification_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:intl/intl.dart';
@@ -1376,7 +1377,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       ? Colors.white
                       : active
                           ? Colors.white
-                          : const Color(0xFF2C2C2E),
+                          : AppColors.surfaceContainerHigh,
                   boxShadow: active
                       ? [
                           BoxShadow(
@@ -1443,7 +1444,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(14),
                   border:
-                      Border.all(color: const Color(0xFF2C2C2E), width: 1.2),
+                      Border.all(color: AppColors.surfaceContainerHigh, width: 1.2),
                 ),
                 child: Center(
                   child: Icon(Icons.arrow_back_rounded,
@@ -1603,7 +1604,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
+              color: AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(14),
             ),
             child: Column(
@@ -1629,7 +1630,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   borderRadius: BorderRadius.circular(4),
                   child: LinearProgressIndicator(
                     value: progress,
-                    backgroundColor: const Color(0xFF2C2C2E),
+                    backgroundColor: AppColors.surfaceContainerHigh,
                     valueColor:
                         const AlwaysStoppedAnimation<Color>(Colors.white),
                     minHeight: 4,
@@ -1651,7 +1652,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               border: Border.all(
                 color: _errors.containsKey('photos')
                     ? Colors.redAccent.withValues(alpha: 0.6)
-                    : const Color(0xFF2C2C2E),
+                    : AppColors.surfaceContainerHigh,
                 width: 1.5,
                 strokeAlign: BorderSide.strokeAlignInside,
               ),
@@ -1722,10 +1723,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                         imageUrl: url,
                         fit: BoxFit.cover,
                         placeholder: (_, __) => Container(
-                          color: const Color(0xFF1C1C1E),
+                          color: AppColors.surfaceContainer,
                         ),
                         errorWidget: (_, __, ___) => Container(
-                          color: const Color(0xFF1C1C1E),
+                          color: AppColors.surfaceContainer,
                           child: const Icon(Icons.broken_image_outlined,
                               color: Colors.grey),
                         ),
@@ -1818,9 +1819,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           Container(
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
+              color: AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF2C2C2E)),
+              border: Border.all(color: AppColors.surfaceContainerHigh),
             ),
             child: Row(children: [
               const Icon(Icons.videocam, color: Colors.white70),
@@ -1904,11 +1905,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                   decoration: BoxDecoration(
-                    color: selected ? Colors.white : const Color(0xFF1C1C1E),
+                    color: selected ? Colors.white : AppColors.surfaceContainer,
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                         color:
-                            selected ? Colors.white : const Color(0xFF3A3A3C)),
+                            selected ? Colors.white : AppColors.surfaceContainerHighest),
                   ),
                   child: Text(
                     _houseTypeLabels[type] ?? type,
@@ -2063,10 +2064,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
         decoration: BoxDecoration(
-          color: isSelected ? Colors.white : const Color(0xFF1C1C1E),
+          color: isSelected ? Colors.white : AppColors.surfaceContainer,
           borderRadius: BorderRadius.circular(10),
           border: Border.all(
-            color: isSelected ? Colors.white : const Color(0xFF3A3A3C),
+            color: isSelected ? Colors.white : AppColors.surfaceContainerHighest,
           ),
         ),
         child: Text(
@@ -2134,7 +2135,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isEarned
@@ -2351,7 +2352,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                   ),
                   selected: isSelected,
                   selectedColor: Colors.white,
-                  backgroundColor: const Color(0xFF1C1C1E),
+                  backgroundColor: AppColors.surfaceContainer,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                     side: BorderSide(
@@ -2454,7 +2455,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
+                  color: AppColors.surfaceContainer,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: chipBg.withValues(alpha: 0.25),
@@ -2679,12 +2680,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 decoration: BoxDecoration(
                   color: on
                       ? a.color.withValues(alpha: 0.12)
-                      : const Color(0xFF1C1C1E),
+                      : AppColors.surfaceContainer,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                     color: on
                         ? a.color.withValues(alpha: 0.5)
-                        : const Color(0xFF2C2C2E),
+                        : AppColors.surfaceContainerHigh,
                     width: 1.4,
                   ),
                 ),
@@ -2713,7 +2714,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           }).toList(),
         ),
         const SizedBox(height: 32),
-        const Divider(color: Color(0xFF2C2C2E)),
+        const Divider(color: AppColors.surfaceContainerHigh),
         const SizedBox(height: 20),
 
         // ── Custom Amenities Section ─────────────────────────────────────
@@ -2772,9 +2773,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1C1C1E),
+              color: AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFF2C2C2E)),
+              border: Border.all(color: AppColors.surfaceContainerHigh),
             ),
             child: Row(
               children: [
@@ -2839,7 +2840,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     showDialog<void>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: AppColors.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Row(
           children: [
@@ -2971,7 +2972,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               height: 56,
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
+                color: AppColors.surfaceContainer,
                 borderRadius: BorderRadius.circular(12),
               ),
               alignment: Alignment.center,
@@ -3057,7 +3058,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       height: 56,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
+                        color: AppColors.surfaceContainer,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       alignment: Alignment.center,
@@ -3150,7 +3151,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       height: 56,
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF1C1C1E),
+                        color: AppColors.surfaceContainer,
                         borderRadius: BorderRadius.circular(12),
                       ),
                       alignment: Alignment.center,
@@ -3189,7 +3190,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             decoration: BoxDecoration(
               color: _noViewingFeePledge
                   ? const Color(0xFF00C896).withValues(alpha: 0.1)
-                  : const Color(0xFF1C1C1E),
+                  : AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _noViewingFeePledge
@@ -3375,7 +3376,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       labelText: label,
       labelStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
       filled: true,
-      fillColor: const Color(0xFF1C1C1E),
+      fillColor: AppColors.surfaceContainer,
       prefixIcon: prefixIcon,
       counterText: counterText,
       border: OutlineInputBorder(
@@ -3429,7 +3430,7 @@ class _RoleChip extends StatelessWidget {
           decoration: BoxDecoration(
             color: selected
                 ? const Color(0xFF6C63FF).withValues(alpha: 0.15)
-                : const Color(0xFF1C1C1E),
+                : AppColors.surfaceContainer,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color:
@@ -3543,9 +3544,9 @@ class _ActionTile extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20),
         decoration: BoxDecoration(
-          color: const Color(0xFF1C1C1E),
+          color: AppColors.surfaceContainer,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFF3A3A3C)),
+          border: Border.all(color: AppColors.surfaceContainerHighest),
         ),
         child: Column(
           children: [
@@ -3586,7 +3587,7 @@ class _StepperField extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
       ),
       child: Column(
@@ -3613,7 +3614,7 @@ class _StepperField extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: value > min
-                          ? const Color(0xFF3A3A3C)
+                          ? AppColors.surfaceContainerHighest
                           : Colors.white12,
                     ),
                   ),
@@ -3639,7 +3640,7 @@ class _StepperField extends StatelessWidget {
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: value < max
-                          ? const Color(0xFF3A3A3C)
+                          ? AppColors.surfaceContainerHighest
                           : Colors.white12,
                     ),
                   ),
@@ -3674,7 +3675,7 @@ class _GpsPromptCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: hasError
@@ -3862,9 +3863,9 @@ class _ReviewRow extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF1C1C1E),
+        color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF2C2C2E)),
+        border: Border.all(color: AppColors.surfaceContainerHigh),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

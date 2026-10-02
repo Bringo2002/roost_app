@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Production-ready Privacy Policy page for Roost.
 /// Displays the full privacy policy in-app with clean typography and
@@ -35,7 +36,7 @@ class PrivacyPolicyPage extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
+                color: AppColors.surfaceContainer,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -228,9 +229,9 @@ class PrivacyPolicyPage extends StatelessWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF1C1C1E),
+                    color: AppColors.surfaceContainer,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFF2C2C2E)),
+                    border: Border.all(color: AppColors.surfaceContainerHigh),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,

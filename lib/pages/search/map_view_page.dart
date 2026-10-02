@@ -4,6 +4,7 @@ import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_map_style.dart';
 
 /// Shows the current search results as pins on a map instead of a list --
@@ -83,7 +84,7 @@ class _MapViewPageState extends State<MapViewPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: const Color(0xFF2C2C2E),
+        backgroundColor: AppColors.surfaceContainerHigh,
         action: SnackBarAction(
           label: AppLocalizations.of(context)!.inAppMapOpenSettings,
           textColor: Colors.white,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Production-ready Change Password page for Roost.
 /// Features input validation, password strength indicators, visibility toggles,
@@ -135,9 +136,9 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF1C1C1E),
+                  color: AppColors.surfaceContainer,
                   borderRadius: BorderRadius.circular(16),
-                  border: Border.all(color: const Color(0xFF2C2C2E)),
+                  border: Border.all(color: AppColors.surfaceContainerHigh),
                 ),
                 child: Row(
                   children: [
@@ -277,7 +278,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                         borderRadius: BorderRadius.circular(4),
                         child: LinearProgressIndicator(
                           value: strength,
-                          backgroundColor: const Color(0xFF2C2C2E),
+                          backgroundColor: AppColors.surfaceContainerHigh,
                           valueColor: AlwaysStoppedAnimation<Color>(_getStrengthColor(strength)),
                           minHeight: 4,
                         ),
@@ -375,7 +376,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey[600], fontSize: 14),
       filled: true,
-      fillColor: const Color(0xFF1C1C1E),
+      fillColor: AppColors.surfaceContainer,
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       suffixIcon: IconButton(
         icon: Icon(
@@ -387,11 +388,11 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF2C2C2E)),
+        borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Color(0xFF2C2C2E)),
+        borderSide: const BorderSide(color: AppColors.surfaceContainerHigh),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),

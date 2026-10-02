@@ -7,6 +7,7 @@ import 'package:roost_app/firebase_options.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/navigator_key.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Handles FCM messages that arrive while the app is backgrounded or
@@ -286,7 +287,7 @@ class PushNotificationService {
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: AppColors.surfaceContainer,
         duration: const Duration(seconds: 4),
         behavior: SnackBarBehavior.floating,
         margin: const EdgeInsets.all(16),
