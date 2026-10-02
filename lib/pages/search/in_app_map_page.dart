@@ -8,6 +8,7 @@ import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_map_style.dart';
 
 /// Framework-free description of one marker _buildMarkers would place --
@@ -215,7 +216,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
-        backgroundColor: const Color(0xFF2C2C2E),
+        backgroundColor: AppColors.surfaceContainerHigh,
         action: SnackBarAction(
           label: AppLocalizations.of(context)!.inAppMapOpenSettings,
           textColor: Colors.white,
@@ -265,7 +266,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
   void _showActionError(String message) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), backgroundColor: const Color(0xFF2C2C2E)),
+      SnackBar(content: Text(message), backgroundColor: AppColors.surfaceContainerHigh),
     );
   }
 
@@ -429,7 +430,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF1C1C1E),
+                color: AppColors.surfaceContainer,
                 borderRadius: BorderRadius.circular(24),
                 border: Border.all(color: Colors.grey[800]!),
                 boxShadow: const [
@@ -528,7 +529,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
                           icon: Icons.phone,
                           semanticLabel: AppLocalizations.of(context)!.inAppMapCallLandlord,
                           onTap: _callLandlord,
-                          background: const Color(0xFF2C2C2E),
+                          background: AppColors.surfaceContainerHigh,
                         ),
                       ],
                     ],

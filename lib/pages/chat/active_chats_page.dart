@@ -90,7 +90,7 @@ class _ActiveChatsPageState extends State<ActiveChatsPage> {
     final bool? confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1C1C1E),
+        backgroundColor: AppColors.surfaceContainer,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text('Delete this chat?', style: TextStyle(color: Colors.white, fontSize: 18)),
         content: Text(
