@@ -31,6 +31,23 @@ extension ExceptionFormatting on Object {
 class ApiService {
   static const Duration _timeoutDuration = Duration(seconds: 10);
 
+  /// The HTTP client every request in this class goes through.
+  ///
+  /// Production code never touches this -- it's left at the default real
+  /// [http.Client]. Tests override it with a `MockClient` from
+  /// `package:http/testing.dart` (already part of the `http` package, no
+  /// extra dependency needed) to stub responses instead of hitting a real
+  /// network, e.g.:
+  /// ```dart
+  /// ApiService.client = MockClient((request) async {
+  ///   return http.Response(jsonEncode({'items': []}), 200);
+  /// });
+  /// ```
+  /// Reset it (`ApiService.client = http.Client();`) in `tearDown` so one
+  /// test's stub can't leak into the next.
+  @visibleForTesting
+  static http.Client client = http.Client();
+
   static Future<Map<String, String>> _getHeaders() async {
     final token = await AuthService.getToken();
     return {
@@ -63,14 +80,14 @@ class ApiService {
   static Future<dynamic> get(String endpoint) async {
     return _safeRequest(() async {
       final headers = await _getHeaders();
-      return http.get(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers);
+      return client.get(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers);
     });
   }
 
   static Future<dynamic> post(String endpoint, [Map<String, dynamic>? body]) async {
     return _safeRequest(() async {
       final headers = await _getHeaders();
-      return http.post(
+      return client.post(
         Uri.parse('${AppConfig.baseUrl}$endpoint'),
         headers: headers,
         body: body != null ? jsonEncode(body) : null,
@@ -81,7 +98,7 @@ class ApiService {
   static Future<dynamic> put(String endpoint, Map<String, dynamic> body) async {
     return _safeRequest(() async {
       final headers = await _getHeaders();
-      return http.put(
+      return client.put(
         Uri.parse('${AppConfig.baseUrl}$endpoint'),
         headers: headers,
         body: jsonEncode(body),
@@ -92,7 +109,7 @@ class ApiService {
   static Future<dynamic> patch(String endpoint, Map<String, dynamic> body) async {
     return _safeRequest(() async {
       final headers = await _getHeaders();
-      return http.patch(
+      return client.patch(
         Uri.parse('${AppConfig.baseUrl}$endpoint'),
         headers: headers,
         body: jsonEncode(body),
@@ -103,7 +120,7 @@ class ApiService {
   static Future<dynamic> delete(String endpoint) async {
     return _safeRequest(() async {
       final headers = await _getHeaders();
-      return http.delete(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers);
+      return client.delete(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers);
     });
   }
 
