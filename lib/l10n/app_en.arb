@@ -152,5 +152,31 @@
   "mapEnableLocationPermission": "Location access is off for Roost. Enable it in Settings to center the map on your location.",
   "@mapEnableLocationPermission": {
     "description": "Snackbar shown on the browse-listings map when tapping the location button after permission was permanently denied."
+  },
+  "mapLoadFailed": "Map couldn't load. Check your connection and try again.",
+  "@mapLoadFailed": {
+    "description": "Shown when the map hasn't finished initializing after a timeout -- the Google Maps SDK has no explicit load-failure callback, so this is a best-effort \"something's wrong\" state, not a specific diagnosed error."
+  },
+  "mapRetry": "Retry",
+  "@mapRetry": {
+    "description": "Button label that remounts the map view after mapLoadFailed."
+  },
+  "inAppMapSemanticLabel": "Map showing {title} and nearby facilities",
+  "@inAppMapSemanticLabel": {
+    "description": "Accessibility label read for the single-property map, since the native Google Maps view exposes little of its own content to screen readers.",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "mapViewSemanticLabel": "{count, plural, =0{Map showing no properties} one{Map showing 1 property} other{Map showing {count} properties}}",
+  "@mapViewSemanticLabel": {
+    "description": "Accessibility label read for the browse-listings map, since the native Google Maps view exposes little of its own content to screen readers.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
   }
 }
