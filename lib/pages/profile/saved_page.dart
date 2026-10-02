@@ -93,7 +93,7 @@ class _SavedPageState extends State<SavedPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         action: SnackBarAction(
           label: 'UNDO',
-          textColor: Colors.greenAccent,
+          textColor: AppColors.white,
           onPressed: () async {
             await FavoritesService.add(propId);
             if (!mounted) return;
@@ -278,7 +278,7 @@ class _SavedPageState extends State<SavedPage> {
     final displayList = _processedProperties;
 
     return RefreshIndicator(
-      color: Colors.greenAccent,
+      color: AppColors.white,
       backgroundColor: AppColors.surfaceRaised,
       onRefresh: _loadSaved,
       child: Column(
