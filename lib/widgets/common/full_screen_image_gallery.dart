@@ -1,6 +1,26 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+/// Drag distance, in logical pixels, past which letting go dismisses the viewer.
+const double photoViewerDismissDistance = 120;
+
+/// Fling speed, in logical pixels per second, that decides the outcome
+/// regardless of distance. Same value Flutter's own [Dismissible] uses.
+const double photoViewerDismissFlingVelocity = 700;
+
+/// Whether releasing a downward drag should dismiss the viewer (true) or
+/// snap the photo back (false).
+///
+/// A decisive fling wins over distance in either direction: a hard downward
+/// flick dismisses after a short drag, and a hard upward flick cancels even a
+/// long drag (the user reversed course). Otherwise distance decides.
+@visibleForTesting
+bool shouldDismissPhotoViewer({required double dragDistance, required double velocityY}) {
+  if (velocityY >= photoViewerDismissFlingVelocity) return true;
+  if (velocityY <= -photoViewerDismissFlingVelocity) return false;
+  return dragDistance >= photoViewerDismissDistance;
+}
+
 class FullScreenImageGallery extends StatefulWidget {
   const FullScreenImageGallery({
     super.key,
@@ -42,21 +62,31 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   late int _currentIndex;
   late bool _isCoverMode;
 
-  // --- Drag-to-dismiss (Stage 1: gesture + visual feel only) ---
+  // --- Drag-to-dismiss ---
   //
-  // This stage deliberately always springs back to rest on release --
-  // it does not yet dismiss the viewer. That keeps the gesture-arena
-  // behavior (vs. InteractiveViewer's pan/zoom and PageView's swipe)
-  // reviewable and on-device-testable in isolation, before adding an
-  // actual threshold-triggered pop and deciding what the background
-  // should do while that's in flight (a separate, bigger follow-up).
+  // A downward drag translates and slightly shrinks the photo. On release
+  // it either springs back or, per [shouldDismissPhotoViewer], carries the
+  // photo off-screen and pops the route.
   //
-  // Drag distance, in logical pixels, at which the visual effect
+  // The background stays solid black. Revealing the previous page behind
+  // the photo would need a non-opaque route, which keeps that page mounted
+  // underneath -- a bigger decision than this gesture.
+  //
+  // Drag distance, in logical pixels, at which the drag's visual effect
   // reaches its full (clamped) strength.
   static const double _dismissMaxDrag = 280;
-  late final AnimationController _snapBackController;
-  Animation<double>? _snapBackAnimation;
+  // Fraction of scale lost at full drag strength (0.12 -> 88%).
+  static const double _dragScaleLoss = 0.12;
+  // Scale the photo shrinks to by the time it has left the screen.
+  static const double _exitEndScale = 0.5;
+  late final AnimationController _dragReleaseController;
+  Animation<double>? _dragReleaseAnimation;
   double _dismissDy = 0;
+  bool _isDismissing = false;
+  // Where the exit started and where it ends, so the exit's scale/fade can
+  // begin exactly from what the drag was showing (no jump on release).
+  double _dismissStartDy = 0;
+  double _dismissTargetDy = 0;
 
   @override
   void initState() {
@@ -65,26 +95,30 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     _isCoverMode = widget.initialCoverMode;
     _pageController = PageController(initialPage: _currentIndex);
     _transformationController = TransformationController();
-    _snapBackController = AnimationController(vsync: this, duration: const Duration(milliseconds: 220));
+    _dragReleaseController = AnimationController(vsync: this, duration: const Duration(milliseconds: 220))
+      ..addListener(_handleDragReleaseTick);
   }
 
   @override
   void dispose() {
     _pageController.dispose();
     _transformationController.dispose();
-    _snapBackController.dispose();
+    _dragReleaseController.dispose();
     super.dispose();
   }
+
+  // Scale for a drag of [dy]: eases from 1 down to (1 - _dragScaleLoss).
+  double _dragScale(double dy) => 1 - (dy / _dismissMaxDrag).clamp(0.0, 1.0) * _dragScaleLoss;
 
   bool get _isZoomedOrPanned => _transformationController.value != Matrix4.identity();
 
   void _handleDismissDragStart(DragStartDetails details) {
-    if (_isZoomedOrPanned) return;
-    _snapBackController.stop();
+    if (_isDismissing || _isZoomedOrPanned) return;
+    _dragReleaseController.stop();
   }
 
   void _handleDismissDragUpdate(DragUpdateDetails details) {
-    if (_isZoomedOrPanned) return;
+    if (_isDismissing || _isZoomedOrPanned) return;
     // Downward-dismiss only: once back at rest, ignore further upward
     // movement rather than letting it go negative -- InteractiveViewer
     // (once it re-claims the gesture, e.g. after a zoom) owns that.
@@ -93,11 +127,63 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   }
 
   void _handleDismissDragEnd(DragEndDetails details) {
-    if (_dismissDy == 0) return;
-    final curved = CurvedAnimation(parent: _snapBackController, curve: Curves.easeOutCubic);
-    _snapBackAnimation = Tween<double>(begin: _dismissDy, end: 0).animate(curved)
-      ..addListener(() => setState(() => _dismissDy = _snapBackAnimation!.value));
-    _snapBackController.forward(from: 0);
+    if (_isDismissing || _dismissDy == 0) return;
+    final shouldDismiss = shouldDismissPhotoViewer(
+      dragDistance: _dismissDy,
+      velocityY: details.velocity.pixelsPerSecond.dy,
+    );
+    if (shouldDismiss) {
+      _startDismiss();
+    } else {
+      _animateDragRelease(to: 0, curve: Curves.easeOutCubic);
+    }
+  }
+
+  void _startDismiss() {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    // Already dragged fully off-screen: nothing left to animate.
+    if (_dismissDy >= screenHeight) {
+      _popIfCurrent();
+      return;
+    }
+    setState(() {
+      _isDismissing = true;
+      _dismissStartDy = _dismissDy;
+      _dismissTargetDy = screenHeight;
+    });
+    // Carry the photo off-screen ourselves and only pop afterwards. Popping
+    // now would start the route's own exit transition from wherever the
+    // finger let go, compounding with this manual transform (a visible
+    // jump). By the time the route animates out, the photo is already gone.
+    _animateDragRelease(to: screenHeight, curve: Curves.easeIn).whenComplete(_popIfCurrent);
+  }
+
+  // The close button or system back may have popped the route while the exit
+  // animation was still running (the route stays mounted through its own exit
+  // transition), so only pop if this route is still the current one -- a second
+  // pop would take down the page underneath.
+  void _popIfCurrent() {
+    if (!mounted) return;
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    Navigator.pop(context);
+  }
+
+  void _handleDragReleaseTick() {
+    final animation = _dragReleaseAnimation;
+    if (animation == null) return;
+    setState(() => _dismissDy = animation.value);
+  }
+
+  // Animates [_dismissDy] from wherever the drag was released to [to]. The
+  // animation is rebuilt per release (its begin value differs each time) but
+  // the tick listener lives on the controller and is registered once:
+  // listeners added to a derived animation land on the controller and are
+  // never removed, so one per release would pile up and each call setState.
+  TickerFuture _animateDragRelease({required double to, required Curve curve}) {
+    _dragReleaseAnimation = _dragReleaseController.drive(
+      Tween<double>(begin: _dismissDy, end: to).chain(CurveTween(curve: curve)),
+    );
+    return _dragReleaseController.forward(from: 0);
   }
 
   void _toggleFitMode() {
@@ -107,9 +193,69 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     });
   }
 
+  Widget _buildPhotoPager() {
+    return PageView.builder(
+      controller: _pageController,
+      itemCount: widget.imageUrls.length,
+      onPageChanged: (index) {
+        setState(() {
+          _currentIndex = index;
+          _transformationController.value = Matrix4.identity();
+        });
+      },
+      itemBuilder: (context, index) {
+        final url = widget.imageUrls[index];
+        return GestureDetector(
+          onDoubleTap: _toggleFitMode,
+          child: InteractiveViewer(
+            transformationController: _transformationController,
+            minScale: 0.8,
+            maxScale: 5.0,
+            child: SizedBox.expand(
+              child: CachedNetworkImage(
+                imageUrl: url,
+                width: double.infinity,
+                height: double.infinity,
+                fit: _isCoverMode ? BoxFit.cover : BoxFit.contain,
+                filterQuality: FilterQuality.high,
+                placeholder: (context, url) => const Center(
+                  child: CircularProgressIndicator(
+                    color: Colors.white70,
+                    strokeWidth: 2,
+                  ),
+                ),
+                errorWidget: (context, url, error) => const Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
+                    SizedBox(height: 8),
+                    Text(
+                      'Could not load image',
+                      style: TextStyle(color: Colors.grey, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final dismissProgress = (_dismissDy / _dismissMaxDrag).clamp(0.0, 1.0);
+    var scale = _dragScale(_dismissDy);
+    var opacity = 1.0;
+    if (_isDismissing) {
+      // Progress along the exit run only (0 at release, 1 once off-screen), so
+      // the shrink and fade pick up from what the drag showed at release.
+      final exitProgress =
+          ((_dismissDy - _dismissStartDy) / (_dismissTargetDy - _dismissStartDy)).clamp(0.0, 1.0);
+      final startScale = _dragScale(_dismissStartDy);
+      scale = startScale + (_exitEndScale - startScale) * exitProgress;
+      opacity = 1 - exitProgress;
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -122,54 +268,8 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
             child: Transform.translate(
               offset: Offset(0, _dismissDy),
               child: Transform.scale(
-                scale: 1 - (dismissProgress * 0.12),
-                child: PageView.builder(
-                  controller: _pageController,
-                  itemCount: widget.imageUrls.length,
-                  onPageChanged: (index) {
-                    setState(() {
-                      _currentIndex = index;
-                      _transformationController.value = Matrix4.identity();
-                    });
-                  },
-                  itemBuilder: (context, index) {
-                    final url = widget.imageUrls[index];
-                    return GestureDetector(
-                      onDoubleTap: _toggleFitMode,
-                      child: InteractiveViewer(
-                        transformationController: _transformationController,
-                        minScale: 0.8,
-                        maxScale: 5.0,
-                        child: SizedBox.expand(
-                          child: CachedNetworkImage(
-                            imageUrl: url,
-                            width: double.infinity,
-                            height: double.infinity,
-                            fit: _isCoverMode ? BoxFit.cover : BoxFit.contain,
-                            filterQuality: FilterQuality.high,
-                            placeholder: (context, url) => const Center(
-                              child: CircularProgressIndicator(
-                                color: Colors.white70,
-                                strokeWidth: 2,
-                              ),
-                            ),
-                            errorWidget: (context, url, error) => const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
-                                SizedBox(height: 8),
-                                Text(
-                                  'Could not load image',
-                                  style: TextStyle(color: Colors.grey, fontSize: 13),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ), // PageView.builder
+                scale: scale,
+                child: Opacity(opacity: opacity, child: _buildPhotoPager()),
               ), // Transform.scale
             ), // Transform.translate
           ), // GestureDetector (drag-to-dismiss)
