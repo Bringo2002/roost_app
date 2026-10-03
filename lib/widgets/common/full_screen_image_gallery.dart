@@ -25,6 +25,16 @@ bool shouldDismissPhotoViewer({required double dragDistance, required double vel
   return dragDistance >= photoViewerDismissDistance;
 }
 
+/// Opacity of the viewer's header (close button, counter, fit toggle) for a
+/// downward drag of [dragDistance]: fully opaque at rest, fully faded once the
+/// drag reaches [photoViewerDragEffectDistance].
+///
+/// Clamped, so the result stays valid for [Opacity] however far the photo is
+/// dragged or flung.
+@visibleForTesting
+double photoViewerChromeOpacity(double dragDistance) =>
+    1 - (dragDistance / photoViewerDragEffectDistance).clamp(0.0, 1.0);
+
 class FullScreenImageGallery extends StatefulWidget {
   const FullScreenImageGallery({
     super.key,
