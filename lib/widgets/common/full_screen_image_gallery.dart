@@ -8,6 +8,10 @@ const double photoViewerDismissDistance = 120;
 /// regardless of distance. Same value Flutter's own [Dismissible] uses.
 const double photoViewerDismissFlingVelocity = 700;
 
+/// Drag distance, in logical pixels, at which the drag's visual effects
+/// reach their full (clamped) strength.
+const double photoViewerDragEffectDistance = 280;
+
 /// Whether releasing a downward drag should dismiss the viewer (true) or
 /// snap the photo back (false).
 ///
@@ -20,6 +24,16 @@ bool shouldDismissPhotoViewer({required double dragDistance, required double vel
   if (velocityY <= -photoViewerDismissFlingVelocity) return false;
   return dragDistance >= photoViewerDismissDistance;
 }
+
+/// Opacity of the viewer's header (close button, counter, fit toggle) for a
+/// downward drag of [dragDistance]: fully opaque at rest, fully faded once the
+/// drag reaches [photoViewerDragEffectDistance].
+///
+/// Clamped, so the result stays valid for [Opacity] however far the photo is
+/// dragged or flung.
+@visibleForTesting
+double photoViewerChromeOpacity(double dragDistance) =>
+    1 - (dragDistance / photoViewerDragEffectDistance).clamp(0.0, 1.0);
 
 class FullScreenImageGallery extends StatefulWidget {
   const FullScreenImageGallery({
@@ -72,9 +86,6 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   // the photo would need a non-opaque route, which keeps that page mounted
   // underneath -- a bigger decision than this gesture.
   //
-  // Drag distance, in logical pixels, at which the drag's visual effect
-  // reaches its full (clamped) strength.
-  static const double _dismissMaxDrag = 280;
   // Fraction of scale lost at full drag strength (0.12 -> 88%).
   static const double _dragScaleLoss = 0.12;
   // Scale the photo shrinks to by the time it has left the screen.
@@ -108,7 +119,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   }
 
   // Scale for a drag of [dy]: eases from 1 down to (1 - _dragScaleLoss).
-  double _dragScale(double dy) => 1 - (dy / _dismissMaxDrag).clamp(0.0, 1.0) * _dragScaleLoss;
+  double _dragScale(double dy) => 1 - (dy / photoViewerDragEffectDistance).clamp(0.0, 1.0) * _dragScaleLoss;
 
   bool get _isZoomedOrPanned => _transformationController.value != Matrix4.identity();
 
