@@ -333,8 +333,10 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
             ), // Transform.translate
           ), // GestureDetector (drag-to-dismiss)
 
-          // Top Header Bar with Close Button, Fit/Fill Toggle, and Counter
-          _buildHeader(),
+          // Top Header Bar with Close Button, Fit/Fill Toggle, and Counter.
+          // Fades with the drag so it doesn't sit stuck in place while the
+          // photo moves away.
+          Opacity(opacity: photoViewerChromeOpacity(_dismissDy), child: _buildHeader()),
         ],
       ),
     );
