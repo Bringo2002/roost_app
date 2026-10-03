@@ -190,7 +190,7 @@ class LandlordPropertyCard extends StatelessWidget {
                         onPublish();
                       },
                       style: TextButton.styleFrom(
-                        foregroundColor: Colors.amber,
+                        foregroundColor: AppColors.warning,
                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                         minimumSize: Size.zero,
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
@@ -199,7 +199,7 @@ class LandlordPropertyCard extends StatelessWidget {
                           ? const SizedBox(
                               width: 12,
                               height: 12,
-                              child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                              child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.warning),
                             )
                           : const Icon(Icons.publish_rounded, size: 14),
                       label: const Text(
@@ -245,9 +245,9 @@ class LandlordPropertyCard extends StatelessWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     decoration: BoxDecoration(
-                      color: Colors.amber.withValues(alpha: 0.1),
+                      color: AppColors.warning.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: Colors.amber.withValues(alpha: 0.3)),
+                      border: Border.all(color: AppColors.warning.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
@@ -255,22 +255,22 @@ class LandlordPropertyCard extends StatelessWidget {
                           const SizedBox(
                             width: 14,
                             height: 14,
-                            child: CircularProgressIndicator(strokeWidth: 2, color: Colors.amber),
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.warning),
                           )
                         else
-                          const Icon(Icons.my_location_rounded, color: Colors.amber, size: 15),
+                          const Icon(Icons.my_location_rounded, color: AppColors.warning, size: 15),
                         const SizedBox(width: 8),
                         const Expanded(
                           child: Text(
                             'Stand at property & tap to verify GPS location',
                             style: TextStyle(
-                              color: Colors.amber,
+                              color: AppColors.warning,
                               fontSize: 11,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
                         ),
-                        const Icon(Icons.chevron_right_rounded, color: Colors.amber, size: 16),
+                        const Icon(Icons.chevron_right_rounded, color: AppColors.warning, size: 16),
                       ],
                     ),
                   ),
@@ -285,12 +285,12 @@ class LandlordPropertyCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: property.landlordEndorsed
                         ? AppColors.verified.withValues(alpha: 0.08)
-                        : Colors.amber.withValues(alpha: 0.08),
+                        : AppColors.warning.withValues(alpha: 0.08),
                     borderRadius: BorderRadius.circular(10),
                     border: Border.all(
                       color: property.landlordEndorsed
                           ? AppColors.verified.withValues(alpha: 0.25)
-                          : Colors.amber.withValues(alpha: 0.25),
+                          : AppColors.warning.withValues(alpha: 0.25),
                     ),
                   ),
                   child: Row(
@@ -301,7 +301,7 @@ class LandlordPropertyCard extends StatelessWidget {
                             : Icons.mark_email_unread_outlined,
                         color: property.landlordEndorsed
                             ? AppColors.verified
-                            : Colors.amber,
+                            : AppColors.warning,
                         size: 15,
                       ),
                       const SizedBox(width: 8),
@@ -313,7 +313,7 @@ class LandlordPropertyCard extends StatelessWidget {
                           style: TextStyle(
                             color: property.landlordEndorsed
                                 ? AppColors.verified
-                                : Colors.amber,
+                                : AppColors.warning,
                             fontSize: 11,
                             fontWeight: FontWeight.bold,
                           ),
@@ -334,7 +334,7 @@ class LandlordPropertyCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: property.landlordEndorsed
                                 ? AppColors.verified
-                                : Colors.amber,
+                                : AppColors.warning,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Row(
@@ -437,13 +437,13 @@ class LandlordPropertyCard extends StatelessWidget {
       return Container(
         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
         decoration: BoxDecoration(
-          color: Colors.amber.withValues(alpha: 0.15),
+          color: AppColors.warning.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(6),
-          border: Border.all(color: Colors.amber, width: 1),
+          border: Border.all(color: AppColors.warning, width: 1),
         ),
         child: const Text(
           'DRAFT',
-          style: TextStyle(color: Colors.amber, fontSize: 10, fontWeight: FontWeight.bold),
+          style: TextStyle(color: AppColors.warning, fontSize: 10, fontWeight: FontWeight.bold),
         ),
       );
     }

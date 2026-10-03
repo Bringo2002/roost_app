@@ -433,13 +433,13 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: isDone ? AppColors.verified.withAlpha(30) : Colors.amber.withAlpha(30),
+              color: isDone ? AppColors.verified.withAlpha(30) : AppColors.warning.withAlpha(30),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Text(
               statusText,
               style: TextStyle(
-                color: isDone ? AppColors.verifiedLight : Colors.amber,
+                color: isDone ? AppColors.verifiedLight : AppColors.warning,
                 fontSize: 11,
                 fontWeight: FontWeight.bold,
               ),
