@@ -284,6 +284,17 @@ When producing code for this repository:
 - Every new public API must include a doc comment (`///`).
 - Never output pseudocode, partial implementations, or `// TODO: implement` stubs without immediately following them with the real implementation.
 
+### Git Commit Hygiene — No AI Attribution
+
+**Never** add any of the following to commit messages, trailers, or git metadata:
+
+- `Co-Authored-By` lines referencing any AI (Claude, Copilot, GPT, Gemini, etc.)
+- `Claude-Session:` links or any session/conversation URLs
+- `Generated-By`, `AI-Assisted`, or any similar attribution tags
+- Any mention of `anthropic.com`, `openai.com`, or other AI vendor domains
+
+Commits must read as if authored solely by the human developer. This is a **security and privacy rule** — AI session metadata has no place in version control history and is extremely difficult to fully purge once pushed to a remote.
+
 ### When to Stop and Ask
 
 This behavioral policy governs code-output format specifically. It does **not** suppress the agent's judgment about:
