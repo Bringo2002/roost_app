@@ -1542,11 +1542,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           duration: const Duration(milliseconds: 400),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: (hasMin ? AppColors.landlordAccent : Colors.amber)
+            color: (hasMin ? AppColors.landlordAccent : AppColors.warning)
                 .withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: (hasMin ? AppColors.landlordAccent : Colors.amber)
+              color: (hasMin ? AppColors.landlordAccent : AppColors.warning)
                   .withValues(alpha: 0.3),
             ),
           ),
@@ -1558,7 +1558,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     ? Icons.check_circle_outline
                     : Icons.photo_camera_outlined,
                 size: 14,
-                color: hasMin ? AppColors.landlordAccent : Colors.amber,
+                color: hasMin ? AppColors.landlordAccent : AppColors.warning,
               ),
               const SizedBox(width: 7),
               Text(
@@ -1566,7 +1566,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     ? '${_imageUrls.length} photos added ✓'
                     : '${_imageUrls.length}/$_minPhotos photos — add ${_minPhotos - _imageUrls.length} more',
                 style: TextStyle(
-                  color: hasMin ? AppColors.landlordAccent : Colors.amber,
+                  color: hasMin ? AppColors.landlordAccent : AppColors.warning,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -2442,8 +2442,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 chipLabel = 'AI verified — looks authentic';
               } else {
                 // flagged
-                chipColor = Colors.amber;
-                chipBg = Colors.amber;
+                chipColor = AppColors.warning;
+                chipBg = AppColors.warning;
                 chipIcon = Icons.warning_amber_rounded;
                 chipLabel = result.flags.isEmpty
                     ? 'Flagged — admin review'
@@ -3256,7 +3256,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 '$descLen / $maxDesc',
                 style: TextStyle(
                     color: descLen > maxDesc * 0.9
-                        ? Colors.amber
+                        ? AppColors.warning
                         : Colors.grey[600],
                     fontSize: 11),
               ),
@@ -3680,7 +3680,7 @@ class _GpsPromptCard extends StatelessWidget {
         border: Border.all(
           color: hasError
               ? AppColors.destructive.withValues(alpha: 0.6)
-              : Colors.amber.withValues(alpha: 0.4),
+              : AppColors.warning.withValues(alpha: 0.4),
           width: 1.3,
         ),
       ),
@@ -3697,10 +3697,10 @@ class _GpsPromptCard extends StatelessWidget {
               height: 56,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: Colors.amber.withValues(alpha: 0.12),
+                color: AppColors.warning.withValues(alpha: 0.12),
               ),
               child:
-                  const Icon(Icons.my_location, color: Colors.amber, size: 28),
+                  const Icon(Icons.my_location, color: AppColors.warning, size: 28),
             ),
           ),
           const SizedBox(height: 16),
