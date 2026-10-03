@@ -62,21 +62,31 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   late int _currentIndex;
   late bool _isCoverMode;
 
-  // --- Drag-to-dismiss (Stage 1: gesture + visual feel only) ---
+  // --- Drag-to-dismiss ---
   //
-  // This stage deliberately always springs back to rest on release --
-  // it does not yet dismiss the viewer. That keeps the gesture-arena
-  // behavior (vs. InteractiveViewer's pan/zoom and PageView's swipe)
-  // reviewable and on-device-testable in isolation, before adding an
-  // actual threshold-triggered pop and deciding what the background
-  // should do while that's in flight (a separate, bigger follow-up).
+  // A downward drag translates and slightly shrinks the photo. On release
+  // it either springs back or, per [shouldDismissPhotoViewer], carries the
+  // photo off-screen and pops the route.
   //
-  // Drag distance, in logical pixels, at which the visual effect
+  // The background stays solid black. Revealing the previous page behind
+  // the photo would need a non-opaque route, which keeps that page mounted
+  // underneath -- a bigger decision than this gesture.
+  //
+  // Drag distance, in logical pixels, at which the drag's visual effect
   // reaches its full (clamped) strength.
   static const double _dismissMaxDrag = 280;
+  // Fraction of scale lost at full drag strength (0.12 -> 88%).
+  static const double _dragScaleLoss = 0.12;
+  // Scale the photo shrinks to by the time it has left the screen.
+  static const double _exitEndScale = 0.5;
   late final AnimationController _dragReleaseController;
   Animation<double>? _dragReleaseAnimation;
   double _dismissDy = 0;
+  bool _isDismissing = false;
+  // Where the exit started and where it ends, so the exit's scale/fade can
+  // begin exactly from what the drag was showing (no jump on release).
+  double _dismissStartDy = 0;
+  double _dismissTargetDy = 0;
 
   @override
   void initState() {
@@ -97,15 +107,18 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     super.dispose();
   }
 
+  // Scale for a drag of [dy]: eases from 1 down to (1 - _dragScaleLoss).
+  double _dragScale(double dy) => 1 - (dy / _dismissMaxDrag).clamp(0.0, 1.0) * _dragScaleLoss;
+
   bool get _isZoomedOrPanned => _transformationController.value != Matrix4.identity();
 
   void _handleDismissDragStart(DragStartDetails details) {
-    if (_isZoomedOrPanned) return;
+    if (_isDismissing || _isZoomedOrPanned) return;
     _dragReleaseController.stop();
   }
 
   void _handleDismissDragUpdate(DragUpdateDetails details) {
-    if (_isZoomedOrPanned) return;
+    if (_isDismissing || _isZoomedOrPanned) return;
     // Downward-dismiss only: once back at rest, ignore further upward
     // movement rather than letting it go negative -- InteractiveViewer
     // (once it re-claims the gesture, e.g. after a zoom) owns that.
@@ -114,8 +127,45 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   }
 
   void _handleDismissDragEnd(DragEndDetails details) {
-    if (_dismissDy == 0) return;
-    _animateDragRelease(to: 0, curve: Curves.easeOutCubic);
+    if (_isDismissing || _dismissDy == 0) return;
+    final shouldDismiss = shouldDismissPhotoViewer(
+      dragDistance: _dismissDy,
+      velocityY: details.velocity.pixelsPerSecond.dy,
+    );
+    if (shouldDismiss) {
+      _startDismiss();
+    } else {
+      _animateDragRelease(to: 0, curve: Curves.easeOutCubic);
+    }
+  }
+
+  void _startDismiss() {
+    final screenHeight = MediaQuery.sizeOf(context).height;
+    // Already dragged fully off-screen: nothing left to animate.
+    if (_dismissDy >= screenHeight) {
+      _popIfCurrent();
+      return;
+    }
+    setState(() {
+      _isDismissing = true;
+      _dismissStartDy = _dismissDy;
+      _dismissTargetDy = screenHeight;
+    });
+    // Carry the photo off-screen ourselves and only pop afterwards. Popping
+    // now would start the route's own exit transition from wherever the
+    // finger let go, compounding with this manual transform (a visible
+    // jump). By the time the route animates out, the photo is already gone.
+    _animateDragRelease(to: screenHeight, curve: Curves.easeIn).whenComplete(_popIfCurrent);
+  }
+
+  // The close button or system back may have popped the route while the exit
+  // animation was still running (the route stays mounted through its own exit
+  // transition), so only pop if this route is still the current one -- a second
+  // pop would take down the page underneath.
+  void _popIfCurrent() {
+    if (!mounted) return;
+    if (ModalRoute.of(context)?.isCurrent != true) return;
+    Navigator.pop(context);
   }
 
   void _handleDragReleaseTick() {
@@ -129,11 +179,11 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   // the tick listener lives on the controller and is registered once:
   // listeners added to a derived animation land on the controller and are
   // never removed, so one per release would pile up and each call setState.
-  void _animateDragRelease({required double to, required Curve curve}) {
+  TickerFuture _animateDragRelease({required double to, required Curve curve}) {
     _dragReleaseAnimation = _dragReleaseController.drive(
       Tween<double>(begin: _dismissDy, end: to).chain(CurveTween(curve: curve)),
     );
-    _dragReleaseController.forward(from: 0);
+    return _dragReleaseController.forward(from: 0);
   }
 
   void _toggleFitMode() {
@@ -195,7 +245,17 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
 
   @override
   Widget build(BuildContext context) {
-    final dismissProgress = (_dismissDy / _dismissMaxDrag).clamp(0.0, 1.0);
+    var scale = _dragScale(_dismissDy);
+    var opacity = 1.0;
+    if (_isDismissing) {
+      // Progress along the exit run only (0 at release, 1 once off-screen), so
+      // the shrink and fade pick up from what the drag showed at release.
+      final exitProgress =
+          ((_dismissDy - _dismissStartDy) / (_dismissTargetDy - _dismissStartDy)).clamp(0.0, 1.0);
+      final startScale = _dragScale(_dismissStartDy);
+      scale = startScale + (_exitEndScale - startScale) * exitProgress;
+      opacity = 1 - exitProgress;
+    }
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -208,8 +268,8 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
             child: Transform.translate(
               offset: Offset(0, _dismissDy),
               child: Transform.scale(
-                scale: 1 - (dismissProgress * 0.12),
-                child: _buildPhotoPager(),
+                scale: scale,
+                child: Opacity(opacity: opacity, child: _buildPhotoPager()),
               ), // Transform.scale
             ), // Transform.translate
           ), // GestureDetector (drag-to-dismiss)
