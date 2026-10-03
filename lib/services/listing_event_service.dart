@@ -35,6 +35,13 @@ class _QueuedEvent {
 
 Future<bool> _defaultSignedIn() async => (await AuthService.getToken()) != null;
 
+/// Wrapped in a function with required parameters instead of passing
+/// [ApiService.post] directly: its second parameter is optional, so
+/// `poster ?? ApiService.post` is typed as a bare `Function`, which does
+/// not compile against [EventPoster].
+Future<dynamic> _defaultPost(String endpoint, Map<String, dynamic> body) =>
+    ApiService.post(endpoint, body);
+
 /// Collects listing interactions and reports them to the backend in
 /// batches, as the raw signal for listing ranking.
 ///
@@ -53,7 +60,7 @@ class ListingEventService {
     EventPoster? poster,
     SignedInCheck? isSignedIn,
     this.flushDelay = const Duration(seconds: 10),
-  })  : _post = poster ?? ApiService.post,
+  })  : _post = poster ?? _defaultPost,
         _isSignedIn = isSignedIn ?? _defaultSignedIn;
 
   /// App-wide instance used by widgets and services.
