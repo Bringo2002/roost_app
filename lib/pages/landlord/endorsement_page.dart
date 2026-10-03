@@ -318,7 +318,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
             decoration: BoxDecoration(
               color: isEndorsed
                   ? AppColors.landlordAccent.withValues(alpha: 0.15)
-                  : Colors.amber.withValues(alpha: 0.15),
+                  : AppColors.warning.withValues(alpha: 0.15),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(20),
                 topRight: Radius.circular(20),
@@ -328,7 +328,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
               children: [
                 Icon(
                   isEndorsed ? Icons.verified : Icons.pending_actions,
-                  color: isEndorsed ? AppColors.landlordAccent : Colors.amber,
+                  color: isEndorsed ? AppColors.landlordAccent : AppColors.warning,
                   size: 20,
                 ),
                 const SizedBox(width: 8),
@@ -337,7 +337,7 @@ class _EndorsementPageState extends State<EndorsementPage> {
                       ? 'Landlord Endorsed Listing'
                       : 'Pending Landlord Endorsement',
                   style: TextStyle(
-                    color: isEndorsed ? AppColors.landlordAccent : Colors.amber,
+                    color: isEndorsed ? AppColors.landlordAccent : AppColors.warning,
                     fontWeight: FontWeight.bold,
                     fontSize: 13,
                   ),
