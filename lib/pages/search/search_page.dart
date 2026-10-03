@@ -14,6 +14,7 @@ import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/favorites_service.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
+import 'package:roost_app/widgets/common/impression_tracker.dart';
 
 /// Friendly display labels for the canonical backend house-type values,
 /// so filter chips read naturally instead of showing raw codes like
@@ -999,15 +1000,18 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               }
                               final property = _results[index];
                               final km = _distanceKmTo(property);
-                              return PropertyCard(
-                                key: ValueKey(property.id ?? identityHashCode(property)),
-                                property: property,
-                                heroTag: property.id != null ? 'property-image-${property.id}' : null,
-                                distanceLabel: km != null ? LocationService.formatDistance(km) : null,
-                                isFavorite: property.id != null && _favoriteIds.contains(property.id),
-                                onFavoriteTap: property.id == null
-                                    ? null
-                                    : () => _toggleFavorite(property.id!),
+                              return ImpressionTracker(
+                                propertyId: property.id,
+                                child: PropertyCard(
+                                  key: ValueKey(property.id ?? identityHashCode(property)),
+                                  property: property,
+                                  heroTag: property.id != null ? 'property-image-${property.id}' : null,
+                                  distanceLabel: km != null ? LocationService.formatDistance(km) : null,
+                                  isFavorite: property.id != null && _favoriteIds.contains(property.id),
+                                  onFavoriteTap: property.id == null
+                                      ? null
+                                      : () => _toggleFavorite(property.id!),
+                                ),
                               );
                             },
                           ),

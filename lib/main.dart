@@ -31,6 +31,7 @@ import 'package:roost_app/pages/splash/splash_page.dart';
 import 'package:roost_app/services/push_notification_service.dart';
 import 'package:roost_app/services/navigator_key.dart';
 import 'package:roost_app/widgets/common/property_card_skeleton.dart';
+import 'package:roost_app/widgets/common/impression_tracker.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
@@ -846,28 +847,31 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                           final km = _distanceKmTo(property);
                           return _StaggeredListItem(
                             index: index,
-                            child: PropertyCard(
-                              key: ValueKey(property.id ?? identityHashCode(property)),
-                              property: property,
-                              heroTag: 'property-image-${property.id}',
-                              distanceLabel: km != null
-                                  ? LocationService.formatDistance(km)
-                                  : null,
-                              isFavorite: property.id != null &&
-                                  favoriteIds.contains(property.id),
-                              onFavoriteTap: property.id == null
-                                  ? null
-                                  : () => _toggleFavorite(property.id!),
-                              onTap: () async {
-                                await Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) =>
-                                        PropertyDetailPage(property: property),
-                                  ),
-                                );
-                                _loadFavorites();
-                              },
+                            child: ImpressionTracker(
+                              propertyId: property.id,
+                              child: PropertyCard(
+                                key: ValueKey(property.id ?? identityHashCode(property)),
+                                property: property,
+                                heroTag: 'property-image-${property.id}',
+                                distanceLabel: km != null
+                                    ? LocationService.formatDistance(km)
+                                    : null,
+                                isFavorite: property.id != null &&
+                                    favoriteIds.contains(property.id),
+                                onFavoriteTap: property.id == null
+                                    ? null
+                                    : () => _toggleFavorite(property.id!),
+                                onTap: () async {
+                                  await Navigator.push(
+                                    context,
+                                    MaterialPageRoute(
+                                      builder: (context) =>
+                                          PropertyDetailPage(property: property),
+                                    ),
+                                  );
+                                  _loadFavorites();
+                                },
+                              ),
                             ),
                           );
                         },

@@ -11,6 +11,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/chat/chat_room_page.dart';
 import 'package:roost_app/pages/search/in_app_map_page.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/listing_event_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_map_style.dart';
@@ -89,6 +90,10 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
         .animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOut));
     _entranceController.forward();
     _fetchSimilarListings();
+    final propertyId = widget.property.id;
+    if (propertyId != null) {
+      ListingEventService.instance.track(propertyId, ListingEventType.click);
+    }
   }
   
   Future<void> _fetchSimilarListings() async {
