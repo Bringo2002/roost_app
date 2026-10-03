@@ -48,12 +48,12 @@ const _amenities = <_Amenity>[
       key: 'furnished',
       label: 'Furnished',
       icon: Icons.chair_outlined,
-      color: Color(0xFF6C63FF)),
+      color: AppColors.indigo),
   _Amenity(
       key: 'wifi',
       label: 'WiFi / Fiber',
       icon: Icons.wifi,
-      color: Color(0xFF00C896)),
+      color: AppColors.landlordAccent),
   _Amenity(
       key: 'water',
       label: '24hr Water / Borehole',
@@ -512,7 +512,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       decoration: BoxDecoration(
         color: const Color(0xFF0F2942),
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: const Color(0xFF38BDF8).withAlpha(100)),
+        border: Border.all(color: AppColors.skyBlue.withAlpha(100)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -524,11 +524,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               const Expanded(
                 child: Text(
                   'AI Market Pricing Advisor',
-                  style: TextStyle(color: Color(0xFF38BDF8), fontSize: 13, fontWeight: FontWeight.bold),
+                  style: TextStyle(color: AppColors.skyBlue, fontSize: 13, fontWeight: FontWeight.bold),
                 ),
               ),
               if (_loadingAiEstimate)
-                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF38BDF8)))
+                const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.skyBlue))
               else
                 InkWell(
                   onTap: _fetchAiEstimate,
@@ -550,7 +550,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             const SizedBox(height: 10),
             ElevatedButton.icon(
               style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF38BDF8),
+                backgroundColor: AppColors.skyBlue,
                 foregroundColor: Colors.black,
                 padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 minimumSize: Size.zero,
@@ -1542,11 +1542,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           duration: const Duration(milliseconds: 400),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
           decoration: BoxDecoration(
-            color: (hasMin ? const Color(0xFF00C896) : Colors.amber)
+            color: (hasMin ? AppColors.landlordAccent : Colors.amber)
                 .withValues(alpha: 0.12),
             borderRadius: BorderRadius.circular(999),
             border: Border.all(
-              color: (hasMin ? const Color(0xFF00C896) : Colors.amber)
+              color: (hasMin ? AppColors.landlordAccent : Colors.amber)
                   .withValues(alpha: 0.3),
             ),
           ),
@@ -1558,7 +1558,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     ? Icons.check_circle_outline
                     : Icons.photo_camera_outlined,
                 size: 14,
-                color: hasMin ? const Color(0xFF00C896) : Colors.amber,
+                color: hasMin ? AppColors.landlordAccent : Colors.amber,
               ),
               const SizedBox(width: 7),
               Text(
@@ -1566,7 +1566,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     ? '${_imageUrls.length} photos added ✓'
                     : '${_imageUrls.length}/$_minPhotos photos — add ${_minPhotos - _imageUrls.length} more',
                 style: TextStyle(
-                  color: hasMin ? const Color(0xFF00C896) : Colors.amber,
+                  color: hasMin ? AppColors.landlordAccent : Colors.amber,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
@@ -2197,7 +2197,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               value: _verificationScore / 3.0,
               backgroundColor: Colors.white.withValues(alpha: 0.08),
               valueColor: AlwaysStoppedAnimation<Color>(
-                  isEarned ? Colors.greenAccent : const Color(0xFF00C896)),
+                  isEarned ? Colors.greenAccent : AppColors.landlordAccent),
               minHeight: 6,
             ),
           ),
@@ -2404,7 +2404,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               const SizedBox(
                 width: 14, height: 14,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Color(0xFF10B981)),
+                    strokeWidth: 2, color: AppColors.verified),
               ),
               const SizedBox(width: 8),
               Text(
@@ -2436,8 +2436,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 chipIcon = Icons.hourglass_empty_rounded;
                 chipLabel = 'Pending admin review';
               } else if (result.riskLevel == DocRiskLevel.verified) {
-                chipColor = const Color(0xFF10B981);
-                chipBg = const Color(0xFF10B981);
+                chipColor = AppColors.verified;
+                chipBg = AppColors.verified;
                 chipIcon = Icons.verified_rounded;
                 chipLabel = 'AI verified — looks authentic';
               } else {
@@ -2467,7 +2467,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                     Row(
                       children: [
                         const Icon(Icons.description_rounded,
-                            color: Color(0xFF38BDF8), size: 22),
+                            color: AppColors.skyBlue, size: 22),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
@@ -2744,20 +2744,20 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF6C63FF).withValues(alpha: 0.15),
+                  color: AppColors.indigo.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(10),
                   border:
-                      Border.all(color: const Color(0xFF6C63FF), width: 1.2),
+                      Border.all(color: AppColors.indigo, width: 1.2),
                 ),
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.add_rounded, size: 16, color: Color(0xFF6C63FF)),
+                    Icon(Icons.add_rounded, size: 16, color: AppColors.indigo),
                     SizedBox(width: 4),
                     Text(
                       'Add Custom',
                       style: TextStyle(
-                          color: Color(0xFF6C63FF),
+                          color: AppColors.indigo,
                           fontSize: 12,
                           fontWeight: FontWeight.bold),
                     ),
@@ -2797,17 +2797,17 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFD700).withValues(alpha: 0.1),
+                  color: AppColors.gold.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
-                      color: const Color(0xFFFFD700).withValues(alpha: 0.6),
+                      color: AppColors.gold.withValues(alpha: 0.6),
                       width: 1.2),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const Icon(Icons.stars_rounded,
-                        size: 16, color: Color(0xFFFFD700)),
+                        size: 16, color: AppColors.gold),
                     const SizedBox(width: 8),
                     Text(
                       custom,
@@ -2844,7 +2844,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
         title: const Row(
           children: [
-            Icon(Icons.stars_rounded, color: Color(0xFFFFD700), size: 22),
+            Icon(Icons.stars_rounded, color: AppColors.gold, size: 22),
             SizedBox(width: 10),
             Text('Add Custom Amenity',
                 style: TextStyle(
@@ -2877,7 +2877,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           ),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFF6C63FF),
+              backgroundColor: AppColors.indigo,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(10)),
             ),
@@ -3017,7 +3017,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       _managerRole == 'CARETAKER'
                           ? Icons.person_pin_outlined
                           : Icons.support_agent_outlined,
-                      color: const Color(0xFF6C63FF),
+                      color: AppColors.indigo,
                       size: 20,
                     ),
                     const SizedBox(width: 8),
@@ -3115,7 +3115,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 Row(
                   children: [
                     const Icon(Icons.verified_outlined,
-                        color: Color(0xFF00C896), size: 20),
+                        color: AppColors.landlordAccent, size: 20),
                     const SizedBox(width: 8),
                     const Expanded(
                       child: Text(
@@ -3189,12 +3189,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               color: _noViewingFeePledge
-                  ? const Color(0xFF00C896).withValues(alpha: 0.1)
+                  ? AppColors.landlordAccent.withValues(alpha: 0.1)
                   : AppColors.surfaceContainer,
               borderRadius: BorderRadius.circular(12),
               border: Border.all(
                 color: _noViewingFeePledge
-                    ? const Color(0xFF00C896)
+                    ? AppColors.landlordAccent
                     : const Color(0xFF2A2A2A),
               ),
             ),
@@ -3205,7 +3205,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                       ? Icons.check_circle
                       : Icons.check_circle_outline,
                   color: _noViewingFeePledge
-                      ? const Color(0xFF00C896)
+                      ? AppColors.landlordAccent
                       : Colors.grey[600],
                   size: 22,
                 ),
@@ -3322,7 +3322,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               ? '(not set)'
               : _locationCtrl.text.trim(),
           badge: _gpsVerified ? 'GPS verified' : null,
-          badgeColor: _gpsVerified ? const Color(0xFF00C896) : null,
+          badgeColor: _gpsVerified ? AppColors.landlordAccent : null,
           isOk: _locationConfirmed && _locationCtrl.text.trim().isNotEmpty,
           onEdit: () => _jumpToStep(2),
         ),
@@ -3429,19 +3429,19 @@ class _RoleChip extends StatelessWidget {
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
             color: selected
-                ? const Color(0xFF6C63FF).withValues(alpha: 0.15)
+                ? AppColors.indigo.withValues(alpha: 0.15)
                 : AppColors.surfaceContainer,
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color:
-                  selected ? const Color(0xFF6C63FF) : const Color(0xFF2A2A2A),
+                  selected ? AppColors.indigo : const Color(0xFF2A2A2A),
               width: selected ? 1.5 : 1,
             ),
           ),
           child: Column(
             children: [
               Icon(icon,
-                  color: selected ? const Color(0xFF6C63FF) : Colors.grey[500],
+                  color: selected ? AppColors.indigo : Colors.grey[500],
                   size: 22),
               const SizedBox(height: 6),
               Text(
@@ -3482,7 +3482,7 @@ class _ToggleRow extends StatelessWidget {
         Switch.adaptive(
           value: value,
           onChanged: onChanged,
-          activeTrackColor: const Color(0xFF6C63FF),
+          activeTrackColor: AppColors.indigo,
         ),
       ],
     );
@@ -3772,7 +3772,7 @@ class _GpsConfirmedCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = verified ? const Color(0xFF00C896) : Colors.white54;
+    final color = verified ? AppColors.landlordAccent : Colors.white54;
     return AnimatedContainer(
       duration: const Duration(milliseconds: 400),
       padding: const EdgeInsets.all(18),
