@@ -61,4 +61,12 @@ void main() {
       });
     });
   });
+
+  group("AppColors.warning", () {
+    test("is value-identical to Colors.amber", () {
+      // Guards the no-visual-change guarantee of replacing Colors.amber
+      // with AppColors.warning across the landlord screens.
+      expect(AppColors.warning, Colors.amber);
+    });
+  });
 }
