@@ -523,7 +523,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
             'Drafts',
             _draftsCount,
             Icons.edit_note_rounded,
-            Colors.amber,
+            AppColors.warning,
             'DRAFT',
           ),
           Container(width: 1, height: 36, color: AppColors.border),
@@ -1231,8 +1231,8 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
       bg = Colors.red.withValues(alpha: 0.15);
       fg = AppColors.destructive;
     } else {
-      bg = Colors.amber.withValues(alpha: 0.15);
-      fg = Colors.amber;
+      bg = AppColors.warning.withValues(alpha: 0.15);
+      fg = AppColors.warning;
     }
 
     return Container(
