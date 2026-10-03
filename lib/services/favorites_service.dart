@@ -1,4 +1,5 @@
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/listing_event_service.dart';
 import 'package:roost_app/models/property.dart';
 
 /// Server-backed saved properties. Was previously a local, per-device
@@ -46,6 +47,8 @@ class FavoritesService {
 
   static Future<void> add(int id) async {
     await ApiService.post('/api/properties/$id/save');
+    // After the save succeeded, so a failed request is not reported.
+    ListingEventService.instance.track(id, ListingEventType.save);
   }
 
   /// No bulk "unsave all" endpoint on the backend -- saved lists are
