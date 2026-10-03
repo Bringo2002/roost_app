@@ -47,4 +47,26 @@ void main() {
       expect(shouldDismissPhotoViewer(dragDistance: 200, velocityY: -100), isTrue);
     });
   });
+
+  group('photoViewerChromeOpacity', () {
+    test('is fully opaque at rest', () {
+      expect(photoViewerChromeOpacity(0), 1);
+    });
+
+    test('fades in proportion to the drag', () {
+      expect(photoViewerChromeOpacity(photoViewerDragEffectDistance / 2), 0.5);
+    });
+
+    test('is fully transparent at the effect distance', () {
+      expect(photoViewerChromeOpacity(photoViewerDragEffectDistance), 0);
+    });
+
+    test('stays at zero however far the photo is dragged', () {
+      expect(photoViewerChromeOpacity(photoViewerDragEffectDistance * 3), 0);
+    });
+
+    test('never exceeds fully opaque for a negative drag', () {
+      expect(photoViewerChromeOpacity(-50), 1);
+    });
+  });
 }
