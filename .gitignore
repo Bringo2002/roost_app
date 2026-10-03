@@ -50,3 +50,7 @@ devtools_options.yaml
 # output, deterministically reproducible from the ARB source of truth --
 # not committed, same as any other generated Dart code.
 /lib/l10n/generated/
+
+# Applied-patch files should never be committed
+*.diff
+*.patch
