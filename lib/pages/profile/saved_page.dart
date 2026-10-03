@@ -1,9 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:roost_app/l10n/generated/app_localizations.dart';
-import 'package:roost_app/l10n/property_labels.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/favorites_service.dart';
-import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/main.dart';
