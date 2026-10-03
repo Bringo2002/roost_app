@@ -254,6 +254,54 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     );
   }
 
+  Widget _buildHeader() {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 26),
+              onPressed: () => Navigator.pop(context),
+            ),
+            Row(
+              children: [
+                if (widget.imageUrls.length > 1)
+                  Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    margin: const EdgeInsets.only(right: 8),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: Colors.white24, width: 0.5),
+                    ),
+                    child: Text(
+                      '${_currentIndex + 1} / ${widget.imageUrls.length}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 13,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                IconButton(
+                  icon: Icon(
+                    _isCoverMode ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
+                    color: Colors.white,
+                    size: 26,
+                  ),
+                  tooltip: _isCoverMode ? 'Fit to screen' : 'Fill screen',
+                  onPressed: _toggleFitMode,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     var scale = _dragScale(_dismissDy);
@@ -285,52 +333,10 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
             ), // Transform.translate
           ), // GestureDetector (drag-to-dismiss)
 
-          // Top Header Bar with Close Button, Fit/Fill Toggle, and Counter
-          SafeArea(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.close, color: Colors.white, size: 26),
-                    onPressed: () => Navigator.pop(context),
-                  ),
-                  Row(
-                    children: [
-                      if (widget.imageUrls.length > 1)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                          margin: const EdgeInsets.only(right: 8),
-                          decoration: BoxDecoration(
-                            color: Colors.black54,
-                            borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: Colors.white24, width: 0.5),
-                          ),
-                          child: Text(
-                            '${_currentIndex + 1} / ${widget.imageUrls.length}',
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      IconButton(
-                        icon: Icon(
-                          _isCoverMode ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
-                          color: Colors.white,
-                          size: 26,
-                        ),
-                        tooltip: _isCoverMode ? 'Fit to screen' : 'Fill screen',
-                        onPressed: _toggleFitMode,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-          ),
+          // Top Header Bar with Close Button, Fit/Fill Toggle, and Counter.
+          // Fades with the drag so it doesn't sit stuck in place while the
+          // photo moves away.
+          Opacity(opacity: photoViewerChromeOpacity(_dismissDy), child: _buildHeader()),
         ],
       ),
     );
