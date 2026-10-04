@@ -41,17 +41,24 @@ class FullScreenImageGallery extends StatefulWidget {
     required this.imageUrls,
     this.initialIndex = 0,
     this.initialCoverMode = false,
+    this.heroTagFor,
   });
 
   final List<String> imageUrls;
   final int initialIndex;
   final bool initialCoverMode;
 
+  /// [Hero] tag for the photo at an index. When set, each photo shares a Hero
+  /// with the caller's matching thumbnail, so the photo flies between the two
+  /// on open and close. Leave null for no Hero (e.g. avatars).
+  final Object Function(int index)? heroTagFor;
+
   static void open(
     BuildContext context,
     List<String> imageUrls, {
     int initialIndex = 0,
     bool initialCoverMode = false,
+    Object Function(int index)? heroTagFor,
   }) {
     if (imageUrls.isEmpty) return;
     Navigator.push(
@@ -61,6 +68,7 @@ class FullScreenImageGallery extends StatefulWidget {
           imageUrls: imageUrls,
           initialIndex: initialIndex,
           initialCoverMode: initialCoverMode,
+          heroTagFor: heroTagFor,
         ),
       ),
     );
@@ -233,6 +241,43 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     );
   }
 
+  // Wraps [photo] in a Hero shared with the caller's thumbnail, when the caller
+  // supplied tags.
+  Widget _withHero(int index, Widget photo) {
+    final tagFor = widget.heroTagFor;
+    if (tagFor == null) return photo;
+    return HeroMode(
+      // Off for the drag-dismiss exit: the photo has already left the screen
+      // and faded by the time the route pops, so a Hero flight would start
+      // from that off-screen rect and fly it back into view.
+      enabled: !_isDismissing,
+      child: Hero(
+        tag: tagFor(index),
+        curve: Curves.easeOutCubic,
+        // Needed on both ends for the flight to run on a swipe-back too.
+        transitionOnUserGestures: true,
+        flightShuttleBuilder: _buildHeroFlightShuttle,
+        child: photo,
+      ),
+    );
+  }
+
+  // Always fly the viewer's own (fit: contain) photo. The default shuttle shows
+  // the destination's child, which on close is the thumbnail's cropped image
+  // starting at full-screen size -- a jarring reframe on the first frame.
+  // Flutter prefers the destination Hero's builder and falls back to the
+  // source's, so setting it on the viewer's Hero alone covers both directions.
+  Widget _buildHeroFlightShuttle(
+    BuildContext flightContext,
+    Animation<double> animation,
+    HeroFlightDirection direction,
+    BuildContext fromContext,
+    BuildContext toContext,
+  ) {
+    final viewerContext = direction == HeroFlightDirection.push ? toContext : fromContext;
+    return (viewerContext.widget as Hero).child;
+  }
+
   Widget _buildPhotoPager() {
     return PageView.builder(
       controller: _pageController,
@@ -251,7 +296,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
             transformationController: _transformationController,
             minScale: 0.8,
             maxScale: 5.0,
-            child: _buildPhoto(url),
+            child: _withHero(index, _buildPhoto(url)),
           ),
         );
       },
