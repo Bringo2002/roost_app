@@ -10,7 +10,14 @@ import 'package:roost_app/theme/app_colors.dart';
 /// bright daylight one, which a flat `Colors.black45` circle doesn't
 /// always manage.
 class GlassIconButton extends StatelessWidget {
-  const GlassIconButton({super.key, required this.icon, required this.onTap, this.color, this.child});
+  const GlassIconButton({
+    super.key,
+    required this.icon,
+    required this.onTap,
+    this.color,
+    this.child,
+    this.tooltip,
+  });
 
   final IconData icon;
   final VoidCallback onTap;
@@ -19,6 +26,10 @@ class GlassIconButton extends StatelessWidget {
   /// Overrides [icon] entirely when the button needs a custom child
   /// (e.g. an animated favorite heart) rather than a plain static icon.
   final Widget? child;
+
+  /// Accessibility label (also the long-press tooltip). The button is
+  /// icon-only, so a screen reader has nothing to announce without one.
+  final String? tooltip;
 
   @override
   Widget build(BuildContext context) {
@@ -35,6 +46,7 @@ class GlassIconButton extends StatelessWidget {
           ),
           child: IconButton(
             padding: EdgeInsets.zero,
+            tooltip: tooltip,
             onPressed: onTap,
             icon: child ?? Icon(icon, color: color ?? AppColors.white, size: 20),
           ),
