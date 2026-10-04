@@ -142,6 +142,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
   }
 
   Widget _buildDotIndicator(int slideCount) {
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
     return Positioned(
       bottom: 24,
       left: 0,
@@ -151,7 +152,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
         children: List.generate(slideCount, (i) {
           final active = i == _currentIndex;
           return AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: reduceMotion ? Duration.zero : const Duration(milliseconds: 200),
             curve: Curves.easeOut,
             margin: const EdgeInsets.symmetric(horizontal: 2.5),
             width: active ? 18 : 6,
