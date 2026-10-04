@@ -132,6 +132,11 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
 
   bool get _isZoomedOrPanned => _transformationController.value != Matrix4.identity();
 
+  // The OS "reduce motion" / "remove animations" setting. The drag following
+  // the finger is direct manipulation and stays; the animations that play on
+  // their own (snap-back, exit, Hero flights) are skipped.
+  bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
+
   void _handleDismissDragStart(DragStartDetails details) {
     if (_isDismissing || _isZoomedOrPanned) return;
     _dragReleaseController.stop();
@@ -154,12 +159,18 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     );
     if (shouldDismiss) {
       _startDismiss();
+    } else if (_reduceMotion) {
+      setState(() => _dismissDy = 0);
     } else {
       _animateDragRelease(to: 0, curve: Curves.easeOutCubic);
     }
   }
 
   void _startDismiss() {
+    if (_reduceMotion) {
+      _popIfCurrent();
+      return;
+    }
     final screenHeight = MediaQuery.sizeOf(context).height;
     // Already dragged fully off-screen: nothing left to animate.
     if (_dismissDy >= screenHeight) {
@@ -251,8 +262,9 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     return HeroMode(
       // Off for the drag-dismiss exit: the photo has already left the screen
       // and faded by the time the route pops, so a Hero flight would start
-      // from that off-screen rect and fly it back into view.
-      enabled: !_isDismissing,
+      // from that off-screen rect and fly it back into view. Also off when the
+      // user asked for reduced motion.
+      enabled: !_isDismissing && !_reduceMotion,
       child: Hero(
         tag: tagFor(index),
         curve: Curves.easeOutCubic,
