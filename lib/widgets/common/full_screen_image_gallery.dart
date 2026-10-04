@@ -204,6 +204,35 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     });
   }
 
+  Widget _buildPhoto(String url) {
+    return SizedBox.expand(
+      child: CachedNetworkImage(
+        imageUrl: url,
+        width: double.infinity,
+        height: double.infinity,
+        fit: _isCoverMode ? BoxFit.cover : BoxFit.contain,
+        filterQuality: FilterQuality.high,
+        placeholder: (context, url) => const Center(
+          child: CircularProgressIndicator(
+            color: Colors.white70,
+            strokeWidth: 2,
+          ),
+        ),
+        errorWidget: (context, url, error) => const Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
+            SizedBox(height: 8),
+            Text(
+              'Could not load image',
+              style: TextStyle(color: Colors.grey, fontSize: 13),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildPhotoPager() {
     return PageView.builder(
       controller: _pageController,
@@ -222,32 +251,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
             transformationController: _transformationController,
             minScale: 0.8,
             maxScale: 5.0,
-            child: SizedBox.expand(
-              child: CachedNetworkImage(
-                imageUrl: url,
-                width: double.infinity,
-                height: double.infinity,
-                fit: _isCoverMode ? BoxFit.cover : BoxFit.contain,
-                filterQuality: FilterQuality.high,
-                placeholder: (context, url) => const Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.white70,
-                    strokeWidth: 2,
-                  ),
-                ),
-                errorWidget: (context, url, error) => const Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
-                    SizedBox(height: 8),
-                    Text(
-                      'Could not load image',
-                      style: TextStyle(color: Colors.grey, fontSize: 13),
-                    ),
-                  ],
-                ),
-              ),
-            ),
+            child: _buildPhoto(url),
           ),
         );
       },
