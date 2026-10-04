@@ -3,6 +3,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
@@ -79,6 +80,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
           return _HeroVideoSlide(url: widget.property.videoUrl!);
         }
         final photoIdx = _hasVideo ? idx - 1 : idx;
+        final l10n = AppLocalizations.of(context)!;
         final propertyId = widget.property.id;
         final thumbnail = _buildPhotoThumbnail(urls[photoIdx]);
         return GestureDetector(
@@ -88,15 +90,21 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
             initialIndex: photoIdx,
             heroTagFor: propertyId == null ? null : (i) => propertyPhotoHeroTag(propertyId, i),
           ),
-          child: propertyId == null
-              ? thumbnail
-              : Hero(
-                  tag: propertyPhotoHeroTag(propertyId, photoIdx),
-                  curve: Curves.easeOutCubic,
-                  // Needed on both ends for the flight to run on a swipe-back too.
-                  transitionOnUserGestures: true,
-                  child: thumbnail,
-                ),
+          child: Semantics(
+            button: true,
+            image: true,
+            label: l10n.photoPositionLabel(photoIdx + 1, urls.length),
+            hint: l10n.heroGalleryOpenPhotoHint,
+            child: propertyId == null
+                ? thumbnail
+                : Hero(
+                    tag: propertyPhotoHeroTag(propertyId, photoIdx),
+                    curve: Curves.easeOutCubic,
+                    // Needed on both ends for the flight to run on a swipe-back too.
+                    transitionOnUserGestures: true,
+                    child: thumbnail,
+                  ),
+          ),
         );
       },
     );
@@ -173,13 +181,18 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
               borderRadius: BorderRadius.circular(999),
               border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
             ),
-            child: Text(
-              '${_currentIndex + 1} / $slideCount',
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 1.0,
+            child: Semantics(
+              label: AppLocalizations.of(context)!.mediaPositionLabel(_currentIndex + 1, slideCount),
+              liveRegion: true,
+              excludeSemantics: true,
+              child: Text(
+                '${_currentIndex + 1} / $slideCount',
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                  letterSpacing: 1.0,
+                ),
               ),
             ),
           ),
@@ -274,6 +287,9 @@ class _HeroVideoSlideState extends State<_HeroVideoSlide> {
             left: 16,
             child: GlassIconButton(
               icon: _muted ? Icons.volume_off : Icons.volume_up,
+              tooltip: _muted
+                  ? AppLocalizations.of(context)!.heroGalleryUnmuteVideo
+                  : AppLocalizations.of(context)!.heroGalleryMuteVideo,
               onTap: _toggleMute,
             ),
           ),
