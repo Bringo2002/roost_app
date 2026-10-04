@@ -26,7 +26,9 @@ class AuthResult {
 class AuthService {
   static final String baseUrl = '${AppConfig.baseUrl}/api/auth';
   static const String _tokenKey = 'jwt_token';
-  static const FlutterSecureStorage _storage = FlutterSecureStorage();
+  static const FlutterSecureStorage _storage = FlutterSecureStorage(
+    aOptions: AndroidOptions(resetOnError: true),
+  );
 
   static Future<AuthResult> signup(
     String name,
@@ -339,7 +341,20 @@ class AuthService {
   }
 
   static Future<String?> _getTokenFromStorage() async {
-    String? token = await _storage.read(key: _tokenKey);
+    String? token;
+    try {
+      token = await _storage.read(key: _tokenKey);
+    } catch (e) {
+      // Android's EncryptedSharedPreferences can corrupt its Base64 blob
+      // after a backup/restore or KeyStore rotation, causing
+      // android.util.Base64.decode to throw ("incorrect ending byte").
+      // Wipe the corrupt entry so the next login can write a fresh one.
+      debugPrint('Secure storage read failed (corrupt entry?): $e');
+      try {
+        await _storage.delete(key: _tokenKey);
+      } catch (_) {}
+      return null;
+    }
     if (token == null || token.isEmpty) {
       // Check SharedPreferences for legacy token and migrate to FlutterSecureStorage
       try {
