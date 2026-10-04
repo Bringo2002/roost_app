@@ -10,6 +10,14 @@ import 'package:roost_app/widgets/property_detail/glass_icon_button.dart';
 
 const double kHeroMediaHeight = 340;
 
+/// [Hero] tag shared by the gallery's photo at [photoIndex] and the same photo
+/// in the full-screen viewer, so the thumbnail flies into the viewer and back.
+///
+/// Distinct from the `property-image-<id>` tag the listing card and the detail
+/// header share, so the two sets of Heroes can never collide. The separator
+/// keeps property 1 / photo 11 apart from property 11 / photo 1.
+String propertyPhotoHeroTag(int propertyId, int photoIndex) => 'property-photo-$propertyId-$photoIndex';
+
 class HeroMediaGallery extends StatefulWidget {
   const HeroMediaGallery({super.key, required this.property});
 
@@ -71,23 +79,42 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
           return _HeroVideoSlide(url: widget.property.videoUrl!);
         }
         final photoIdx = _hasVideo ? idx - 1 : idx;
+        final propertyId = widget.property.id;
+        final thumbnail = _buildPhotoThumbnail(urls[photoIdx]);
         return GestureDetector(
-          onTap: () => FullScreenImageGallery.open(context, urls, initialIndex: photoIdx),
-          child: CachedNetworkImage(
-            imageUrl: urls[photoIdx],
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Shimmer.fromColors(
-              baseColor: AppColors.grey800,
-              highlightColor: AppColors.grey700,
-              child: Container(color: AppColors.black),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: AppColors.surface,
-              child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 48),
-            ),
+          onTap: () => FullScreenImageGallery.open(
+            context,
+            urls,
+            initialIndex: photoIdx,
+            heroTagFor: propertyId == null ? null : (i) => propertyPhotoHeroTag(propertyId, i),
           ),
+          child: propertyId == null
+              ? thumbnail
+              : Hero(
+                  tag: propertyPhotoHeroTag(propertyId, photoIdx),
+                  curve: Curves.easeOutCubic,
+                  // Needed on both ends for the flight to run on a swipe-back too.
+                  transitionOnUserGestures: true,
+                  child: thumbnail,
+                ),
         );
       },
+    );
+  }
+
+  Widget _buildPhotoThumbnail(String url) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Shimmer.fromColors(
+        baseColor: AppColors.grey800,
+        highlightColor: AppColors.grey700,
+        child: Container(color: AppColors.black),
+      ),
+      errorWidget: (context, url, error) => Container(
+        color: AppColors.surface,
+        child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 48),
+      ),
     );
   }
 
