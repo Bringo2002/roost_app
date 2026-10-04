@@ -73,21 +73,25 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
         final photoIdx = _hasVideo ? idx - 1 : idx;
         return GestureDetector(
           onTap: () => FullScreenImageGallery.open(context, urls, initialIndex: photoIdx),
-          child: CachedNetworkImage(
-            imageUrl: urls[photoIdx],
-            fit: BoxFit.cover,
-            placeholder: (context, url) => Shimmer.fromColors(
-              baseColor: AppColors.grey800,
-              highlightColor: AppColors.grey700,
-              child: Container(color: AppColors.black),
-            ),
-            errorWidget: (context, url, error) => Container(
-              color: AppColors.surface,
-              child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 48),
-            ),
-          ),
+          child: _buildPhotoThumbnail(urls[photoIdx]),
         );
       },
+    );
+  }
+
+  Widget _buildPhotoThumbnail(String url) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Shimmer.fromColors(
+        baseColor: AppColors.grey800,
+        highlightColor: AppColors.grey700,
+        child: Container(color: AppColors.black),
+      ),
+      errorWidget: (context, url, error) => Container(
+        color: AppColors.surface,
+        child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 48),
+      ),
     );
   }
 
