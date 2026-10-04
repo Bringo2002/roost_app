@@ -10,6 +10,14 @@ import 'package:roost_app/widgets/property_detail/glass_icon_button.dart';
 
 const double kHeroMediaHeight = 340;
 
+/// [Hero] tag shared by the gallery's photo at [photoIndex] and the same photo
+/// in the full-screen viewer, so the thumbnail flies into the viewer and back.
+///
+/// Distinct from the `property-image-<id>` tag the listing card and the detail
+/// header share, so the two sets of Heroes can never collide. The separator
+/// keeps property 1 / photo 11 apart from property 11 / photo 1.
+String propertyPhotoHeroTag(int propertyId, int photoIndex) => 'property-photo-$propertyId-$photoIndex';
+
 class HeroMediaGallery extends StatefulWidget {
   const HeroMediaGallery({super.key, required this.property});
 
