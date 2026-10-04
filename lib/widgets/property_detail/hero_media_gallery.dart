@@ -79,9 +79,24 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
           return _HeroVideoSlide(url: widget.property.videoUrl!);
         }
         final photoIdx = _hasVideo ? idx - 1 : idx;
+        final propertyId = widget.property.id;
+        final thumbnail = _buildPhotoThumbnail(urls[photoIdx]);
         return GestureDetector(
-          onTap: () => FullScreenImageGallery.open(context, urls, initialIndex: photoIdx),
-          child: _buildPhotoThumbnail(urls[photoIdx]),
+          onTap: () => FullScreenImageGallery.open(
+            context,
+            urls,
+            initialIndex: photoIdx,
+            heroTagFor: propertyId == null ? null : (i) => propertyPhotoHeroTag(propertyId, i),
+          ),
+          child: propertyId == null
+              ? thumbnail
+              : Hero(
+                  tag: propertyPhotoHeroTag(propertyId, photoIdx),
+                  curve: Curves.easeOutCubic,
+                  // Needed on both ends for the flight to run on a swipe-back too.
+                  transitionOnUserGestures: true,
+                  child: thumbnail,
+                ),
         );
       },
     );
