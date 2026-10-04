@@ -36,5 +36,15 @@
   "mapLoadFailed": "Ramani imeshindwa kupakia. Angalia muunganisho wako kisha ujaribu tena.",
   "mapRetry": "Jaribu Tena",
   "inAppMapSemanticLabel": "Ramani inayoonyesha {title} na huduma za karibu",
-  "mapViewSemanticLabel": "{count, plural, =0{Ramani haionyeshi nyumba} one{Ramani inaonyesha nyumba 1} other{Ramani inaonyesha nyumba {count}}}"
+  "mapViewSemanticLabel": "{count, plural, =0{Ramani haionyeshi nyumba} one{Ramani inaonyesha nyumba 1} other{Ramani inaonyesha nyumba {count}}}",
+  "photoPositionLabel": "Picha {current} kati ya {total}",
+  "mediaPositionLabel": "{current} kati ya {total}",
+  "photoViewerClose": "Funga",
+  "photoViewerFitToScreen": "Ilingane na skrini",
+  "photoViewerFillScreen": "Jaza skrini",
+  "photoViewerLoading": "Inapakia picha",
+  "photoViewerLoadFailed": "Imeshindikana kupakia picha",
+  "heroGalleryOpenPhotoHint": "Hufungua picha kwenye skrini nzima",
+  "heroGalleryMuteVideo": "Nyamazisha video",
+  "heroGalleryUnmuteVideo": "Washa sauti ya video"
 }
