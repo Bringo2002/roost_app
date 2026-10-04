@@ -178,5 +178,61 @@
         "type": "int"
       }
     }
+  },
+  "photoPositionLabel": "Photo {current} of {total}",
+  "@photoPositionLabel": {
+    "description": "Accessibility label for a photo in a listing's gallery or the full-screen viewer, saying which photo it is out of how many.",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "mediaPositionLabel": "{current} of {total}",
+  "@mediaPositionLabel": {
+    "description": "Accessibility label for the position counter (for example 2 of 5) over a listing's gallery and in the full-screen photo viewer.",
+    "placeholders": {
+      "current": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "photoViewerClose": "Close",
+  "@photoViewerClose": {
+    "description": "Tooltip and accessibility label for the button that closes the full-screen photo viewer."
+  },
+  "photoViewerFitToScreen": "Fit to screen",
+  "@photoViewerFitToScreen": {
+    "description": "Tooltip for the viewer button that shows each photo whole, letterboxed to fit inside the screen."
+  },
+  "photoViewerFillScreen": "Fill screen",
+  "@photoViewerFillScreen": {
+    "description": "Tooltip for the viewer button that crops each photo to fill the whole screen."
+  },
+  "photoViewerLoading": "Loading photo",
+  "@photoViewerLoading": {
+    "description": "Accessibility label for the spinner shown while a photo loads in the full-screen viewer."
+  },
+  "photoViewerLoadFailed": "Could not load image",
+  "@photoViewerLoadFailed": {
+    "description": "Message shown in the full-screen viewer when a photo fails to load."
+  },
+  "heroGalleryOpenPhotoHint": "Opens the photo full screen",
+  "@heroGalleryOpenPhotoHint": {
+    "description": "Accessibility hint on a photo in the listing gallery, which opens the full-screen viewer when activated."
+  },
+  "heroGalleryMuteVideo": "Mute video",
+  "@heroGalleryMuteVideo": {
+    "description": "Tooltip and accessibility label for the listing video button that turns its sound off."
+  },
+  "heroGalleryUnmuteVideo": "Unmute video",
+  "@heroGalleryUnmuteVideo": {
+    "description": "Tooltip and accessibility label for the listing video button that turns its sound on."
   }
 }

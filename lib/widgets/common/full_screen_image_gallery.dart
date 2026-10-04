@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 
 /// Drag distance, in logical pixels, past which letting go dismisses the viewer.
 const double photoViewerDismissDistance = 120;
@@ -131,6 +132,11 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
 
   bool get _isZoomedOrPanned => _transformationController.value != Matrix4.identity();
 
+  // The OS "reduce motion" / "remove animations" setting. The drag following
+  // the finger is direct manipulation and stays; the animations that play on
+  // their own (snap-back, exit, Hero flights) are skipped.
+  bool get _reduceMotion => MediaQuery.disableAnimationsOf(context);
+
   void _handleDismissDragStart(DragStartDetails details) {
     if (_isDismissing || _isZoomedOrPanned) return;
     _dragReleaseController.stop();
@@ -153,12 +159,18 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     );
     if (shouldDismiss) {
       _startDismiss();
+    } else if (_reduceMotion) {
+      setState(() => _dismissDy = 0);
     } else {
       _animateDragRelease(to: 0, curve: Curves.easeOutCubic);
     }
   }
 
   void _startDismiss() {
+    if (_reduceMotion) {
+      _popIfCurrent();
+      return;
+    }
     final screenHeight = MediaQuery.sizeOf(context).height;
     // Already dragged fully off-screen: nothing left to animate.
     if (_dismissDy >= screenHeight) {
@@ -220,20 +232,21 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
         height: double.infinity,
         fit: _isCoverMode ? BoxFit.cover : BoxFit.contain,
         filterQuality: FilterQuality.high,
-        placeholder: (context, url) => const Center(
+        placeholder: (context, url) => Center(
           child: CircularProgressIndicator(
             color: Colors.white70,
             strokeWidth: 2,
+            semanticsLabel: AppLocalizations.of(context)!.photoViewerLoading,
           ),
         ),
-        errorWidget: (context, url, error) => const Column(
+        errorWidget: (context, url, error) => Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
-            SizedBox(height: 8),
+            const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
+            const SizedBox(height: 8),
             Text(
-              'Could not load image',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+              AppLocalizations.of(context)!.photoViewerLoadFailed,
+              style: const TextStyle(color: Colors.grey, fontSize: 13),
             ),
           ],
         ),
@@ -249,8 +262,9 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     return HeroMode(
       // Off for the drag-dismiss exit: the photo has already left the screen
       // and faded by the time the route pops, so a Hero flight would start
-      // from that off-screen rect and fly it back into view.
-      enabled: !_isDismissing,
+      // from that off-screen rect and fly it back into view. Also off when the
+      // user asked for reduced motion.
+      enabled: !_isDismissing && !_reduceMotion,
       child: Hero(
         tag: tagFor(index),
         curve: Curves.easeOutCubic,
@@ -296,7 +310,11 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
             transformationController: _transformationController,
             minScale: 0.8,
             maxScale: 5.0,
-            child: _withHero(index, _buildPhoto(url)),
+            child: Semantics(
+              image: true,
+              label: AppLocalizations.of(context)!.photoPositionLabel(index + 1, widget.imageUrls.length),
+              child: _withHero(index, _buildPhoto(url)),
+            ),
           ),
         );
       },
@@ -304,6 +322,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
   }
 
   Widget _buildHeader() {
+    final l10n = AppLocalizations.of(context)!;
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -312,6 +331,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
           children: [
             IconButton(
               icon: const Icon(Icons.close, color: Colors.white, size: 26),
+              tooltip: l10n.photoViewerClose,
               onPressed: () => Navigator.pop(context),
             ),
             Row(
@@ -325,12 +345,17 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.white24, width: 0.5),
                     ),
-                    child: Text(
-                      '${_currentIndex + 1} / ${widget.imageUrls.length}',
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 13,
-                        fontWeight: FontWeight.bold,
+                    child: Semantics(
+                      label: l10n.mediaPositionLabel(_currentIndex + 1, widget.imageUrls.length),
+                      liveRegion: true,
+                      excludeSemantics: true,
+                      child: Text(
+                        '${_currentIndex + 1} / ${widget.imageUrls.length}',
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
                     ),
                   ),
@@ -340,7 +365,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
                     color: Colors.white,
                     size: 26,
                   ),
-                  tooltip: _isCoverMode ? 'Fit to screen' : 'Fill screen',
+                  tooltip: _isCoverMode ? l10n.photoViewerFitToScreen : l10n.photoViewerFillScreen,
                   onPressed: _toggleFitMode,
                 ),
               ],
