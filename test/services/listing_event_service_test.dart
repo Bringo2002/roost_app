@@ -4,6 +4,7 @@ import 'package:roost_app/services/listing_event_service.dart';
 
 void main() {
   late List<Map<String, dynamic>> bodies;
+  late List<String> endpoints;
   late bool signedIn;
   late Object? failWith;
 
@@ -12,7 +13,11 @@ void main() {
       flushDelay: flushDelay,
       isSignedIn: () async => signedIn,
       poster: (endpoint, body) async {
-        expect(endpoint, '/api/events/listings');
+        // Record rather than expect(): when the flush timer fires inside
+        // tester.pump, expect() is a guarded call made while pump is still
+        // running and throws "Guarded function conflict". Asserted in
+        // tearDown instead.
+        endpoints.add(endpoint);
         if (failWith != null) throw failWith!;
         bodies.add(body);
         return {'accepted': 0, 'dropped': 0};
@@ -25,8 +30,13 @@ void main() {
 
   setUp(() {
     bodies = [];
+    endpoints = [];
     signedIn = true;
     failWith = null;
+  });
+
+  tearDown(() {
+    expect(endpoints, everyElement('/api/events/listings'));
   });
 
   group('track + flush', () {
