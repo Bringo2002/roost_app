@@ -20,6 +20,20 @@ if (localPropertiesFile.exists()) {
 }
 val mapsApiKey: String = localProperties.getProperty("MAPS_API_KEY") ?: ""
 
+// Release signing config. Copy android/key.properties.example to
+// android/key.properties (gitignored) and fill it in. The keystore itself
+// must never be committed either.
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+val hasReleaseKeystore = keystorePropertiesFile.exists()
+if (hasReleaseKeystore) {
+    FileInputStream(keystorePropertiesFile).use { keystoreProperties.load(it) }
+}
+
+fun requiredKeystoreProperty(name: String): String =
+    keystoreProperties.getProperty(name)
+        ?: error("android/key.properties is missing required property '$name'")
+
 android {
     namespace = "com.roost.app"
     compileSdk = 36
@@ -46,12 +60,47 @@ android {
         }
     }
 
+    signingConfigs {
+        if (hasReleaseKeystore) {
+            create("release") {
+                keyAlias = requiredKeystoreProperty("keyAlias")
+                keyPassword = requiredKeystoreProperty("keyPassword")
+                storeFile = file(requiredKeystoreProperty("storeFile"))
+                storePassword = requiredKeystoreProperty("storePassword")
+            }
+        }
+    }
+
     buildTypes {
         release {
-            // TODO: Add your own signing config for the release build.
-            // Signing with the debug keys for now, so `flutter run --release` works.
-            signingConfig = signingConfigs.getByName("debug")
+            // Without key.properties, fall back to the debug key so local
+            // `flutter run --release` and sideloaded APKs keep working. The
+            // taskGraph guard below stops that fallback from ever producing a
+            // Play Store bundle.
+            signingConfig = if (hasReleaseKeystore) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
+    }
+}
+
+gradle.taskGraph.whenReady {
+    if (hasReleaseKeystore) return@whenReady
+    // Match the exact task name: "bundleRelease" is a substring of tasks such
+    // as bundleReleaseResources that also run during a plain APK build.
+    if (allTasks.any { it.name == "bundleRelease" }) {
+        throw GradleException(
+            "Refusing to build a release app bundle signed with the debug key. " +
+                "Create android/key.properties (see key.properties.example).",
+        )
+    }
+    if (allTasks.any { it.name == "assembleRelease" }) {
+        logger.warn(
+            "WARNING: android/key.properties not found; the release APK is " +
+                "signed with the debug key and must not be distributed.",
+        )
     }
 }
 
