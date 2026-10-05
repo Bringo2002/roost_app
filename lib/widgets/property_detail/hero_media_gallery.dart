@@ -29,6 +29,7 @@ class HeroMediaGallery extends StatefulWidget {
 }
 
 class _HeroMediaGalleryState extends State<HeroMediaGallery> {
+  final PageController _pageController = PageController();
   int _currentIndex = 0;
 
   List<String> get _photoUrls {
@@ -45,6 +46,12 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
   }
 
   bool get _hasVideo => widget.property.videoUrl != null && widget.property.videoUrl!.isNotEmpty;
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +80,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
     }
 
     return PageView.builder(
+      controller: _pageController,
       itemCount: slideCount,
       onPageChanged: (idx) => setState(() => _currentIndex = idx),
       itemBuilder: (context, idx) {
