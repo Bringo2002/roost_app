@@ -69,4 +69,31 @@ void main() {
       expect(AppColors.warning, Colors.amber);
     });
   });
+
+  group('AppColors media overlays', () {
+    // Exact-value locks: these replaced raw literals in the gallery and the
+    // photo viewer as a no-visual-change refactor.
+    test('glass fill and border keep their original alphas', () {
+      expect(AppColors.glassFill, Colors.black.withValues(alpha: 0.28));
+      expect(AppColors.glassBorder, Colors.white.withValues(alpha: 0.14));
+    });
+
+    test('viewer chip and spinner colors equal the Colors they replaced', () {
+      expect(AppColors.mediaChipFill, Colors.black54);
+      expect(AppColors.mediaChipBorder, Colors.white24);
+      expect(AppColors.mediaProgress, Colors.white70);
+    });
+
+    test('bottom scrim keeps its original direction, colors and stops', () {
+      final gradient = AppColors.mediaBottomScrimGradient;
+      expect(gradient.begin, Alignment.bottomCenter);
+      expect(gradient.end, Alignment.topCenter);
+      expect(gradient.colors, [Colors.black.withValues(alpha: 0.55), Colors.transparent]);
+      expect(gradient.stops, [0.0, 0.5]);
+    });
+
+    test('grey400 is the value the viewer error state used as Colors.grey', () {
+      expect(AppColors.grey400, const Color(0xFF9E9E9E));
+    });
+  });
 }
