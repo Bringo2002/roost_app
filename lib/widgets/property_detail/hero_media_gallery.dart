@@ -19,6 +19,12 @@ const double kHeroMediaHeight = 340;
 /// keeps property 1 / photo 11 apart from property 11 / photo 1.
 String propertyPhotoHeroTag(int propertyId, int photoIndex) => 'property-photo-$propertyId-$photoIndex';
 
+/// Index of the gallery slide that shows the photo at [photoIndex].
+///
+/// When the listing has a video it takes slide 0 and every photo moves along
+/// by one.
+int slideIndexForPhoto(int photoIndex, {required bool hasVideo}) => hasVideo ? photoIndex + 1 : photoIndex;
+
 class HeroMediaGallery extends StatefulWidget {
   const HeroMediaGallery({super.key, required this.property});
 
@@ -29,6 +35,7 @@ class HeroMediaGallery extends StatefulWidget {
 }
 
 class _HeroMediaGalleryState extends State<HeroMediaGallery> {
+  final PageController _pageController = PageController();
   int _currentIndex = 0;
 
   List<String> get _photoUrls {
@@ -45,6 +52,21 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
   }
 
   bool get _hasVideo => widget.property.videoUrl != null && widget.property.videoUrl!.isNotEmpty;
+
+  // Keeps this gallery on the photo the full-screen viewer is showing, so that
+  // closing the viewer flies the photo back to its thumbnail. Jumps rather than
+  // animates: the viewer covers this page, and an animation still running when
+  // the viewer closes would leave the Hero flying toward a moving target.
+  void _followViewer(int photoIndex) {
+    if (!mounted || !_pageController.hasClients) return;
+    _pageController.jumpToPage(slideIndexForPhoto(photoIndex, hasVideo: _hasVideo));
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +95,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
     }
 
     return PageView.builder(
+      controller: _pageController,
       itemCount: slideCount,
       onPageChanged: (idx) => setState(() => _currentIndex = idx),
       itemBuilder: (context, idx) {
@@ -89,6 +112,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
             urls,
             initialIndex: photoIdx,
             heroTagFor: propertyId == null ? null : (i) => propertyPhotoHeroTag(propertyId, i),
+            onPhotoChanged: _followViewer,
           ),
           child: Semantics(
             button: true,
