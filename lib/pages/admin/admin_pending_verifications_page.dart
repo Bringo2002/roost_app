@@ -59,7 +59,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('🎉 Verification & Proofs Approved Successfully!'),
-          backgroundColor: Color(0xFF10B981),
+          backgroundColor: AppColors.verified,
         ),
       );
     } catch (e) {
@@ -154,7 +154,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
         ],
       ),
       body: _loading
-          ? const Center(child: CircularProgressIndicator(color: Color(0xFF10B981)))
+          ? const Center(child: CircularProgressIndicator(color: AppColors.verified))
           : _error != null
               ? Center(
                   child: Column(
@@ -167,7 +167,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
                   ),
                 )
               : RefreshIndicator(
-                  color: const Color(0xFF10B981),
+                  color: AppColors.verified,
                   backgroundColor: const Color(0xFF18181B),
                   onRefresh: _loadPending,
                   child: ListView(
@@ -203,7 +203,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
                           ),
                           child: const Column(
                             children: [
-                              Icon(Icons.verified_outlined, color: Color(0xFF10B981), size: 48),
+                              Icon(Icons.verified_outlined, color: AppColors.verified, size: 48),
                               SizedBox(height: 12),
                               Text(
                                 'Verification Queue Clear',
@@ -251,9 +251,9 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
       ),
       selected: isSelected,
       onSelected: (_) => setState(() => _selectedFilter = key),
-      selectedColor: const Color(0xFF10B981),
+      selectedColor: AppColors.verified,
       backgroundColor: const Color(0xFF18181B),
-      side: BorderSide(color: isSelected ? const Color(0xFF10B981) : Colors.white10),
+      side: BorderSide(color: isSelected ? AppColors.verified : Colors.white10),
     );
   }
 
@@ -272,11 +272,11 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildMetricItem('Pending Queue', '${_pending.length}', Icons.pending_actions, Colors.amber),
+          _buildMetricItem('Pending Queue', '${_pending.length}', Icons.pending_actions, AppColors.warning),
           Container(width: 1, height: 36, color: Colors.white10),
-          _buildMetricItem('Doc Proofs', '$_docCount', Icons.description_outlined, const Color(0xFF38BDF8)),
+          _buildMetricItem('Doc Proofs', '$_docCount', Icons.description_outlined, AppColors.skyBlue),
           Container(width: 1, height: 36, color: Colors.white10),
-          _buildMetricItem('GPS Confirmed', '$_gpsCount', Icons.location_on_outlined, const Color(0xFF10B981)),
+          _buildMetricItem('GPS Confirmed', '$_gpsCount', Icons.location_on_outlined, AppColors.verified),
         ],
       ),
     );
@@ -394,7 +394,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
                     : const Icon(Icons.fact_check, size: 15),
                 label: Text(busy ? 'Processing...' : 'Audit & Inspect Proofs', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF10B981),
+                  backgroundColor: AppColors.verified,
                   foregroundColor: Colors.white,
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
@@ -411,18 +411,18 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
       decoration: BoxDecoration(
-        color: isDone ? const Color(0xFF10B981).withAlpha(25) : Colors.white10,
+        color: isDone ? AppColors.verified.withAlpha(25) : Colors.white10,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: isDone ? const Color(0xFF10B981).withAlpha(60) : Colors.white12),
+        border: Border.all(color: isDone ? AppColors.verified.withAlpha(60) : Colors.white12),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(icon, size: 11, color: isDone ? const Color(0xFF34D399) : Colors.white38),
+          Icon(icon, size: 11, color: isDone ? AppColors.verifiedLight : Colors.white38),
           const SizedBox(width: 4),
           Text(
             label,
-            style: TextStyle(color: isDone ? const Color(0xFF34D399) : Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
+            style: TextStyle(color: isDone ? AppColors.verifiedLight : Colors.white54, fontSize: 10, fontWeight: FontWeight.w600),
           ),
         ],
       ),
@@ -505,11 +505,11 @@ class _AuditDocumentSheet extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            const Icon(Icons.schedule, size: 12, color: Color(0xFF10B981)),
+                            const Icon(Icons.schedule, size: 12, color: AppColors.verified),
                             const SizedBox(width: 4),
                             Text(
                               _formatRelativeTime(property.listedAt),
-                              style: const TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.w600),
+                              style: const TextStyle(color: AppColors.verifiedLight, fontSize: 11, fontWeight: FontWeight.w600),
                             ),
                           ],
                         ),
@@ -536,7 +536,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                 child: Row(
                   children: [
                     const CircleAvatar(
-                      backgroundColor: Color(0xFF10B981),
+                      backgroundColor: AppColors.verified,
                       child: Icon(Icons.person, color: Colors.white),
                     ),
                     const SizedBox(width: 12),
@@ -560,10 +560,10 @@ class _AuditDocumentSheet extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF10B981).withAlpha(30),
+                          color: AppColors.verified.withAlpha(30),
                           borderRadius: BorderRadius.circular(8),
                         ),
-                        child: const Text('GPS Matched', style: TextStyle(color: Color(0xFF34D399), fontSize: 11, fontWeight: FontWeight.bold)),
+                        child: const Text('GPS Matched', style: TextStyle(color: AppColors.verifiedLight, fontSize: 11, fontWeight: FontWeight.bold)),
                       ),
                   ],
                 ),
@@ -642,7 +642,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                     // Ownership Document Proofs Section
                     Row(
                       children: [
-                        const Icon(Icons.description, color: Color(0xFF38BDF8), size: 18),
+                        const Icon(Icons.description, color: AppColors.skyBlue, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           'ATTACHED OWNERSHIP PROOFS (${docs.length})',
@@ -659,11 +659,11 @@ class _AuditDocumentSheet extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF18181B),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.amber.withAlpha(50)),
+                          border: Border.all(color: AppColors.warning.withAlpha(50)),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                            Icon(Icons.info_outline, color: AppColors.warning, size: 20),
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -695,7 +695,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                     // Property Photos Section
                     Row(
                       children: [
-                        const Icon(Icons.photo_library, color: Colors.amber, size: 18),
+                        const Icon(Icons.photo_library, color: AppColors.warning, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           'LISTING PHOTOS (${photos.length})',
@@ -762,7 +762,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                         borderRadius: BorderRadius.circular(12),
                         boxShadow: [
                           BoxShadow(
-                            color: const Color(0xFF10B981).withAlpha(80),
+                            color: AppColors.verified.withAlpha(80),
                             blurRadius: 16,
                             spreadRadius: 0,
                             offset: const Offset(0, 4),
@@ -776,7 +776,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                             : const Icon(Icons.verified, size: 16),
                         label: Text(busy ? 'Processing...' : 'Grant VERIFIED', style: const TextStyle(fontWeight: FontWeight.bold)),
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF10B981),
+                          backgroundColor: AppColors.verified,
                           foregroundColor: Colors.white,
                           padding: const EdgeInsets.symmetric(vertical: 14),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -810,7 +810,7 @@ class _AuditDocumentSheet extends StatelessWidget {
         decoration: BoxDecoration(
           color: const Color(0xFF18181B),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFF38BDF8).withAlpha(80)),
+          border: Border.all(color: AppColors.skyBlue.withAlpha(80)),
         ),
         child: Column(
           children: [
@@ -823,11 +823,11 @@ class _AuditDocumentSheet extends StatelessWidget {
                   fit: BoxFit.cover,
                   placeholder: (_, __) => Container(
                     color: Colors.grey[900],
-                    child: const Icon(Icons.description, color: Color(0xFF38BDF8), size: 36),
+                    child: const Icon(Icons.description, color: AppColors.skyBlue, size: 36),
                   ),
                   errorWidget: (_, __, ___) => Container(
                     color: Colors.grey[900],
-                    child: const Icon(Icons.description, color: Color(0xFF38BDF8), size: 36),
+                    child: const Icon(Icons.description, color: AppColors.skyBlue, size: 36),
                   ),
                 ),
               ),
@@ -857,13 +857,13 @@ class _AuditDocumentSheet extends StatelessWidget {
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: isDone
-                ? const Color(0xFF10B981).withAlpha(30)
+                ? AppColors.verified.withAlpha(30)
                 : Colors.white12,
           ),
           child: Icon(
             isDone ? Icons.check_rounded : Icons.remove_rounded,
             size: 11,
-            color: isDone ? const Color(0xFF10B981) : Colors.white38,
+            color: isDone ? AppColors.verified : Colors.white38,
           ),
         ),
         const SizedBox(width: 8),
@@ -889,14 +889,14 @@ class _AuditDocumentSheet extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
           decoration: BoxDecoration(
             color: isDone
-                ? const Color(0xFF10B981).withAlpha(20)
+                ? AppColors.verified.withAlpha(20)
                 : Colors.white10,
             borderRadius: BorderRadius.circular(6),
           ),
           child: Text(
             status.toUpperCase(),
             style: TextStyle(
-                color: isDone ? const Color(0xFF34D399) : Colors.white38,
+                color: isDone ? AppColors.verifiedLight : Colors.white38,
                 fontSize: 9,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5),
@@ -928,7 +928,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                 hintText: 'e.g. Unclear title deed copy / Invalid utility bill',
                 hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
                 enabledBorder: UnderlineInputBorder(borderSide: BorderSide(color: Colors.white24)),
-                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: Color(0xFF10B981))),
+                focusedBorder: UnderlineInputBorder(borderSide: BorderSide(color: AppColors.verified)),
               ),
             ),
           ],
