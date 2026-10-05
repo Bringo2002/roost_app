@@ -435,7 +435,7 @@ class _ReportsSheetState extends State<_ReportsSheet> {
               Center(
                 child: TextButton(
                   onPressed: _submitting ? null : _delete,
-                  child: Text('Delete listing permanently', style: TextStyle(color: Colors.red[300], fontSize: 12)),
+                  child: const Text('Delete listing permanently', style: TextStyle(color: AppColors.error, fontSize: 12)),
                 ),
               ),
             ],
