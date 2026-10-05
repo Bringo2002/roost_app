@@ -19,6 +19,12 @@ const double kHeroMediaHeight = 340;
 /// keeps property 1 / photo 11 apart from property 11 / photo 1.
 String propertyPhotoHeroTag(int propertyId, int photoIndex) => 'property-photo-$propertyId-$photoIndex';
 
+/// Index of the gallery slide that shows the photo at [photoIndex].
+///
+/// When the listing has a video it takes slide 0 and every photo moves along
+/// by one.
+int slideIndexForPhoto(int photoIndex, {required bool hasVideo}) => hasVideo ? photoIndex + 1 : photoIndex;
+
 class HeroMediaGallery extends StatefulWidget {
   const HeroMediaGallery({super.key, required this.property});
 
