@@ -38,7 +38,11 @@ void main() {
 
     test('destructive is value-identical to Colors.redAccent', () {
       // Guards the no-visual-change guarantee of the red tokenization.
-      expect(AppColors.destructive, Colors.redAccent);
+      // Compare ARGB values rather than the objects: Colors.redAccent is a
+      // MaterialAccentColor swatch, and Color equality also checks the
+      // runtime type, so a plain Color is never == to a swatch even when
+      // every channel matches.
+      expect(AppColors.destructive.toARGB32(), Colors.redAccent.toARGB32());
     });
   });
 
@@ -65,8 +69,9 @@ void main() {
   group("AppColors.warning", () {
     test("is value-identical to Colors.amber", () {
       // Guards the no-visual-change guarantee of replacing Colors.amber
-      // with AppColors.warning across the landlord screens.
-      expect(AppColors.warning, Colors.amber);
+      // with AppColors.warning across the landlord screens. Values are
+      // compared (not objects) for the swatch-vs-Color reason noted above.
+      expect(AppColors.warning.toARGB32(), Colors.amber.toARGB32());
     });
   });
 
