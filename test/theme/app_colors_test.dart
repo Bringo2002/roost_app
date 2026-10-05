@@ -102,12 +102,15 @@ void main() {
     });
   });
 
-  group('AppColors.error', () {
-    test('is value-identical to Colors.red', () {
-      // Guards the no-visual-change guarantee of replacing Colors.red with
-      // AppColors.error. Compare ARGB values, not objects: Colors.red is a
-      // MaterialColor swatch and Color equality also checks the runtime type.
-      expect(AppColors.error.toARGB32(), Colors.red.toARGB32());
+  group('AppColors red', () {
+    test('error is the single app red', () {
+      expect(AppColors.error.toARGB32(), 0xFFFF5252);
+    });
+
+    test('destructive is the same red as error', () {
+      // The two names exist for readability at call sites; they must never
+      // drift apart into two different reds again.
+      expect(AppColors.destructive.toARGB32(), AppColors.error.toARGB32());
     });
   });
 }
