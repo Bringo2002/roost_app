@@ -1228,7 +1228,7 @@ class _ApplicationsBottomSheetState extends State<ApplicationsBottomSheet> {
       bg = AppColors.verified.withValues(alpha: 0.15);
       fg = AppColors.verified;
     } else if (status == 'REJECTED') {
-      bg = Colors.red.withValues(alpha: 0.15);
+      bg = AppColors.error.withValues(alpha: 0.15);
       fg = AppColors.destructive;
     } else {
       bg = AppColors.warning.withValues(alpha: 0.15);
