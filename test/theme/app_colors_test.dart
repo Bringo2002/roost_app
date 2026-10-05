@@ -101,4 +101,13 @@ void main() {
       expect(AppColors.grey400, const Color(0xFF9E9E9E));
     });
   });
+
+  group('AppColors.error', () {
+    test('is value-identical to Colors.red', () {
+      // Guards the no-visual-change guarantee of replacing Colors.red with
+      // AppColors.error. Compare ARGB values, not objects: Colors.red is a
+      // MaterialColor swatch and Color equality also checks the runtime type.
+      expect(AppColors.error.toARGB32(), Colors.red.toARGB32());
+    });
+  });
 }

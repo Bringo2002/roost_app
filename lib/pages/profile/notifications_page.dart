@@ -211,7 +211,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                           padding: const EdgeInsets.only(right: 24),
                           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                           decoration: BoxDecoration(
-                            color: Colors.red.withValues(alpha: 0.8),
+                            color: AppColors.error.withValues(alpha: 0.8),
                             borderRadius: BorderRadius.circular(14),
                           ),
                           child: const Icon(Icons.delete_outline_rounded, color: Colors.white, size: 24),

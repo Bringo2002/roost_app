@@ -129,7 +129,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
                                             color: status == 'APPROVED'
                                                 ? Colors.white.withValues(alpha: 0.15)
                                                 : status == 'REJECTED'
-                                                    ? Colors.red.withValues(alpha: 0.2)
+                                                    ? AppColors.error.withValues(alpha: 0.2)
                                                     : Colors.amber.withValues(alpha: 0.2),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
@@ -139,7 +139,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
                                               color: status == 'APPROVED'
                                                   ? Colors.white
                                                   : status == 'REJECTED'
-                                                      ? Colors.red
+                                                      ? AppColors.error
                                                       : Colors.amber,
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
