@@ -371,7 +371,10 @@ class _InAppMapPageState extends State<InAppMapPage> {
               style: AppMapStyle.darkMapStyle,
               myLocationEnabled: true,
               myLocationButtonEnabled: false,
-              zoomControlsEnabled: false,
+              // Android only -- silently ignored on iOS, which has no
+              // on-screen zoom buttons in the native SDK at all (pinch
+              // only there, regardless of this setting).
+              zoomControlsEnabled: true,
               compassEnabled: true,
               buildingsEnabled: true,
               mapToolbarEnabled: false,
