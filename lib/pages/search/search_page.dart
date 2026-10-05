@@ -520,10 +520,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: selected ? const Color(0xFF10B981) : AppColors.surfaceContainer,
+          color: selected ? AppColors.verified : AppColors.surfaceContainer,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
-            color: selected ? const Color(0xFF10B981) : Colors.white12,
+            color: selected ? AppColors.verified : Colors.white12,
           ),
         ),
         child: Text(
@@ -723,14 +723,14 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
                       margin: const EdgeInsets.only(bottom: 10),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF10B981).withAlpha(18),
+                        color: AppColors.verified.withAlpha(18),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: const Color(0xFF10B981).withAlpha(50)),
+                        border: Border.all(color: AppColors.verified.withAlpha(50)),
                       ),
                       child: const Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('TRUST & VERIFICATION TIERS', style: TextStyle(color: Color(0xFF34D399), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                          Text('TRUST & VERIFICATION TIERS', style: TextStyle(color: AppColors.verifiedLight, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
                           SizedBox(height: 6),
                           Row(children: [Text('Tier 1 (🛡️ Phone): ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)), Expanded(child: Text('SMS identity confirmed by Roost', style: TextStyle(color: Colors.white70, fontSize: 11)))]),
                           SizedBox(height: 4),
@@ -744,7 +744,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                       title: const Text('🛡️ Verified Landlords Only', style: TextStyle(color: Colors.white, fontSize: 14)),
                       subtitle: const Text('Phone identity confirmed', style: TextStyle(color: Colors.white38, fontSize: 11)),
                       value: _verifiedOnly,
-                      activeThumbColor: const Color(0xFF10B981),
+                      activeThumbColor: AppColors.verified,
                       onChanged: (val) => setSheetState(() => _verifiedOnly = val),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -752,7 +752,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                       title: const Text('📄 Title Deed / Utility Verified', style: TextStyle(color: Colors.white, fontSize: 14)),
                       subtitle: const Text('Ownership document uploaded & admin-approved', style: TextStyle(color: Colors.white38, fontSize: 11)),
                       value: _docVerifiedOnly,
-                      activeThumbColor: const Color(0xFF10B981),
+                      activeThumbColor: AppColors.verified,
                       onChanged: (val) => setSheetState(() => _docVerifiedOnly = val),
                       contentPadding: EdgeInsets.zero,
                     ),
@@ -760,7 +760,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                       title: const Text('📍 On-Site GPS Confirmed', style: TextStyle(color: Colors.white, fontSize: 14)),
                       subtitle: const Text('Landlord physically verified at property location', style: TextStyle(color: Colors.white38, fontSize: 11)),
                       value: _gpsVerifiedOnly,
-                      activeThumbColor: const Color(0xFF10B981),
+                      activeThumbColor: AppColors.verified,
                       onChanged: (val) => setSheetState(() => _gpsVerifiedOnly = val),
                       contentPadding: EdgeInsets.zero,
                     ),
