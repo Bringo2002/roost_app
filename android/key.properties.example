@@ -1,0 +1,8 @@
+# Copy to android/key.properties (gitignored) and fill in real values.
+# Never commit key.properties or the keystore file.
+#
+# storeFile is resolved relative to android/app/; an absolute path also works.
+storePassword=<keystore password>
+keyPassword=<key password>
+keyAlias=<key alias>
+storeFile=<path to upload-keystore.jks>
