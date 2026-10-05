@@ -44,6 +44,7 @@ class FullScreenImageGallery extends StatefulWidget {
     this.initialIndex = 0,
     this.initialCoverMode = false,
     this.heroTagFor,
+    this.onPhotoChanged,
   });
 
   final List<String> imageUrls;
@@ -55,12 +56,18 @@ class FullScreenImageGallery extends StatefulWidget {
   /// on open and close. Leave null for no Hero (e.g. avatars).
   final Object Function(int index)? heroTagFor;
 
+  /// Called with the new photo index whenever the user swipes to another photo
+  /// (not for [initialIndex]). Lets the caller keep the page behind the viewer
+  /// on the same photo, so closing flies the photo back to the right place.
+  final ValueChanged<int>? onPhotoChanged;
+
   static void open(
     BuildContext context,
     List<String> imageUrls, {
     int initialIndex = 0,
     bool initialCoverMode = false,
     Object Function(int index)? heroTagFor,
+    ValueChanged<int>? onPhotoChanged,
   }) {
     if (imageUrls.isEmpty) return;
     Navigator.push(
@@ -71,6 +78,7 @@ class FullScreenImageGallery extends StatefulWidget {
           initialIndex: initialIndex,
           initialCoverMode: initialCoverMode,
           heroTagFor: heroTagFor,
+          onPhotoChanged: onPhotoChanged,
         ),
       ),
     );
@@ -302,6 +310,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
           _currentIndex = index;
           _transformationController.value = Matrix4.identity();
         });
+        widget.onPhotoChanged?.call(index);
       },
       itemBuilder: (context, index) {
         final url = widget.imageUrls[index];
