@@ -130,12 +130,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
     return IgnorePointer(
       child: Container(
         decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.bottomCenter,
-            end: Alignment.topCenter,
-            colors: [Colors.black.withValues(alpha: 0.55), Colors.transparent],
-            stops: const [0.0, 0.5],
-          ),
+          gradient: AppColors.mediaBottomScrimGradient,
         ),
       ),
     );
@@ -178,9 +173,9 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
             decoration: BoxDecoration(
-              color: Colors.black.withValues(alpha: 0.28),
+              color: AppColors.glassFill,
               borderRadius: BorderRadius.circular(999),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+              border: Border.all(color: AppColors.glassBorder),
             ),
             child: Semantics(
               label: AppLocalizations.of(context)!.mediaPositionLabel(_currentIndex + 1, slideCount),
