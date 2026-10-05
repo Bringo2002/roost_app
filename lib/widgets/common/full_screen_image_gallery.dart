@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Drag distance, in logical pixels, past which letting go dismisses the viewer.
 const double photoViewerDismissDistance = 120;
@@ -234,7 +235,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
         filterQuality: FilterQuality.high,
         placeholder: (context, url) => Center(
           child: CircularProgressIndicator(
-            color: Colors.white70,
+            color: AppColors.mediaProgress,
             strokeWidth: 2,
             semanticsLabel: AppLocalizations.of(context)!.photoViewerLoading,
           ),
@@ -242,11 +243,11 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
         errorWidget: (context, url, error) => Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.broken_image_outlined, color: Colors.grey, size: 48),
+            const Icon(Icons.broken_image_outlined, color: AppColors.grey400, size: 48),
             const SizedBox(height: 8),
             Text(
               AppLocalizations.of(context)!.photoViewerLoadFailed,
-              style: const TextStyle(color: Colors.grey, fontSize: 13),
+              style: const TextStyle(color: AppColors.grey400, fontSize: 13),
             ),
           ],
         ),
@@ -330,7 +331,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 26),
+              icon: const Icon(Icons.close, color: AppColors.white, size: 26),
               tooltip: l10n.photoViewerClose,
               onPressed: () => Navigator.pop(context),
             ),
@@ -341,9 +342,9 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                     margin: const EdgeInsets.only(right: 8),
                     decoration: BoxDecoration(
-                      color: Colors.black54,
+                      color: AppColors.mediaChipFill,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.white24, width: 0.5),
+                      border: Border.all(color: AppColors.mediaChipBorder, width: 0.5),
                     ),
                     child: Semantics(
                       label: l10n.mediaPositionLabel(_currentIndex + 1, widget.imageUrls.length),
@@ -352,7 +353,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
                       child: Text(
                         '${_currentIndex + 1} / ${widget.imageUrls.length}',
                         style: const TextStyle(
-                          color: Colors.white,
+                          color: AppColors.white,
                           fontSize: 13,
                           fontWeight: FontWeight.bold,
                         ),
@@ -362,7 +363,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
                 IconButton(
                   icon: Icon(
                     _isCoverMode ? Icons.fullscreen_exit_rounded : Icons.fullscreen_rounded,
-                    color: Colors.white,
+                    color: AppColors.white,
                     size: 26,
                   ),
                   tooltip: _isCoverMode ? l10n.photoViewerFitToScreen : l10n.photoViewerFillScreen,
@@ -391,7 +392,7 @@ class _FullScreenImageGalleryState extends State<FullScreenImageGallery> with Si
     }
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppColors.black,
       body: Stack(
         children: [
           GestureDetector(
