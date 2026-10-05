@@ -55,6 +55,37 @@ class AppColors {
   // Shadow
   static Color shadow = black.withValues(alpha: 0.06);
 
+  // ─── Media overlays (listing gallery and full-screen photo viewer) ───
+  // Values are identical to the raw literals they replaced.
+
+  /// Frosted-glass fill for controls floating over a photo (the gallery's
+  /// counter pill and its circular icon buttons).
+  static Color glassFill = black.withValues(alpha: 0.28);
+
+  /// Hairline border that goes with [glassFill].
+  static Color glassBorder = white.withValues(alpha: 0.14);
+
+  /// Counter pill over the full-screen photo viewer. Heavier than the glass
+  /// pair above; the two are kept distinct because unifying them would be a
+  /// visible design change. Equal to `Colors.black54`.
+  static const Color mediaChipFill = Color(0x8A000000);
+
+  /// Border that goes with [mediaChipFill]. Equal to `Colors.white24`.
+  static const Color mediaChipBorder = Color(0x3DFFFFFF);
+
+  /// Loading spinner over the viewer's black background. Equal to
+  /// `Colors.white70`.
+  static const Color mediaProgress = Color(0xB3FFFFFF);
+
+  /// Bottom-up scrim that keeps the gallery's page dots legible over bright
+  /// photos.
+  static LinearGradient mediaBottomScrimGradient = LinearGradient(
+    begin: Alignment.bottomCenter,
+    end: Alignment.topCenter,
+    colors: [black.withValues(alpha: 0.55), const Color(0x00000000)],
+    stops: const [0.0, 0.5],
+  );
+
   // Accent — pure white monochrome
   static const Color accent = Colors.white;
   static const Color accentMuted = Color(0xFFE0E0E0);
