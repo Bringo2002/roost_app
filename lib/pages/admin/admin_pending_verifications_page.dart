@@ -272,7 +272,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildMetricItem('Pending Queue', '${_pending.length}', Icons.pending_actions, Colors.amber),
+          _buildMetricItem('Pending Queue', '${_pending.length}', Icons.pending_actions, AppColors.warning),
           Container(width: 1, height: 36, color: Colors.white10),
           _buildMetricItem('Doc Proofs', '$_docCount', Icons.description_outlined, AppColors.skyBlue),
           Container(width: 1, height: 36, color: Colors.white10),
@@ -659,11 +659,11 @@ class _AuditDocumentSheet extends StatelessWidget {
                         decoration: BoxDecoration(
                           color: const Color(0xFF18181B),
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: Colors.amber.withAlpha(50)),
+                          border: Border.all(color: AppColors.warning.withAlpha(50)),
                         ),
                         child: const Row(
                           children: [
-                            Icon(Icons.info_outline, color: Colors.amber, size: 20),
+                            Icon(Icons.info_outline, color: AppColors.warning, size: 20),
                             SizedBox(width: 10),
                             Expanded(
                               child: Text(
@@ -695,7 +695,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                     // Property Photos Section
                     Row(
                       children: [
-                        const Icon(Icons.photo_library, color: Colors.amber, size: 18),
+                        const Icon(Icons.photo_library, color: AppColors.warning, size: 18),
                         const SizedBox(width: 8),
                         Text(
                           'LISTING PHOTOS (${photos.length})',

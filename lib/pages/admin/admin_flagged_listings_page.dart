@@ -152,13 +152,13 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                                             decoration: BoxDecoration(
-                                              color: (hidden ? AppColors.destructive : Colors.amber).withValues(alpha: 0.15),
+                                              color: (hidden ? AppColors.destructive : AppColors.warning).withValues(alpha: 0.15),
                                               borderRadius: BorderRadius.circular(4),
                                             ),
                                             child: Text(
                                               hidden ? 'Hidden' : 'Still live',
                                               style: TextStyle(
-                                                color: hidden ? AppColors.destructive : Colors.amber,
+                                                color: hidden ? AppColors.destructive : AppColors.warning,
                                                 fontSize: 10,
                                                 fontWeight: FontWeight.bold,
                                               ),
