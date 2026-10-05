@@ -93,7 +93,16 @@ class AppColors {
   // Status Colors
   static const Color success = Color(0xFF4CAF50);
   static const Color warning = Color(0xFFFFC107);
-  static const Color error = Color(0xFFF44336);
+
+  /// The app's single red, for errors, validation failures and destructive
+  /// actions (delete, clear, reject). Red is kept as a deliberate exception
+  /// to the monochrome palette because it is the universally understood
+  /// signal for "danger"; a grey delete button or error message is easy to
+  /// miss. Previously `error` (0xFFF44336) and `destructive` (0xFFFF5252)
+  /// were two near-identical reds; they are unified on the brighter one,
+  /// which is also the one most screens already showed and reads better on
+  /// the dark surfaces.
+  static const Color error = Color(0xFFFF5252);
 
   /// Online-presence dot (avatar indicator).
   static const Color onlineAccent = Colors.white;
@@ -114,13 +123,9 @@ class AppColors {
   /// decision is documented and grep-able.
   static const Color whatsapp = Color(0xFF25D366);
 
-  /// The app's standard red for errors, validation failures and
-  /// destructive actions (delete, clear, reject). Red is kept as a
-  /// deliberate exception to the monochrome palette because it is the
-  /// universally understood signal for "danger"; a grey delete button or
-  /// error message is easy to miss. Value matches `Colors.redAccent`
-  /// exactly so tokenizing it caused no visual change.
-  static const Color destructive = Color(0xFFFF5252);
+  /// Alias of [error] for destructive actions, kept so call sites read by
+  /// intent. Value is identical to `Colors.redAccent`.
+  static const Color destructive = error;
 
   // ─── Landlord-surface accents ───────────────────────────────────────
   // Intentionally colored: the landlord flows (listing creation,
