@@ -198,7 +198,9 @@ class AuthService {
         );
       }
 
-      return _exchangeGoogleToken(firebaseIdToken);
+      // Awaited so a failure inside the exchange is handled by this
+      // method's catch blocks rather than escaping through the returned Future.
+      return await _exchangeGoogleToken(firebaseIdToken);
     } on GoogleSignInException catch (e) {
       if (e.code == GoogleSignInExceptionCode.canceled) {
         // User closed the account picker -- not an error, nothing to show.
