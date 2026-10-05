@@ -53,6 +53,15 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
 
   bool get _hasVideo => widget.property.videoUrl != null && widget.property.videoUrl!.isNotEmpty;
 
+  // Keeps this gallery on the photo the full-screen viewer is showing, so that
+  // closing the viewer flies the photo back to its thumbnail. Jumps rather than
+  // animates: the viewer covers this page, and an animation still running when
+  // the viewer closes would leave the Hero flying toward a moving target.
+  void _followViewer(int photoIndex) {
+    if (!mounted || !_pageController.hasClients) return;
+    _pageController.jumpToPage(slideIndexForPhoto(photoIndex, hasVideo: _hasVideo));
+  }
+
   @override
   void dispose() {
     _pageController.dispose();
@@ -103,6 +112,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
             urls,
             initialIndex: photoIdx,
             heroTagFor: propertyId == null ? null : (i) => propertyPhotoHeroTag(propertyId, i),
+            onPhotoChanged: _followViewer,
           ),
           child: Semantics(
             button: true,
