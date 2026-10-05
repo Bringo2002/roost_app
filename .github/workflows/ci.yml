@@ -1,0 +1,41 @@
+name: CI
+
+# Quality gate for every pull request and for main. Runs static analysis and
+# the unit/widget test suite so a red check blocks the merge instead of
+# surfacing after it. (The iOS build lives in ios_build.yml and is unchanged.)
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+# A newer push to the same PR supersedes the older run.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: 'stable'
+          cache: true
+
+      # Also generates the gitignored l10n sources (pubspec `generate: true`).
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Static analysis
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
