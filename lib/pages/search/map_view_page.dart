@@ -174,6 +174,12 @@ class _MapViewPageState extends State<MapViewPage> {
                     style: AppMapStyle.darkMapStyle,
                     buildingsEnabled: true,
                     mapToolbarEnabled: false,
+                    // Explicit even though true is the plugin default --
+                    // this was previously unset here while InAppMapPage
+                    // explicitly disabled it, an inconsistency that's
+                    // easy to miss when the setting is left implicit.
+                    // Android only; silently ignored on iOS.
+                    zoomControlsEnabled: true,
                     onMapCreated: (controller) {
                       _mapController = controller;
                       AppMapStyle.checkStyleApplied(controller);
