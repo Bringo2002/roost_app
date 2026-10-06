@@ -48,8 +48,8 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
 
   Color _getStrengthColor(double strength) {
     if (strength <= 0.3) return AppColors.destructive;
-    if (strength <= 0.75) return Colors.amber;
-    return Colors.greenAccent;
+    if (strength <= 0.75) return AppColors.warning;
+    return AppColors.successAccent;
   }
 
   String _getStrengthText(double strength) {
@@ -89,7 +89,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Password changed successfully'),
-          backgroundColor: Colors.green,
+          backgroundColor: AppColors.success,
           duration: Duration(seconds: 3),
         ),
       );
@@ -205,18 +205,18 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(alpha: 0.15),
+                    color: AppColors.success.withValues(alpha: 0.15),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.green.withValues(alpha: 0.4)),
+                    border: Border.all(color: AppColors.success.withValues(alpha: 0.4)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.check_circle_outline_rounded, color: Colors.greenAccent, size: 20),
+                      const Icon(Icons.check_circle_outline_rounded, color: AppColors.successAccent, size: 20),
                       const SizedBox(width: 10),
                       Expanded(
                         child: Text(
                           _successMessage!,
-                          style: const TextStyle(color: Colors.greenAccent, fontSize: 13),
+                          style: const TextStyle(color: AppColors.successAccent, fontSize: 13),
                         ),
                       ),
                     ],

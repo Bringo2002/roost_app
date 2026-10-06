@@ -94,6 +94,13 @@ class AppColors {
   static const Color success = Color(0xFF4CAF50);
   static const Color warning = Color(0xFFFFC107);
 
+  /// Brighter green (Material greenAccent) for earned / complete highlights,
+  /// where plain [success] is too quiet on the dark surfaces.
+  static const Color successAccent = Color(0xFF69F0AE);
+
+  /// Brighter orange (Material orangeAccent) for non-blocking notices.
+  static const Color warningAccent = Color(0xFFFFAB40);
+
   /// The app's single red, for errors, validation failures and destructive
   /// actions (delete, clear, reject). Red is kept as a deliberate exception
   /// to the monochrome palette because it is the universally understood

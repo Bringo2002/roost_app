@@ -176,4 +176,20 @@ void main() {
       expect(AppColors.unreadDot.toARGB32(), AppColors.notificationChat.toARGB32());
     });
   });
+
+  group('AppColors status colors match the Material colors they replaced', () {
+    // Compare ARGB ints, not Color objects: the Material colors are swatches
+    // and Color equality also checks the runtime type.
+    test('success equals Colors.green', () {
+      expect(AppColors.success.toARGB32(), Colors.green.toARGB32());
+    });
+
+    test('successAccent equals Colors.greenAccent', () {
+      expect(AppColors.successAccent.toARGB32(), Colors.greenAccent.toARGB32());
+    });
+
+    test('warningAccent equals Colors.orangeAccent', () {
+      expect(AppColors.warningAccent.toARGB32(), Colors.orangeAccent.toARGB32());
+    });
+  });
 }
