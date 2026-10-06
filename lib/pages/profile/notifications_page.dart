@@ -260,20 +260,20 @@ class _NotificationsPageState extends State<NotificationsPage> {
     switch (item.type) {
       case 'chat':
         icon = Icons.chat_bubble_outline_rounded;
-        iconBg = const Color(0xFF1D85FC);
+        iconBg = AppColors.notificationChat;
         break;
       case 'booking':
         icon = Icons.calendar_today_rounded;
-        iconBg = const Color(0xFF34C759);
+        iconBg = AppColors.notificationBooking;
         break;
       case 'listing':
         icon = Icons.home_outlined;
-        iconBg = const Color(0xFFFF9500);
+        iconBg = AppColors.notificationListing;
         break;
       case 'system':
       default:
         icon = Icons.notifications_none_rounded;
-        iconBg = const Color(0xFFAF52DE);
+        iconBg = AppColors.notificationSystem;
         break;
     }
 
@@ -348,7 +348,7 @@ class _NotificationsPageState extends State<NotificationsPage> {
                   width: 8,
                   height: 8,
                   decoration: const BoxDecoration(
-                    color: Color(0xFF1D85FC),
+                    color: AppColors.unreadDot,
                     shape: BoxShape.circle,
                   ),
                 ),

@@ -239,7 +239,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: tier == 3
-              ? [const Color(0xFF064E3B), const Color(0xFF022C22), AppColors.zinc900]
+              ? [AppColors.verifiedDark, AppColors.verifiedDarkest, AppColors.zinc900]
               : [AppColors.slate800, AppColors.slate900, AppColors.zinc900],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
@@ -270,7 +270,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                 ),
                 child: Icon(
                   tier == 3 ? Icons.verified : Icons.security,
-                  color: tier == 3 ? AppColors.verified : const Color(0xFF60A5FA),
+                  color: tier == 3 ? AppColors.verified : AppColors.blueLight,
                   size: 26,
                 ),
               ),
@@ -610,7 +610,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                     label: const Text('Verify GPS On-Site', style: TextStyle(fontSize: 12)),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.skyBlue,
-                      side: const BorderSide(color: Color(0xFF0284C7)),
+                      side: const BorderSide(color: AppColors.skyBlueDark),
                       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
                     ),
                   ),
@@ -691,7 +691,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
           Container(
             padding: const EdgeInsets.all(12),
             decoration: const BoxDecoration(
-              color: Color(0x2038BDF8),
+              color: AppColors.skyBlueTint,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.trending_up, color: AppColors.skyBlue, size: 24),

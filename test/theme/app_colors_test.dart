@@ -133,4 +133,47 @@ void main() {
       });
     });
   });
+
+  group('AppColors remaining accents and surfaces', () {
+    // Exact-value locks: these replaced raw literals as a no-visual-change
+    // refactor. Compare ARGB ints, not Color objects.
+    final expected = <String, List<int>>{
+      'shadowCard': [AppColors.shadowCard.toARGB32(), 0x28000000],
+      'shadowControl': [AppColors.shadowControl.toARGB32(), 0x40000000],
+      'modalBarrier': [AppColors.modalBarrier.toARGB32(), 0x99000000],
+      'verifiedTint': [AppColors.verifiedTint.toARGB32(), 0x3010B981],
+      'skyBlueTint': [AppColors.skyBlueTint.toARGB32(), 0x2038BDF8],
+      'notificationChat': [AppColors.notificationChat.toARGB32(), 0xFF1D85FC],
+      'notificationBooking': [AppColors.notificationBooking.toARGB32(), 0xFF34C759],
+      'notificationListing': [AppColors.notificationListing.toARGB32(), 0xFFFF9500],
+      'notificationSystem': [AppColors.notificationSystem.toARGB32(), 0xFFAF52DE],
+      'blueLight': [AppColors.blueLight.toARGB32(), 0xFF60A5FA],
+      'skyBlueDark': [AppColors.skyBlueDark.toARGB32(), 0xFF0284C7],
+      'verifiedDark': [AppColors.verifiedDark.toARGB32(), 0xFF064E3B],
+      'verifiedDarkest': [AppColors.verifiedDarkest.toARGB32(), 0xFF022C22],
+      'dialogDeep': [AppColors.dialogDeep.toARGB32(), 0xFF141416],
+      'cardDeep': [AppColors.cardDeep.toARGB32(), 0xFF1E1E22],
+      'placeholderDeep': [AppColors.placeholderDeep.toARGB32(), 0xFF2C2C32],
+      'infoNavy': [AppColors.infoNavy.toARGB32(), 0xFF0F2942],
+      'cardNavy': [AppColors.cardNavy.toARGB32(), 0xFF0D1B2A],
+      'borderNavy': [AppColors.borderNavy.toARGB32(), 0xFF1B3A4B],
+      'cardIndigoDark': [AppColors.cardIndigoDark.toARGB32(), 0xFF1A1A2E],
+      'borderIndigoDark': [AppColors.borderIndigoDark.toARGB32(), 0xFF2A2A4A],
+      'borderDeep': [AppColors.borderDeep.toARGB32(), 0xFF2A2A2A],
+      'orange': [AppColors.orange.toARGB32(), 0xFFFF9F43],
+      'lightBlue': [AppColors.lightBlue.toARGB32(), 0xFF4FC3F7],
+      'coral': [AppColors.coral.toARGB32(), 0xFFFF6B6B],
+      'cyan': [AppColors.cyan.toARGB32(), 0xFF00E5FF],
+    };
+
+    expected.forEach((name, pair) {
+      test('$name keeps its original value', () {
+        expect(pair[0], pair[1]);
+      });
+    });
+
+    test('unreadDot shares the chat blue', () {
+      expect(AppColors.unreadDot.toARGB32(), AppColors.notificationChat.toARGB32());
+    });
+  });
 }

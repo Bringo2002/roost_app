@@ -902,7 +902,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                           shape: BoxShape.circle,
                           boxShadow: [
                             BoxShadow(
-                              color: Color(0x40000000),
+                              color: AppColors.shadowControl,
                               blurRadius: 8,
                               offset: Offset(0, 2),
                             ),
