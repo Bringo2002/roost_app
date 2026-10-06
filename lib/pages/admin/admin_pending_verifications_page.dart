@@ -470,7 +470,9 @@ class _AuditDocumentSheet extends StatelessWidget {
       expand: false,
       builder: (context, scrollController) {
         return Container(
-          padding: const EdgeInsets.all(20),
+          // Reserve the system navigation bar height so the Reject/Grant
+          // buttons are not drawn underneath it on edge-to-edge devices.
+          padding: EdgeInsets.fromLTRB(20, 20, 20, 20 + MediaQuery.of(context).padding.bottom),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
