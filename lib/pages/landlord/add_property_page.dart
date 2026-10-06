@@ -2140,13 +2140,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: isEarned
-              ? Colors.greenAccent.withValues(alpha: 0.4)
+              ? AppColors.successAccent.withValues(alpha: 0.4)
               : Colors.white.withValues(alpha: 0.08),
         ),
         boxShadow: [
           if (isEarned)
             BoxShadow(
-              color: Colors.greenAccent.withValues(alpha: 0.15),
+              color: AppColors.successAccent.withValues(alpha: 0.15),
               blurRadius: 16,
               spreadRadius: 1,
             ),
@@ -2161,7 +2161,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               const Row(
                 children: [
                   Icon(Icons.shield_outlined,
-                      color: Colors.greenAccent, size: 20),
+                      color: AppColors.successAccent, size: 20),
                   SizedBox(width: 8),
                   Text(
                     'Earn Your VERIFIED Badge',
@@ -2176,14 +2176,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
                   color: isEarned
-                      ? Colors.greenAccent.withValues(alpha: 0.2)
+                      ? AppColors.successAccent.withValues(alpha: 0.2)
                       : Colors.white.withValues(alpha: 0.08),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Text(
                   '$_verificationScore / 3 Done',
                   style: TextStyle(
-                    color: isEarned ? Colors.greenAccent : Colors.white70,
+                    color: isEarned ? AppColors.successAccent : Colors.white70,
                     fontSize: 12,
                     fontWeight: FontWeight.bold,
                   ),
@@ -2198,7 +2198,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               value: _verificationScore / 3.0,
               backgroundColor: Colors.white.withValues(alpha: 0.08),
               valueColor: AlwaysStoppedAnimation<Color>(
-                  isEarned ? Colors.greenAccent : AppColors.landlordAccent),
+                  isEarned ? AppColors.successAccent : AppColors.landlordAccent),
               minHeight: 6,
             ),
           ),
@@ -2228,15 +2228,15 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.greenAccent.withValues(alpha: 0.1),
+                color: AppColors.successAccent.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(
-                    color: Colors.greenAccent.withValues(alpha: 0.3)),
+                    color: AppColors.successAccent.withValues(alpha: 0.3)),
               ),
               child: const Row(
                 children: [
                   Icon(Icons.verified_rounded,
-                      color: Colors.greenAccent, size: 20),
+                      color: AppColors.successAccent, size: 20),
                   SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -2274,7 +2274,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           padding: const EdgeInsets.all(6),
           decoration: BoxDecoration(
             color: isComplete
-                ? Colors.greenAccent.withValues(alpha: 0.15)
+                ? AppColors.successAccent.withValues(alpha: 0.15)
                 : Colors.white.withValues(alpha: 0.05),
             shape: BoxShape.circle,
           ),
@@ -2282,7 +2282,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             isComplete
                 ? Icons.check_circle_rounded
                 : Icons.radio_button_unchecked_rounded,
-            color: isComplete ? Colors.greenAccent : Colors.grey[500],
+            color: isComplete ? AppColors.successAccent : Colors.grey[500],
             size: 18,
           ),
         ),
@@ -2562,7 +2562,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text('Unable to read selected file. Please pick a valid image or PDF.'),
-            backgroundColor: Colors.orangeAccent,
+            backgroundColor: AppColors.warningAccent,
           ));
         }
         return;
