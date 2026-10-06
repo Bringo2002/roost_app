@@ -11,76 +11,6 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
-import 'package:roost_app/theme/app_map_style.dart';
-
-/// Framework-free description of one marker _buildMarkers would place --
-/// no BitmapDescriptor, no GoogleMap dependency -- so the selection logic
-/// (property pin only once its icon has loaded; each facility only once
-/// its category's icon has loaded) can be unit-tested without spinning up
-/// a real map view or loading real image assets.
-@visibleForTesting
-class MapMarkerSpec {
-  final String id;
-  final double latitude;
-  final double longitude;
-  final String title;
-  final String? snippet;
-
-  const MapMarkerSpec({
-    required this.id,
-    required this.latitude,
-    required this.longitude,
-    required this.title,
-    this.snippet,
-  });
-
-  @override
-  bool operator ==(Object other) =>
-      other is MapMarkerSpec &&
-      other.id == id &&
-      other.latitude == latitude &&
-      other.longitude == longitude &&
-      other.title == title &&
-      other.snippet == snippet;
-
-  @override
-  int get hashCode => Object.hash(id, latitude, longitude, title, snippet);
-
-  @override
-  String toString() => 'MapMarkerSpec($id @ $latitude,$longitude)';
-}
-
-@visibleForTesting
-List<MapMarkerSpec> buildMarkerSpecs({
-  required Property property,
-  required LatLng propertyLatLng,
-  required Set<String> loadedFacilityIconCategories,
-}) {
-  final specs = <MapMarkerSpec>[];
-
-  specs.add(MapMarkerSpec(
-    id: 'prop_${property.id}',
-    latitude: propertyLatLng.latitude,
-    longitude: propertyLatLng.longitude,
-    title: property.title,
-    snippet: property.location,
-  ));
-
-  for (final facility in property.nearbyFacilities) {
-    if (!loadedFacilityIconCategories.contains(facility.category)) {
-      continue; // icon still loading -- skip this pass
-    }
-    specs.add(MapMarkerSpec(
-      id: 'facility_${facility.category}_${facility.name}',
-      latitude: facility.latitude,
-      longitude: facility.longitude,
-      title: facility.name,
-      snippet: facility.label,
-    ));
-  }
-
-  return specs;
-}
 
 class InAppMapPage extends StatefulWidget {
   final Property property;
@@ -97,8 +27,6 @@ class _InAppMapPageState extends State<InAppMapPage> {
   double? _distanceKm;
 
   late final LatLng _propertyLatLng;
-
-  final Map<String, BitmapDescriptor> _facilityIcons = {};
 
   /// The Google Maps SDK has no onMapCreated-failed/error callback -- if
   /// something stops the native map from ever initializing (no Google
@@ -121,7 +49,6 @@ class _InAppMapPageState extends State<InAppMapPage> {
         ? LatLng(widget.property.latitude!, widget.property.longitude!)
         : AppConfig.defaultMapCenter;
     _getUserLocationAndDistance();
-    _loadMarkerIcons();
     _startMapLoadTimer();
   }
 
@@ -146,33 +73,6 @@ class _InAppMapPageState extends State<InAppMapPage> {
       _mapInstanceKey++; // forces GoogleMap to remount with a fresh native view
     });
     _startMapLoadTimer();
-  }
-
-  /// Custom monochrome pins for nearby facilities (mall/hospital/road) --
-  /// these are markers the app itself places, unlike the base map tiles'
-  /// own POI icons, so they follow the strict black/white brand. The
-  /// property itself uses Google's standard pin.
-  ///
-  /// Uses BitmapDescriptor.asset (fromAssetImage is deprecated). No
-  /// width/height is passed on purpose: the old fromAssetImage ignored
-  /// ImageConfiguration.size on Android/iOS (only web honoured it), so the
-  /// pins have always rendered at the asset's natural size, while
-  /// BitmapDescriptor.asset WOULD apply a configured size and shrink them.
-  /// To resize the pins deliberately, pass width:/height: here (the PNGs
-  /// are 96x96).
-  Future<void> _loadMarkerIcons() async {
-    const config = ImageConfiguration();
-    final results = await Future.wait([
-      BitmapDescriptor.asset(config, 'assets/markers/marker_mall.png'),
-      BitmapDescriptor.asset(config, 'assets/markers/marker_hospital.png'),
-      BitmapDescriptor.asset(config, 'assets/markers/marker_road.png'),
-    ]);
-    if (!mounted) return;
-    setState(() {
-      _facilityIcons['mall'] = results[0];
-      _facilityIcons['hospital'] = results[1];
-      _facilityIcons['road'] = results[2];
-    });
   }
 
   Future<void> _getUserLocationAndDistance() async {
@@ -309,48 +209,23 @@ class _InAppMapPageState extends State<InAppMapPage> {
     );
   }
 
-  /// Property pin plus one pin per cached nearby facility (mall/hospital/
-  /// major road) -- so "600m from TRM Mall" is something you can actually
-  /// see on the map relative to the property, not just read as text.
+  /// Just the property itself, using Google's standard pin. This used to
+  /// also place a pin per nearby facility (mall/hospital/road) in custom
+  /// monochrome icons -- removed on request, since they didn't look good.
+  /// Nearby facilities are still shown as a text list elsewhere on the
+  /// property detail page; this map only marks the property.
   ///
-  /// The property uses Google's standard pin (a custom one looked off at
-  /// device pixel densities); facilities use the custom monochrome badges.
-  ///
-  /// The property marker gets no InfoWindow: the white default-style
-  /// tooltip bubble it'd pop up (title + location) just repeats what's
-  /// already always on screen in the dark bottom action card, and it
-  /// visually clashes as the one light-colored thing on a dark map.
-  /// Facility markers keep theirs -- "600m from TRM Mall" isn't shown
-  /// anywhere else, so tapping one is the only way to read it.
-  ///
-  /// The which-markers-to-show logic itself lives in [buildMarkerSpecs]
-  /// (framework-free, unit-tested); this just attaches an icon to each spec.
+  /// No InfoWindow: the bubble it'd pop up (title + location) just
+  /// repeats what's already always on screen in the bottom action card.
   Set<Marker> _buildMarkers() {
-    final specs = buildMarkerSpecs(
-      property: widget.property,
-      propertyLatLng: _propertyLatLng,
-      loadedFacilityIconCategories: _facilityIcons.keys.toSet(),
-    );
-
-    final markers = <Marker>{};
-    for (final spec in specs) {
-      final isProperty = spec.id.startsWith('prop_');
-      final icon = isProperty
-          ? BitmapDescriptor.defaultMarker
-          : _facilityIcons[spec.id.split('_')[1]]!;
-      markers.add(
-        Marker(
-          markerId: MarkerId(spec.id),
-          position: LatLng(spec.latitude, spec.longitude),
-          infoWindow: isProperty
-              ? InfoWindow.noText
-              : InfoWindow(title: spec.title, snippet: spec.snippet),
-          icon: icon,
-          anchor: isProperty ? const Offset(0.5, 1.0) : const Offset(0.5, 0.5),
-        ),
-      );
-    }
-    return markers;
+    return {
+      Marker(
+        markerId: MarkerId('prop_${widget.property.id}'),
+        position: _propertyLatLng,
+        infoWindow: InfoWindow.noText,
+        anchor: const Offset(0.5, 1.0),
+      ),
+    };
   }
 
   @override
@@ -359,7 +234,7 @@ class _InAppMapPageState extends State<InAppMapPage> {
       backgroundColor: Colors.black,
       body: Stack(
         children: [
-          // ── Embedded Dark Google Map ───────────────────────────────────────
+          // ── Embedded Google Map ───────────────────────────────────────────
           Semantics(
             label: AppLocalizations.of(context)!.inAppMapSemanticLabel(widget.property.title),
             child: GoogleMap(
@@ -368,7 +243,10 @@ class _InAppMapPageState extends State<InAppMapPage> {
                 target: _propertyLatLng,
                 zoom: 15,
               ),
-              style: AppMapStyle.darkMapStyle,
+              // No custom style: Google's own colors/icons/labels, for
+              // maximum visibility and a map that looks like the Google
+              // Maps users already know, rather than a themed one that
+              // trades familiarity for brand consistency.
               myLocationEnabled: true,
               myLocationButtonEnabled: false,
               // Android only -- silently ignored on iOS, which has no
@@ -380,7 +258,6 @@ class _InAppMapPageState extends State<InAppMapPage> {
               mapToolbarEnabled: false,
               onMapCreated: (controller) {
                 _mapController = controller;
-                AppMapStyle.checkStyleApplied(controller);
                 _mapLoadTimer?.cancel();
                 if (mounted) setState(() => _mapReady = true);
               },
@@ -679,12 +556,11 @@ class _MapActionButton extends StatelessWidget {
   }
 }
 
-/// Covers the map while it's initializing (solid black, so there's no
-/// flash of unstyled default-colored tiles before the dark style and
-/// markers are ready), or shows a retry option if it never finished
-/// within the load timeout. See the timeout fields on
-/// _InAppMapPageState for why this exists rather than reacting to a
-/// specific SDK error.
+/// Covers the map while it's initializing (solid black, matching the
+/// app's own chrome, so there's no flash of an empty frame before tiles
+/// arrive), or shows a retry option if it never finished within the load
+/// timeout. See the timeout fields on _InAppMapPageState for why this
+/// exists rather than reacting to a specific SDK error.
 class _MapLoadOverlay extends StatelessWidget {
   final bool timedOut;
   final VoidCallback onRetry;

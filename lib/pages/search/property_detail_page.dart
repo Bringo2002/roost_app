@@ -14,7 +14,6 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/listing_event_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
-import 'package:roost_app/theme/app_map_style.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/widgets/property_detail/amenities_section.dart';
@@ -521,7 +520,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                     : AppConfig.defaultMapCenter,
                 zoom: 14,
               ),
-              style: AppMapStyle.darkMapStyle,
+              // No custom style: Google's own colors/icons/labels.
               buildingsEnabled: true,
               zoomControlsEnabled: false,
               myLocationButtonEnabled: false,
@@ -529,7 +528,6 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
               zoomGesturesEnabled: false,
               tiltGesturesEnabled: false,
               rotateGesturesEnabled: false,
-              onMapCreated: AppMapStyle.checkStyleApplied,
               markers: {
                 Marker(
                   markerId: MarkerId('detail_prop_${p.id}'),

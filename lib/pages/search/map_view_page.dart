@@ -7,7 +7,6 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
-import 'package:roost_app/theme/app_map_style.dart';
 
 /// Shows the current search results as pins on a map instead of a list --
 /// the "browse on map" mode search apps like this are usually judged
@@ -171,7 +170,7 @@ class _MapViewPageState extends State<MapViewPage> {
                           geoProperties.first.longitude!),
                       zoom: 12,
                     ),
-                    style: AppMapStyle.darkMapStyle,
+                    // No custom style: Google's own colors/icons/labels.
                     buildingsEnabled: true,
                     mapToolbarEnabled: false,
                     // Explicit even though true is the plugin default --
@@ -182,7 +181,6 @@ class _MapViewPageState extends State<MapViewPage> {
                     zoomControlsEnabled: true,
                     onMapCreated: (controller) {
                       _mapController = controller;
-                      AppMapStyle.checkStyleApplied(controller);
                       _mapLoadTimer?.cancel();
                       if (mounted) setState(() => _mapReady = true);
                       _centerOnUserLocation();
@@ -266,11 +264,11 @@ class _MapCircleButton extends StatelessWidget {
   }
 }
 
-/// Covers the map while it's initializing (solid black, so there's no
-/// flash of unstyled default-colored tiles before the dark style and
-/// markers are ready), or shows a retry option if it never finished
-/// within the load timeout. See _MapViewPageState's timeout fields for
-/// why this exists rather than reacting to a specific SDK error.
+/// Covers the map while it's initializing (solid black, matching the
+/// app's own chrome, so there's no flash of an empty frame before tiles
+/// arrive), or shows a retry option if it never finished within the load
+/// timeout. See _MapViewPageState's timeout fields for why this exists
+/// rather than reacting to a specific SDK error.
 class _MapLoadOverlay extends StatelessWidget {
   final bool timedOut;
   final VoidCallback onRetry;
