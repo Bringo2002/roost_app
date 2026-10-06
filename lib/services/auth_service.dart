@@ -265,6 +265,110 @@ class AuthService {
     }
   }
 
+  /// Sign in with Apple is only offered on iOS for now. Android and web
+  /// would need Apple's web-redirect flow, which isn't set up.
+  static bool get isAppleSignInAvailable =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.iOS;
+
+  /// Signs in (or signs up) with Apple. Same contract as
+  /// [signInWithGoogle]: new and existing accounts both land here, and a
+  /// brand-new account starts as a plain TENANT.
+  ///
+  /// Flow: Apple identity -> Firebase Apple provider -> Firebase ID token
+  /// -> our backend's /api/auth/apple, which verifies that token and
+  /// returns our own JWT (same shape as /login, /signup and /google).
+  static Future<AuthResult> signInWithApple() async {
+    if (!isAppleSignInAvailable) {
+      return AuthResult(
+        success: false,
+        error: 'Sign in with Apple is not available on this device.',
+      );
+    }
+    try {
+      final provider = fb_auth.AppleAuthProvider()
+        ..addScope('email')
+        ..addScope('name');
+      final userCredential =
+          await fb_auth.FirebaseAuth.instance.signInWithProvider(provider);
+      final firebaseIdToken = await userCredential.user?.getIdToken();
+      if (firebaseIdToken == null) {
+        return AuthResult(
+          success: false,
+          error: 'Could not complete Apple sign-in. Please try again.',
+        );
+      }
+
+      // Apple shares the user's name only on the very first authorization,
+      // so forward whatever Firebase captured for the backend to use if
+      // the verified token carries none.
+      final name = userCredential.user?.displayName;
+      return await _exchangeAppleToken(firebaseIdToken, name);
+    } on fb_auth.FirebaseAuthException catch (e) {
+      if (e.code == 'canceled' || e.code == 'web-context-canceled') {
+        // User dismissed the Apple sheet -- not an error, nothing to show.
+        return AuthResult(success: false);
+      }
+      return AuthResult(
+        success: false,
+        error: 'Apple sign-in failed. Please try again.',
+      );
+    } catch (e) {
+      return AuthResult(
+        success: false,
+        error: 'Apple sign-in failed. Please try again.',
+      );
+    }
+  }
+
+  static Future<AuthResult> _exchangeAppleToken(
+    String firebaseIdToken,
+    String? name,
+  ) async {
+    try {
+      final response = await http
+          .post(
+            Uri.parse('$baseUrl/apple'),
+            headers: {'Content-Type': 'application/json'},
+            body: jsonEncode({
+              'idToken': firebaseIdToken,
+              if (name != null && name.trim().isNotEmpty) 'name': name.trim(),
+            }),
+          )
+          .timeout(const Duration(seconds: 30));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        await _saveToken(data['token']);
+        return AuthResult(success: true, isNewUser: data['isNewUser'] == true);
+      }
+
+      String errorMsg = 'Apple sign-in failed (${response.statusCode})';
+      try {
+        final body = jsonDecode(response.body);
+        if (body['error'] != null) {
+          errorMsg = body['error'];
+        } else if (body['message'] != null) {
+          errorMsg = body['message'];
+        }
+      } catch (e) {
+        debugPrint('Apple sign-in: could not parse error body: $e');
+      }
+      return AuthResult(success: false, error: errorMsg);
+    } on SocketException {
+      return AuthResult(
+        success: false,
+        error: 'Cannot reach server. Check your internet connection.',
+      );
+    } on http.ClientException {
+      return AuthResult(
+        success: false,
+        error: 'Connection error. The server may be down.',
+      );
+    } catch (e) {
+      return AuthResult(success: false, error: 'Unexpected error: $e');
+    }
+  }
+
   /// Changes the current user's password via POST /api/auth/change-password.
   ///
   /// This used to probe three different endpoint paths with four payload

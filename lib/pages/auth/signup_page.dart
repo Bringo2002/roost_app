@@ -5,6 +5,7 @@ import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/pages/auth/login_page.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/auth/apple_sign_in_button.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 class SignupPage extends StatefulWidget {
@@ -89,6 +90,31 @@ class _SignupPageState extends State<SignupPage> {
     } else if (result.error != null) {
       // error == null means the user just closed the account picker --
       // nothing went wrong, so nothing to show.
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error!), duration: const Duration(seconds: 4)),
+      );
+    }
+  }
+
+  void _signUpWithApple() async {
+    setState(() => _isLoading = true);
+    final result = await AuthService.signInWithApple();
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result.success) {
+      final prefs = await SharedPreferences.getInstance();
+      final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => (result.isNewUser && !onboardingDone) ? const OnboardingPage() : const HomePage(),
+        ),
+        (route) => false,
+      );
+    } else if (result.error != null) {
+      // error == null means the user dismissed the Apple sheet.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.error!), duration: const Duration(seconds: 4)),
       );
@@ -251,6 +277,10 @@ class _SignupPageState extends State<SignupPage> {
                   ),
                 ),
               ),
+              if (AuthService.isAppleSignInAvailable) ...[
+                const SizedBox(height: 12),
+                AppleSignInButton(onPressed: _isLoading ? null : _signUpWithApple),
+              ],
 
               const SizedBox(height: 16),
 
