@@ -3,7 +3,7 @@ import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property_detail/report_viewing_fee_sheet.dart';
 
 /// The "Roost prohibits charging for viewings" trust banner. Previously
-/// teal-accented (`Color(0xFF00C896)`) -- now a plain white-bordered
+/// teal-accented (`AppColors.landlordAccent`) -- now a plain white-bordered
 /// card, consistent with the rest of the monochrome trust UI.
 class FreeViewingsBanner extends StatelessWidget {
   const FreeViewingsBanner({super.key, this.propertyId});
