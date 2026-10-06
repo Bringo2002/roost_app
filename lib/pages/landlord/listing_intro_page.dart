@@ -28,13 +28,13 @@ class _ListingIntroPageState extends State<ListingIntroPage>
     ),
     (
       icon: Icons.sell_outlined,
-      color: Color(0xFFFF9F43),
+      color: AppColors.orange,
       title: 'Price & basic details',
       subtitle: 'Rent amount, bedrooms, and house type',
     ),
     (
       icon: Icons.phone_iphone,
-      color: Color(0xFF4FC3F7),
+      color: AppColors.lightBlue,
       title: 'A contact phone number',
       subtitle: 'So renters can reach you directly',
     ),
