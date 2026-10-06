@@ -53,6 +53,17 @@ Position _fakePosition() => Position(
   speedAccuracy: 0,
 );
 
+/// The hub is a scroll view and its "Verify GPS On-Site" button sits below
+/// the default 800x600 test viewport, so a bare `tap` misses it. Scroll it
+/// into view first, then tap.
+Future<void> _tapVerifyGps(WidgetTester tester) async {
+  final button = find.text('Verify GPS On-Site');
+  await tester.ensureVisible(button);
+  await tester.pumpAndSettle();
+  await tester.tap(button);
+  await tester.pumpAndSettle();
+}
+
 void main() {
   setUp(() {
     AuthService.getTokenOverride = () async => 'fake-token';
@@ -99,8 +110,7 @@ void main() {
     await tester.pumpWidget(wrap(const LandlordVerificationHubPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Verify GPS On-Site'));
-    await tester.pumpAndSettle();
+    await _tapVerifyGps(tester);
 
     expect(postedBody, {'latitude': -1.286389, 'longitude': 36.817223});
     // The button is only shown `if (!property.gpsVerified)` -- its
@@ -124,8 +134,7 @@ void main() {
     await tester.pumpWidget(wrap(const LandlordVerificationHubPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Verify GPS On-Site'));
-    await tester.pumpAndSettle();
+    await _tapVerifyGps(tester);
 
     expect(find.textContaining('Could not obtain current GPS position'), findsOneWidget);
     expect(postCalled, isFalse);
