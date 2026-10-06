@@ -113,4 +113,24 @@ void main() {
       expect(AppColors.destructive.toARGB32(), AppColors.error.toARGB32());
     });
   });
+
+  group('AppColors deep dark surfaces', () {
+    // Exact-value locks: these replaced raw literals as a no-visual-change
+    // refactor, so a silent shift would change the admin and landlord
+    // verification screens. Compare ARGB ints, not Color objects.
+    final expected = <String, List<int>>{
+      'zinc900': [AppColors.zinc900.toARGB32(), 0xFF18181B],
+      'slate800': [AppColors.slate800.toARGB32(), 0xFF1E293B],
+      'slate900': [AppColors.slate900.toARGB32(), 0xFF0F172A],
+      'scaffoldDeep': [AppColors.scaffoldDeep.toARGB32(), 0xFF0F0F11],
+      'sheetDeep': [AppColors.sheetDeep.toARGB32(), 0xFF121214],
+      'indigoLight': [AppColors.indigoLight.toARGB32(), 0xFF818CF8],
+    };
+
+    expected.forEach((name, pair) {
+      test('$name keeps its original value', () {
+        expect(pair[0], pair[1]);
+      });
+    });
+  });
 }
