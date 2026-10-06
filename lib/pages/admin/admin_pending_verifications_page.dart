@@ -100,7 +100,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF121214),
+      backgroundColor: AppColors.sheetDeep,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
@@ -137,9 +137,9 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
     final filtered = _filteredList;
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F11),
+      backgroundColor: AppColors.scaffoldDeep,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F11),
+        backgroundColor: AppColors.scaffoldDeep,
         elevation: 0,
         iconTheme: const IconThemeData(color: Colors.white),
         title: const Text(
@@ -168,7 +168,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
                 )
               : RefreshIndicator(
                   color: AppColors.verified,
-                  backgroundColor: const Color(0xFF18181B),
+                  backgroundColor: AppColors.zinc900,
                   onRefresh: _loadPending,
                   child: ListView(
                     padding: const EdgeInsets.all(16),
@@ -197,7 +197,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
                           padding: const EdgeInsets.all(32),
                           margin: const EdgeInsets.only(top: 24),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF18181B),
+                            color: AppColors.zinc900,
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(color: Colors.white10),
                           ),
@@ -252,7 +252,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
       selected: isSelected,
       onSelected: (_) => setState(() => _selectedFilter = key),
       selectedColor: AppColors.verified,
-      backgroundColor: const Color(0xFF18181B),
+      backgroundColor: AppColors.zinc900,
       side: BorderSide(color: isSelected ? AppColors.verified : Colors.white10),
     );
   }
@@ -262,7 +262,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+          colors: [AppColors.slate800, AppColors.slate900],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -303,7 +303,7 @@ class _AdminPendingVerificationsPageState extends State<AdminPendingVerification
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: AppColors.zinc900,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withAlpha(20)),
       ),
@@ -529,7 +529,7 @@ class _AuditDocumentSheet extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF18181B),
+                  color: AppColors.zinc900,
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(color: Colors.white10),
                 ),
@@ -582,7 +582,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                       padding: const EdgeInsets.all(14),
                       decoration: BoxDecoration(
                         gradient: const LinearGradient(
-                          colors: [Color(0xFF1E293B), Color(0xFF0F172A)],
+                          colors: [AppColors.slate800, AppColors.slate900],
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
                         ),
@@ -595,7 +595,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                           const Row(
                             children: [
                               Icon(Icons.psychology_outlined,
-                                  color: Color(0xFF818CF8), size: 16),
+                                  color: AppColors.indigoLight, size: 16),
                               SizedBox(width: 6),
                               Text(
                                 'AI VERIFICATION SIGNALS',
@@ -657,7 +657,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF18181B),
+                          color: AppColors.zinc900,
                           borderRadius: BorderRadius.circular(12),
                           border: Border.all(color: AppColors.warning.withAlpha(50)),
                         ),
@@ -808,7 +808,7 @@ class _AuditDocumentSheet extends StatelessWidget {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: const Color(0xFF18181B),
+          color: AppColors.zinc900,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.skyBlue.withAlpha(80)),
         ),
@@ -911,7 +911,7 @@ class _AuditDocumentSheet extends StatelessWidget {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF18181B),
+        backgroundColor: AppColors.zinc900,
         title: const Text('Reject Verification', style: TextStyle(color: Colors.white)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
