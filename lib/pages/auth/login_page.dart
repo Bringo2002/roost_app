@@ -4,6 +4,7 @@ import 'package:roost_app/main.dart';
 import 'package:roost_app/pages/auth/signup_page.dart';
 import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/auth/apple_sign_in_button.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 class LoginPage extends StatefulWidget {
@@ -41,6 +42,26 @@ class _LoginPageState extends State<LoginPage> {
         (route) => false,
       );
     } else if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error!), duration: const Duration(seconds: 4)),
+      );
+    }
+  }
+
+  void _signInWithApple() async {
+    setState(() => _isLoading = true);
+    final result = await AuthService.signInWithApple();
+    if (!mounted) return;
+    setState(() => _isLoading = false);
+
+    if (result.success) {
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => result.isNewUser ? const OnboardingPage() : const HomePage()),
+        (route) => false,
+      );
+    } else if (result.error != null) {
+      // error == null means the user dismissed the Apple sheet.
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.error!), duration: const Duration(seconds: 4)),
       );
@@ -223,6 +244,10 @@ class _LoginPageState extends State<LoginPage> {
                   ),
                 ),
               ),
+              if (AuthService.isAppleSignInAvailable) ...[
+                const SizedBox(height: 12),
+                AppleSignInButton(onPressed: _isLoading ? null : _signInWithApple),
+              ],
 
               const SizedBox(height: 16),
 
