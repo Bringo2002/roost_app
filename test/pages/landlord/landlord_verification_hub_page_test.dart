@@ -14,7 +14,12 @@ import 'package:roost_app/services/location_service.dart';
 /// PropertyResponseDto-shaped objects (not the v2 slim-item/envelope
 /// shape the dashboard uses) -- this page still calls v1, deliberately
 /// (see the review notes for why migrating it to v2 isn't a drop-in win).
-Map<String, dynamic> _property({required int id, String title = 'Listing', bool gpsVerified = false}) {
+Map<String, dynamic> _property({
+  required int id,
+  String title = 'Listing',
+  bool gpsVerified = false,
+  bool verified = false,
+}) {
   return {
     'id': id,
     'title': title,
@@ -25,7 +30,7 @@ Map<String, dynamic> _property({required int id, String title = 'Listing', bool 
     'landlordPhone': '+254700000000',
     'available': true,
     'status': 'PUBLISHED',
-    'verified': false,
+    'verified': verified,
     'gpsVerified': gpsVerified,
     'documentVerified': false,
     'imageUrls': <String>[],
@@ -141,5 +146,24 @@ void main() {
     expect(postCalled, isFalse);
     // The button must still be offered -- nothing was verified.
     expect(find.text('Verify GPS On-Site'), findsOneWidget);
+  });
+
+  testWidgets('verifying GPS adopts the server-computed verified flag from the response', (tester) async {
+    LocationService.getCurrentPositionOverride = () async => _fakePosition();
+
+    ApiService.client = MockClient((request) async {
+      if (request.method == 'GET') return _json([_property(id: 1, title: 'Cozy Bedsitter')]);
+      // GPS was the last missing proof, so the server flips `verified` too.
+      return _json(_property(id: 1, title: 'Cozy Bedsitter', gpsVerified: true, verified: true));
+    });
+
+    await tester.pumpWidget(wrap(const LandlordVerificationHubPage()));
+    await tester.pumpAndSettle();
+    expect(find.text('0/1 Verified'), findsOneWidget);
+
+    await _tapVerifyGps(tester);
+
+    // A local gpsVerified flip alone would leave this at 0/1.
+    expect(find.text('1/1 Verified'), findsOneWidget);
   });
 }
