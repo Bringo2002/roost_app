@@ -102,7 +102,8 @@ void main() {
       }
       if (request.method == 'POST' && request.url.path.endsWith('/verify-gps')) {
         postedBody = jsonDecode(request.body) as Map<String, dynamic>;
-        return _json({});
+        // The real endpoint returns the updated listing (PropertyResponseDto).
+        return _json(_property(id: 1, title: 'Cozy Bedsitter', gpsVerified: true));
       }
       fail('unexpected request: ${request.method} ${request.url}');
     });

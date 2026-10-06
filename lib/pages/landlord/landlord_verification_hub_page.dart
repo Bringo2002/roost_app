@@ -65,18 +65,25 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     setState(() => _busyPropertyIds.add(property.id!));
 
     try {
-      await ApiService.post('/api/properties/${property.id}/verify-gps', {
+      final res = await ApiService.post('/api/properties/${property.id}/verify-gps', {
         'latitude': pos.latitude,
         'longitude': pos.longitude,
       });
       if (!mounted) return;
+      // The endpoint returns the updated listing. Adopt it instead of
+      // re-fetching the whole portfolio: the server also recomputes
+      // `verified` (phone + GPS + photos), which a local flag flip would
+      // leave stale in the tier banner and "N/M Verified" counter.
+      final updated = Property.fromJson(res as Map<String, dynamic>);
+      setState(() {
+        _properties = [for (final p in _properties) p.id == updated.id ? updated : p];
+      });
       messenger.showSnackBar(
         const SnackBar(
           content: Text('📍 On-Site GPS position verified successfully!'),
           backgroundColor: AppColors.verified,
         ),
       );
-      await _fetchVerificationData();
     } catch (e) {
       if (!mounted) return;
       messenger.showSnackBar(SnackBar(content: Text('GPS Verification failed: $e')));
