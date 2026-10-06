@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 
@@ -74,9 +75,22 @@ class LocationService {
     }
   }
 
+  /// Test seam for [getCurrentPosition]: when set, it replaces the
+  /// Geolocator calls entirely so widget tests can supply a fixed position
+  /// (or `null`) without platform channels. Reset to `null` in `tearDown`
+  /// so one test's override can't leak into the next.
+  @visibleForTesting
+  static Future<Position?> Function()? getCurrentPositionOverride;
+
   /// Returns the device's current position, or null if location services
   /// are disabled, permission is denied, or anything else goes wrong.
-  static Future<Position?> getCurrentPosition() async {
+  static Future<Position?> getCurrentPosition() {
+    final override = getCurrentPositionOverride;
+    if (override != null) return override();
+    return _getCurrentPositionFromDevice();
+  }
+
+  static Future<Position?> _getCurrentPositionFromDevice() async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return null;

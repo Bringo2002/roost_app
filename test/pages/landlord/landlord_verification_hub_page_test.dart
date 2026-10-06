@@ -14,7 +14,12 @@ import 'package:roost_app/services/location_service.dart';
 /// PropertyResponseDto-shaped objects (not the v2 slim-item/envelope
 /// shape the dashboard uses) -- this page still calls v1, deliberately
 /// (see the review notes for why migrating it to v2 isn't a drop-in win).
-Map<String, dynamic> _property({required int id, String title = 'Listing', bool gpsVerified = false}) {
+Map<String, dynamic> _property({
+  required int id,
+  String title = 'Listing',
+  bool gpsVerified = false,
+  bool verified = false,
+}) {
   return {
     'id': id,
     'title': title,
@@ -25,7 +30,7 @@ Map<String, dynamic> _property({required int id, String title = 'Listing', bool 
     'landlordPhone': '+254700000000',
     'available': true,
     'status': 'PUBLISHED',
-    'verified': false,
+    'verified': verified,
     'gpsVerified': gpsVerified,
     'documentVerified': false,
     'imageUrls': <String>[],
@@ -52,6 +57,17 @@ Position _fakePosition() => Position(
   speed: 0,
   speedAccuracy: 0,
 );
+
+/// The hub is a scroll view and its "Verify GPS On-Site" button sits below
+/// the default 800x600 test viewport, so a bare `tap` misses it. Scroll it
+/// into view first, then tap.
+Future<void> _tapVerifyGps(WidgetTester tester) async {
+  final button = find.text('Verify GPS On-Site');
+  await tester.ensureVisible(button);
+  await tester.pumpAndSettle();
+  await tester.tap(button);
+  await tester.pumpAndSettle();
+}
 
 void main() {
   setUp(() {
@@ -91,7 +107,8 @@ void main() {
       }
       if (request.method == 'POST' && request.url.path.endsWith('/verify-gps')) {
         postedBody = jsonDecode(request.body) as Map<String, dynamic>;
-        return _json({});
+        // The real endpoint returns the updated listing (PropertyResponseDto).
+        return _json(_property(id: 1, title: 'Cozy Bedsitter', gpsVerified: true));
       }
       fail('unexpected request: ${request.method} ${request.url}');
     });
@@ -99,8 +116,7 @@ void main() {
     await tester.pumpWidget(wrap(const LandlordVerificationHubPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Verify GPS On-Site'));
-    await tester.pumpAndSettle();
+    await _tapVerifyGps(tester);
 
     expect(postedBody, {'latitude': -1.286389, 'longitude': 36.817223});
     // The button is only shown `if (!property.gpsVerified)` -- its
@@ -124,12 +140,30 @@ void main() {
     await tester.pumpWidget(wrap(const LandlordVerificationHubPage()));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Verify GPS On-Site'));
-    await tester.pumpAndSettle();
+    await _tapVerifyGps(tester);
 
     expect(find.textContaining('Could not obtain current GPS position'), findsOneWidget);
     expect(postCalled, isFalse);
     // The button must still be offered -- nothing was verified.
     expect(find.text('Verify GPS On-Site'), findsOneWidget);
+  });
+
+  testWidgets('verifying GPS adopts the server-computed verified flag from the response', (tester) async {
+    LocationService.getCurrentPositionOverride = () async => _fakePosition();
+
+    ApiService.client = MockClient((request) async {
+      if (request.method == 'GET') return _json([_property(id: 1, title: 'Cozy Bedsitter')]);
+      // GPS was the last missing proof, so the server flips `verified` too.
+      return _json(_property(id: 1, title: 'Cozy Bedsitter', gpsVerified: true, verified: true));
+    });
+
+    await tester.pumpWidget(wrap(const LandlordVerificationHubPage()));
+    await tester.pumpAndSettle();
+    expect(find.text('0/1 Verified'), findsOneWidget);
+
+    await _tapVerifyGps(tester);
+
+    // A local gpsVerified flip alone would leave this at 0/1.
+    expect(find.text('1/1 Verified'), findsOneWidget);
   });
 }
