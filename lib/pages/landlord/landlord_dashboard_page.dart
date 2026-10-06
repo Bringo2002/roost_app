@@ -642,7 +642,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         gradient: const LinearGradient(
-          colors: [Color(0xFF064E3B), AppColors.slate900],
+          colors: [AppColors.verifiedDark, AppColors.slate900],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -661,7 +661,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
           Container(
             padding: const EdgeInsets.all(10),
             decoration: const BoxDecoration(
-              color: Color(0x3010B981),
+              color: AppColors.verifiedTint,
               shape: BoxShape.circle,
             ),
             child: const Icon(Icons.verified_user_rounded, color: AppColors.verified, size: 24),

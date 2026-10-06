@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'app_colors.dart';
 import 'app_text_styles.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// Shared corner-radius tokens.
 class AppRadii {
@@ -86,7 +87,7 @@ class AppTheme {
         dragHandleColor: AppColors.grey600,
         dragHandleSize: Size(40, 4),
         showDragHandle: true,
-        modalBarrierColor: Color(0x99000000),
+        modalBarrierColor: AppColors.modalBarrier,
       ),
 
       // ─── Input Decoration Theme ────────────────────────────────────

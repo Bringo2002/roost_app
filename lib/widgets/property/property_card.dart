@@ -229,7 +229,7 @@ class _PropertyCardState extends State<PropertyCard> {
           border: Border.all(color: AppColors.border, width: 1),
           boxShadow: const [
             BoxShadow(
-              color: Color(0x28000000),
+              color: AppColors.shadowCard,
               blurRadius: 16,
               offset: Offset(0, 6),
             ),
