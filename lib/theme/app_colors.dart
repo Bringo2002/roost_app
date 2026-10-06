@@ -170,6 +170,77 @@ class AppColors {
   /// Lighter indigo accent (cf. [indigo]) for small icons.
   static const Color indigoLight = Color(0xFF818CF8);
 
+  // --- Remaining accents and surfaces ----------------------------------
+  // The long tail of one-off colors, named so no raw hex remains outside
+  // this file. Every value is byte-identical to the literal it replaced.
+
+  // Shadows and scrims
+  /// Soft drop shadow under cards and their skeletons.
+  static const Color shadowCard = Color(0x28000000);
+  /// Shadow under small floating circular controls.
+  static const Color shadowControl = Color(0x40000000);
+  /// Barrier behind modal bottom sheets.
+  static const Color modalBarrier = Color(0x99000000);
+
+  // Tints
+  /// [verified] at ~19% opacity, for tinted badge backgrounds.
+  static const Color verifiedTint = Color(0x3010B981);
+  /// [skyBlue] at ~13% opacity, for tinted icon backgrounds.
+  static const Color skyBlueTint = Color(0x2038BDF8);
+
+  // Notification types
+  /// Chat notification icon background.
+  static const Color notificationChat = Color(0xFF1D85FC);
+  /// Booking notification icon background.
+  static const Color notificationBooking = Color(0xFF34C759);
+  /// Listing notification icon background.
+  static const Color notificationListing = Color(0xFFFF9500);
+  /// System notification icon background.
+  static const Color notificationSystem = Color(0xFFAF52DE);
+
+  // Accent shades
+  /// Lighter blue (cf. [blue]) for the mid verification tier icon.
+  static const Color blueLight = Color(0xFF60A5FA);
+  /// Darker sky blue (cf. [skyBlue]) for outlined-button borders.
+  static const Color skyBlueDark = Color(0xFF0284C7);
+  /// Deep emerald (cf. [verified]) for gradient starts.
+  static const Color verifiedDark = Color(0xFF064E3B);
+  /// Deepest emerald, the end of the tier-3 header gradient.
+  static const Color verifiedDarkest = Color(0xFF022C22);
+
+  // Tinted dark cards
+  /// Listing-completion dialog background.
+  static const Color dialogDeep = Color(0xFF141416);
+  /// Card on the listing-completion dialog.
+  static const Color cardDeep = Color(0xFF1E1E22);
+  /// Thumbnail placeholder background.
+  static const Color placeholderDeep = Color(0xFF2C2C32);
+  /// Navy info box background.
+  static const Color infoNavy = Color(0xFF0F2942);
+  /// Navy card background.
+  static const Color cardNavy = Color(0xFF0D1B2A);
+  /// Border for the navy card.
+  static const Color borderNavy = Color(0xFF1B3A4B);
+  /// Dark indigo card background.
+  static const Color cardIndigoDark = Color(0xFF1A1A2E);
+  /// Border for the dark indigo card.
+  static const Color borderIndigoDark = Color(0xFF2A2A4A);
+  /// Neutral border on deep dark cards.
+  static const Color borderDeep = Color(0xFF2A2A2A);
+
+  // Other accents
+  /// Orange accent for the listing-intro checklist.
+  static const Color orange = Color(0xFFFF9F43);
+  /// Light blue accent for the listing-intro checklist.
+  static const Color lightBlue = Color(0xFF4FC3F7);
+  /// Confetti coral.
+  static const Color coral = Color(0xFFFF6B6B);
+  /// Confetti cyan.
+  static const Color cyan = Color(0xFF00E5FF);
+
+  /// Unread indicator dot; shares the chat blue.
+  static const Color unreadDot = notificationChat;
+
   // ─── Gradient Presets ────────────────────────────────────────────────
 
   /// Subtle surface gradient for premium card backgrounds.
