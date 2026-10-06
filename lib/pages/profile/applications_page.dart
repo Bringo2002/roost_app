@@ -130,7 +130,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
                                                 ? Colors.white.withValues(alpha: 0.15)
                                                 : status == 'REJECTED'
                                                     ? AppColors.error.withValues(alpha: 0.2)
-                                                    : Colors.amber.withValues(alpha: 0.2),
+                                                    : AppColors.warning.withValues(alpha: 0.2),
                                             borderRadius: BorderRadius.circular(8),
                                           ),
                                           child: Text(
@@ -140,7 +140,7 @@ class _ApplicationsPageState extends State<ApplicationsPage> {
                                                   ? Colors.white
                                                   : status == 'REJECTED'
                                                       ? AppColors.error
-                                                      : Colors.amber,
+                                                      : AppColors.warning,
                                               fontSize: 12,
                                               fontWeight: FontWeight.bold,
                                             ),
