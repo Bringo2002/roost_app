@@ -19,6 +19,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/cloudinary_service.dart';
 import 'package:roost_app/services/doc_verification_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/theme/amenity_colors.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/country_service.dart';
@@ -58,128 +59,128 @@ const _amenities = <_Amenity>[
       key: 'water',
       label: '24hr Water / Borehole',
       icon: Icons.water_drop_outlined,
-      color: Color(0xFF29B6F6)),
+      color: AmenityColors.water),
   _Amenity(
       key: 'generator',
       label: 'Backup Generator',
       icon: Icons.power_outlined,
-      color: Color(0xFFFFB74D)),
+      color: AmenityColors.generator),
   _Amenity(
       key: 'solar',
       label: 'Solar Water Heater',
       icon: Icons.wb_sunny_outlined,
-      color: Color(0xFFFFD54F)),
+      color: AmenityColors.solar),
   _Amenity(
       key: 'ac',
       label: 'Air Conditioning',
       icon: Icons.ac_unit,
-      color: Color(0xFF81D4FA)),
+      color: AmenityColors.ac),
   _Amenity(
       key: 'heating',
       label: 'Heating',
       icon: Icons.local_fire_department_outlined,
-      color: Color(0xFFFF8A65)),
+      color: AmenityColors.heating),
   _Amenity(
       key: 'laundry',
       label: 'In-Unit Laundry',
       icon: Icons.local_laundry_service_outlined,
-      color: Color(0xFF90CAF9)),
+      color: AmenityColors.laundry),
   _Amenity(
       key: 'dstv',
       label: 'DSTV / Cable TV',
       icon: Icons.tv_outlined,
-      color: Color(0xFFAB47BC)),
+      color: AmenityColors.dstv),
 
   // Security & Building
   _Amenity(
       key: 'security',
       label: 'CCTV & Security',
       icon: Icons.security,
-      color: Color(0xFFFF9F43)),
+      color: AmenityColors.security),
   _Amenity(
       key: 'fence',
       label: 'Electric Fence',
       icon: Icons.fence,
-      color: Color(0xFFFF7043)),
+      color: AmenityColors.fence),
   _Amenity(
       key: 'intercom',
       label: 'Intercom Access',
       icon: Icons.doorbell_outlined,
-      color: Color(0xFFBA68C8)),
+      color: AmenityColors.intercom),
   _Amenity(
       key: 'elevator',
       label: 'Elevator / Lift',
       icon: Icons.elevator_outlined,
-      color: Color(0xFF4DB6AC)),
+      color: AmenityColors.elevator),
   _Amenity(
       key: 'parking',
       label: 'Dedicated Parking',
       icon: Icons.local_parking_outlined,
-      color: Color(0xFF4FC3F7)),
+      color: AmenityColors.parking),
   _Amenity(
       key: 'caretaker',
       label: 'On-site Caretaker',
       icon: Icons.person_pin_outlined,
-      color: Color(0xFFA1887F)),
+      color: AmenityColors.caretaker),
 
   // Space & Comfort
   _Amenity(
       key: 'balcony',
       label: 'Private Balcony',
       icon: Icons.deck_outlined,
-      color: Color(0xFFA5D6A7)),
+      color: AmenityColors.balcony),
   _Amenity(
       key: 'rooftop',
       label: 'Rooftop Terrace',
       icon: Icons.apartment_outlined,
-      color: Color(0xFFB39DDB)),
+      color: AmenityColors.rooftop),
   _Amenity(
       key: 'garden',
       label: 'Garden / Lawn',
       icon: Icons.grass_outlined,
-      color: Color(0xFF81C784)),
+      color: AmenityColors.garden),
   _Amenity(
       key: 'storage',
       label: 'Storage Unit',
       icon: Icons.inventory_2_outlined,
-      color: Color(0xFFDCE775)),
+      color: AmenityColors.storage),
 
   // Leisure & Services
   _Amenity(
       key: 'pool',
       label: 'Swimming Pool',
       icon: Icons.pool,
-      color: Color(0xFF4DD0E1)),
+      color: AmenityColors.pool),
   _Amenity(
       key: 'gym',
       label: 'Gym & Fitness',
       icon: Icons.fitness_center,
-      color: Color(0xFFFF8A65)),
+      color: AmenityColors.gym),
   _Amenity(
       key: 'playArea',
       label: 'Kids Play Area',
       icon: Icons.child_care_outlined,
-      color: Color(0xFFF48FB1)),
+      color: AmenityColors.playArea),
   _Amenity(
       key: 'petFriendly',
       label: 'Pet Friendly',
       icon: Icons.pets,
-      color: Color(0xFFEF9A9A)),
+      color: AmenityColors.petFriendly),
   _Amenity(
       key: 'cleaning',
       label: 'Housekeeping',
       icon: Icons.cleaning_services_outlined,
-      color: Color(0xFF80CBC4)),
+      color: AmenityColors.cleaning),
   _Amenity(
       key: 'garbage',
       label: 'Garbage Collection',
       icon: Icons.delete_outline,
-      color: Color(0xFFB0BEC5)),
+      color: AmenityColors.garbage),
   _Amenity(
       key: 'wheelchair',
       label: 'Wheelchair Access',
       icon: Icons.accessible,
-      color: Color(0xFF9FA8DA)),
+      color: AmenityColors.wheelchair),
 ];
 
 // ─── House type options ────────────────────────────────────────────────────
@@ -510,7 +511,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       margin: const EdgeInsets.only(top: 14, bottom: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2942),
+        color: AppColors.infoNavy,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.skyBlue.withAlpha(100)),
       ),
@@ -3004,9 +3005,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: AppColors.cardIndigoDark,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF2A2A4A)),
+              border: Border.all(color: AppColors.borderIndigoDark),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3104,10 +3105,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D1B2A),
+              color: AppColors.cardNavy,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: const Color(0xFF1B3A4B).withValues(alpha: 0.6)),
+                  color: AppColors.borderNavy.withValues(alpha: 0.6)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3195,7 +3196,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               border: Border.all(
                 color: _noViewingFeePledge
                     ? AppColors.landlordAccent
-                    : const Color(0xFF2A2A2A),
+                    : AppColors.borderDeep,
               ),
             ),
             child: Row(
@@ -3434,7 +3435,7 @@ class _RoleChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color:
-                  selected ? AppColors.indigo : const Color(0xFF2A2A2A),
+                  selected ? AppColors.indigo : AppColors.borderDeep,
               width: selected ? 1.5 : 1,
             ),
           ),
