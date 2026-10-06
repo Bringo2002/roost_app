@@ -147,6 +147,29 @@ class AppColors {
   static const Color blue = Color(0xFF3B82F6);
   static const Color gold = Color(0xFFFFD700);
 
+  // --- Deep dark surfaces (zinc / slate) --------------------------------
+  // A separate near-black family used by the admin and landlord
+  // verification screens for scaffolds, cards and header gradients. Kept
+  // byte-identical to the literals they replaced; folding them into the
+  // neutral ramp above would be a separate, visible design decision.
+
+  /// Tailwind zinc-900: cards, panels and gradient ends.
+  static const Color zinc900 = Color(0xFF18181B);
+
+  /// Tailwind slate-800 / slate-900: header gradient stops.
+  static const Color slate800 = Color(0xFF1E293B);
+  static const Color slate900 = Color(0xFF0F172A);
+
+  /// Deepest background: scaffolds and app bars on the admin and landlord
+  /// verification screens.
+  static const Color scaffoldDeep = Color(0xFF0F0F11);
+
+  /// Modal bottom-sheet background on the admin audit sheet.
+  static const Color sheetDeep = Color(0xFF121214);
+
+  /// Lighter indigo accent (cf. [indigo]) for small icons.
+  static const Color indigoLight = Color(0xFF818CF8);
+
   // ─── Gradient Presets ────────────────────────────────────────────────
 
   /// Subtle surface gradient for premium card backgrounds.

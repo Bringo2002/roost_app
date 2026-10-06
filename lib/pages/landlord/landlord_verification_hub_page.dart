@@ -101,9 +101,9 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     final overallTier = _calculateOverallTier();
 
     return Scaffold(
-      backgroundColor: const Color(0xFF0F0F11),
+      backgroundColor: AppColors.scaffoldDeep,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0F0F11),
+        backgroundColor: AppColors.scaffoldDeep,
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.white),
@@ -239,8 +239,8 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: tier == 3
-              ? [const Color(0xFF064E3B), const Color(0xFF022C22), const Color(0xFF18181B)]
-              : [const Color(0xFF1E293B), const Color(0xFF0F172A), const Color(0xFF18181B)],
+              ? [const Color(0xFF064E3B), const Color(0xFF022C22), AppColors.zinc900]
+              : [AppColors.slate800, AppColors.slate900, AppColors.zinc900],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -395,7 +395,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
       child: Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: AppColors.zinc900,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: Colors.white.withAlpha(15)),
       ),
@@ -456,7 +456,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
       width: double.infinity,
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: AppColors.zinc900,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white10),
       ),
@@ -485,7 +485,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: AppColors.zinc900,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: property.verified ? AppColors.verified.withAlpha(80) : Colors.white.withAlpha(20),
@@ -682,7 +682,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     return Container(
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: const Color(0xFF18181B),
+        color: AppColors.zinc900,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.skyBlue.withAlpha(60)),
       ),
