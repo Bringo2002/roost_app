@@ -510,7 +510,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       margin: const EdgeInsets.only(top: 14, bottom: 6),
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: const Color(0xFF0F2942),
+        color: AppColors.infoNavy,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(color: AppColors.skyBlue.withAlpha(100)),
       ),
@@ -3004,9 +3004,9 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF1A1A2E),
+              color: AppColors.cardIndigoDark,
               borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFF2A2A4A)),
+              border: Border.all(color: AppColors.borderIndigoDark),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3104,10 +3104,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           Container(
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF0D1B2A),
+              color: AppColors.cardNavy,
               borderRadius: BorderRadius.circular(14),
               border: Border.all(
-                  color: const Color(0xFF1B3A4B).withValues(alpha: 0.6)),
+                  color: AppColors.borderNavy.withValues(alpha: 0.6)),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -3195,7 +3195,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               border: Border.all(
                 color: _noViewingFeePledge
                     ? AppColors.landlordAccent
-                    : const Color(0xFF2A2A2A),
+                    : AppColors.borderDeep,
               ),
             ),
             child: Row(
@@ -3434,7 +3434,7 @@ class _RoleChip extends StatelessWidget {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(
               color:
-                  selected ? AppColors.indigo : const Color(0xFF2A2A2A),
+                  selected ? AppColors.indigo : AppColors.borderDeep,
               width: selected ? 1.5 : 1,
             ),
           ),

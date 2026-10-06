@@ -146,7 +146,7 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
             constraints: const BoxConstraints(maxWidth: 420),
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF141416),
+              color: AppColors.dialogDeep,
               borderRadius: BorderRadius.circular(28),
               border: Border.all(
                 color: AppColors.landlordAccent.withValues(alpha: 0.3),
@@ -275,7 +275,7 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E22),
+                      color: AppColors.cardDeep,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
                     ),
@@ -468,7 +468,7 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
 
   Widget _buildFallbackThumbnail() {
     return Container(
-      color: const Color(0xFF2C2C32),
+      color: AppColors.placeholderDeep,
       child: const Center(
         child: Icon(
           Icons.home_work_outlined,
@@ -510,8 +510,8 @@ class _ConfettiParticle {
     AppColors.landlordAccent, // Emerald
     AppColors.gold, // Gold
     AppColors.indigo, // Indigo
-    Color(0xFFFF6B6B), // Coral
-    Color(0xFF00E5FF), // Cyan
+    AppColors.coral, // Coral
+    AppColors.cyan, // Cyan
     Colors.white,
   ];
 
