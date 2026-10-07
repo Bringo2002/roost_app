@@ -19,6 +19,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/cloudinary_service.dart';
 import 'package:roost_app/services/doc_verification_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/services/property_draft_service.dart';
 import 'package:roost_app/theme/amenity_colors.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
@@ -1104,23 +1105,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   Future<int?> _persist(Map<String, dynamic> payload) async {
-    if (_draftId != null) {
-      try {
-        await ApiService.put('/api/properties/$_draftId', payload);
-        return _draftId;
-      } on ApiException catch (e) {
-        if (e.message.contains('not found') || e.message.contains('404')) {
-          _draftId = null;
-        } else {
-          rethrow;
-        }
-      } catch (_) {
-        // Fall back to POST if unknown client-side error
-      }
-    }
-    final result = await ApiService.post('/api/properties', payload);
-    final newId = result is Map ? result['id'] as int? : null;
-    if (newId != null) _draftId = newId;
+    _draftId = await PropertyDraftService.save(_draftId, payload);
     return _draftId;
   }
 
