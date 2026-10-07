@@ -214,6 +214,39 @@ void main() {
     });
   });
 
+  group('statusCode', () {
+    Matcher apiErrorWithStatus(int status) => throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', status),
+        );
+
+    test('is set on a 4xx response', () async {
+      respondWith(404, '{"error": "Property not found"}');
+
+      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(404));
+    });
+
+    test('is set on a 5xx response', () async {
+      respondWith(503);
+
+      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(503));
+    });
+
+    test('is set on a 403 response', () async {
+      respondWith(403, '{"error": "Landlords only"}');
+
+      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(403));
+    });
+
+    test('is null when no response arrived', () async {
+      ApiService.client = MockClient((_) async => throw const SocketException('offline'));
+
+      await expectLater(
+        ApiService.get('/api/x'),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', isNull)),
+      );
+    });
+  });
+
   group('transport failures', () {
     test('maps SocketException to "No internet connection"', () async {
       ApiService.client = MockClient((_) async => throw const SocketException('offline'));
