@@ -377,13 +377,24 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
 
     setState(() => _busyIds.add(property.id!));
     try {
-      await ApiService.post('/api/properties/${property.id}/verify-gps', {
+      final res = await ApiService.post('/api/properties/${property.id}/verify-gps', {
         'latitude': position.latitude,
         'longitude': position.longitude,
       });
       if (!mounted) return;
       if (index != -1) {
-        setState(() => _myListings[index] = _myListings[index].copyWith(gpsVerified: true));
+        // Adopt the server's response instead of guessing which fields
+        // changed: verify-gps also recomputes the overall `verified`
+        // flag (phone + GPS + photos), which a local gpsVerified-only
+        // flip would leave stale -- both on the card's badge and in
+        // _verifiedCount below, which (unlike the filter-chip counts)
+        // has no per-mutation bucket logic of its own to catch this.
+        final updated = Property.fromJson(res as Map<String, dynamic>);
+        final wasVerified = _myListings[index].verified;
+        setState(() {
+          _myListings[index] = updated;
+          if (updated.verified && !wasVerified) _verifiedCount++;
+        });
       }
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
