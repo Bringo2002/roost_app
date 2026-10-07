@@ -18,7 +18,9 @@ permissions:
 
 jobs:
   analyze-and-test:
-    runs-on: ubuntu-latest
+    # Pinned so a runner-image migration (ubuntu-latest moves to Ubuntu 26
+    # from 2026-10-19) cannot change CI underneath us. Bump it deliberately.
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - name: Checkout repository
