@@ -8,6 +8,7 @@ import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/search_intent_api_service.dart';
 import 'package:roost_app/utils/property_sorter.dart';
+import 'package:roost_app/utils/search_sort_params.dart';
 import 'package:roost_app/utils/property_search.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/roost_search_bar.dart';
@@ -69,6 +70,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   bool _docVerifiedOnly = false;
   bool _gpsVerifiedOnly = false;
   bool _sortNewestFirst = false;
+  bool _sortRecommended = false;
 
   Position? _userPosition;
   String? _userNeighborhood;
@@ -171,10 +173,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     // Distance-sorted paging depends on the server having lat/lng, which
     // it didn't for whatever's already loaded -- refetch from page 0
     // rather than just re-sorting client-side, so page boundaries match
-    // the newly-correct distance order. If the user has "newest first"
-    // on, server order doesn't depend on location, so a client re-sort
-    // (for the distance labels) is enough.
-    if (_sortNewestFirst) {
+    // the newly-correct distance order. If the user has "newest first" or
+    // "recommended" on, server order doesn't depend on location, so a
+    // client re-pass (for the distance labels) is enough.
+    if (_sortNewestFirst || _sortRecommended) {
       _applyClientSideFilters();
     } else {
       _fetchFiltered();
@@ -233,16 +235,17 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     params['page'] = '$page';
     params['size'] = '$_pageSize';
 
-    // Only ask the server to sort by distance when that's actually the
-    // active display order -- if "newest first" is on, sending lat/lng
-    // would make page boundaries fall along distance order while the
-    // client displays newest-first, silently decoupling "next page" from
-    // "next chunk of what's on screen."
+    // Ask the server for exactly the order that's being displayed, so
+    // page boundaries stay "the next chunk of what's on screen": nearest
+    // first by default, newest first when that toggle is on, or the
+    // server's own ranking when "recommended" is on. See searchSortParams.
     final pos = _userPosition;
-    if (!_sortNewestFirst && pos != null) {
-      params['lat'] = '${pos.latitude}';
-      params['lng'] = '${pos.longitude}';
-    }
+    params.addAll(searchSortParams(
+      recommended: _sortRecommended,
+      newestFirst: _sortNewestFirst,
+      lat: pos?.latitude,
+      lng: pos?.longitude,
+    ));
 
     return params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
   }
@@ -411,6 +414,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       userLng: _userPosition?.longitude,
       prefHouseType: _houseType,
       sortNewestFirst: _sortNewestFirst,
+      // Recommended: the server's order IS the display order.
+      keepGivenOrder: _sortRecommended,
     );
   }
 
@@ -433,6 +438,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       _docVerifiedOnly = false;
       _gpsVerifiedOnly = false;
       _sortNewestFirst = false;
+      _sortRecommended = false;
     });
     _fetchFiltered();
   }
@@ -457,6 +463,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     if (_docVerifiedOnly) count++;
     if (_gpsVerifiedOnly) count++;
     if (_sortNewestFirst) count++;
+    if (_sortRecommended) count++;
     return count;
   }
 
@@ -765,12 +772,29 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                       contentPadding: EdgeInsets.zero,
                     ),
 
+                    // Recommended order: the server's ranking (quality, freshness,
+                    // engagement). Mutually exclusive with newest-first, and
+                    // replaces the nearest-first order while active.
+                    SwitchListTile(
+                      title: const Text('Recommended Order', style: TextStyle(color: Colors.white, fontSize: 14)),
+                      value: _sortRecommended,
+                      activeThumbColor: Colors.white,
+                      onChanged: (val) => setSheetState(() {
+                        _sortRecommended = val;
+                        if (val) _sortNewestFirst = false;
+                      }),
+                      contentPadding: EdgeInsets.zero,
+                    ),
+
                     // Newest first (overrides distance sort while active)
                     SwitchListTile(
                       title: const Text('Newest Listings First', style: TextStyle(color: Colors.white, fontSize: 14)),
                       value: _sortNewestFirst,
                       activeThumbColor: Colors.white,
-                      onChanged: (val) => setSheetState(() => _sortNewestFirst = val),
+                      onChanged: (val) => setSheetState(() {
+                        _sortNewestFirst = val;
+                        if (val) _sortRecommended = false;
+                      }),
                       contentPadding: EdgeInsets.zero,
                     ),
 
