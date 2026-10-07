@@ -1,4 +1,6 @@
+import 'dart:async';
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
@@ -24,6 +26,7 @@ void main() {
   tearDown(() {
     ApiService.client = http.Client();
     AuthService.getTokenOverride = null;
+    AuthService.refreshTokenOverride = null;
   });
 
   /// Stubs the client with one canned response.
@@ -208,6 +211,116 @@ void main() {
         ApiService.get('/api/x'),
         apiError('Forbidden by gateway'),
       );
+    });
+  });
+
+  group('transport failures', () {
+    test('maps SocketException to "No internet connection"', () async {
+      ApiService.client = MockClient((_) async => throw const SocketException('offline'));
+
+      await expectLater(ApiService.get('/api/x'), apiError('No internet connection'));
+    });
+
+    test('maps TimeoutException to a timeout message', () async {
+      ApiService.client = MockClient((_) async => throw TimeoutException('slow'));
+
+      await expectLater(
+        ApiService.get('/api/x'),
+        apiError('Request timed out. Please try again.'),
+      );
+    });
+
+    test('maps any other client error to a generic message', () async {
+      ApiService.client = MockClient((_) async => throw http.ClientException('boom'));
+
+      await expectLater(
+        ApiService.get('/api/x'),
+        apiError('Something went wrong. Please try again.'),
+      );
+    });
+
+    test('maps an undecodable 200 body to a generic message', () async {
+      respondWith(200, 'not json');
+
+      await expectLater(
+        ApiService.get('/api/x'),
+        apiError('Something went wrong. Please try again.'),
+      );
+    });
+  });
+
+  group('401 handling', () {
+    test('refreshes the token and retries once with the new one', () async {
+      var token = 'old-token';
+      AuthService.getTokenOverride = () async => token;
+      var refreshCalls = 0;
+      AuthService.refreshTokenOverride = () async {
+        refreshCalls++;
+        token = 'new-token';
+        return true;
+      };
+      final seen = <String?>[];
+      ApiService.client = MockClient((request) async {
+        seen.add(request.headers['Authorization']);
+        return seen.length == 1 ? http.Response('', 401) : http.Response('{"ok": true}', 200);
+      });
+
+      expect(await ApiService.get('/api/me'), {'ok': true});
+      expect(refreshCalls, 1);
+      expect(seen, ['Bearer old-token', 'Bearer new-token']);
+    });
+
+    test('does not try to refresh for other error statuses', () async {
+      var refreshCalls = 0;
+      AuthService.refreshTokenOverride = () async {
+        refreshCalls++;
+        return true;
+      };
+      respondWith(500, '{"error": "down"}');
+
+      await expectLater(ApiService.get('/api/x'), apiError('down'));
+      expect(refreshCalls, 0);
+    });
+  });
+
+  test('confirmUpload never throws, even when the request fails', () async {
+    respondWith(500, '{"error": "nope"}');
+
+    await expectLater(
+      ApiService.confirmUpload(
+        contentHash: 'abc',
+        publicUrl: 'https://cdn.example/p.jpg',
+        key: 'photos/p.jpg',
+        contentType: 'image/jpeg',
+        sizeBytes: 1,
+      ),
+      completes,
+    );
+  });
+
+  group('toUserMessage', () {
+    test('strips the Exception prefix', () {
+      expect(Exception('boom').toUserMessage(), 'boom');
+    });
+
+    test('strips the FormatException prefix', () {
+      expect(const FormatException('bad input').toUserMessage(), 'bad input');
+    });
+
+    test('passes an ApiException message through unchanged', () {
+      expect(ApiException('No internet connection').toUserMessage(), 'No internet connection');
+    });
+
+    test('falls back when the text is empty', () {
+      expect(''.toUserMessage(), 'Something went wrong. Please try again.');
+    });
+
+    test('falls back for an object with no readable text', () {
+      expect(Object().toUserMessage(), 'Something went wrong. Please try again.');
+    });
+
+    test('uses a custom fallback when given one', () {
+      expect(''.toUserMessage('Try later'), 'Try later');
     });
   });
 }
