@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/services/location_service.dart';
 
 /// One slim v2 my-listings item, matching PropertyListItemDto's shape
 /// (see roost_app/lib/models/property.dart's fromJson -- fields this
@@ -67,6 +69,43 @@ Map<String, dynamic> _page({
 http.Response _json(Object body, [int statusCode = 200]) =>
     http.Response(jsonEncode(body), statusCode, headers: {'content-type': 'application/json'});
 
+/// verify-gps returns the FULL PropertyResponseDto shape (via
+/// PropertyResponseDto.forOwner), not the slim v2 list-item shape the
+/// page's rows are normally populated from -- Property.fromJson handles
+/// both uniformly, so adopting one of these into _myListings is safe.
+Map<String, dynamic> _fullProperty({required int id, bool verified = false, bool gpsVerified = true}) {
+  return {
+    'id': id,
+    'title': 'Listing',
+    'location': 'Nairobi',
+    'price': 25000,
+    'bedrooms': 1,
+    'type': 'RENTAL',
+    'landlordPhone': '+254700000000',
+    'available': true,
+    'status': 'PUBLISHED',
+    'verified': verified,
+    'gpsVerified': gpsVerified,
+    'imageUrls': <String>[],
+  };
+}
+
+/// A plausible, internally-consistent device fix -- see the same note in
+/// landlord_verification_hub_page_test.dart on why this couldn't be
+/// checked against the real `geolocator` package source here.
+Position _fakePosition() => Position(
+  latitude: -1.286389,
+  longitude: 36.817223,
+  timestamp: DateTime(2026),
+  accuracy: 5,
+  altitude: 0,
+  altitudeAccuracy: 0,
+  heading: 0,
+  headingAccuracy: 0,
+  speed: 0,
+  speedAccuracy: 0,
+);
+
 void main() {
   setUp(() {
     // ApiService._getHeaders() always calls AuthService.getToken() first;
@@ -79,6 +118,7 @@ void main() {
   tearDown(() {
     // Don't let one test's stub leak into the next.
     AuthService.getTokenOverride = null;
+    LocationService.getCurrentPositionOverride = null;
     ApiService.client = http.Client();
   });
 
@@ -234,5 +274,53 @@ void main() {
 
     expect(deleteCalled, isTrue);
     expect(find.text('To Be Deleted'), findsNothing);
+  });
+
+  testWidgets('verifying GPS adopts the response, including a server-recomputed verified flag', (tester) async {
+    LocationService.getCurrentPositionOverride = () async => _fakePosition();
+    var getCallCount = 0;
+    Map<String, dynamic>? postedBody;
+
+    ApiService.client = MockClient((request) async {
+      if (request.method == 'GET') {
+        getCallCount++;
+        return _json(
+          _page(items: [_item(id: 1, status: 'PUBLISHED')], total: 1, available: 1, verified: 0),
+        );
+      }
+      if (request.method == 'POST' && request.url.path.endsWith('/verify-gps')) {
+        postedBody = jsonDecode(request.body) as Map<String, dynamic>;
+        // GPS was the last of three checks (phone + photos already
+        // done) -- the server's response reflects BOTH flags flipping
+        // in this one call, which is exactly what a local
+        // gpsVerified-only flip would miss.
+        return _json(_fullProperty(id: 1, verified: true, gpsVerified: true));
+      }
+      fail('unexpected request: ${request.method} ${request.url}');
+    });
+
+    await tester.pumpWidget(wrap(const LandlordDashboardPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('0/1 Listings Fully Verified'), findsOneWidget);
+
+    const pillText = 'Stand at property & tap to verify GPS location';
+    await tester.ensureVisible(find.text(pillText));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(pillText));
+    await tester.pumpAndSettle();
+
+    expect(postedBody, {'latitude': -1.286389, 'longitude': 36.817223});
+    // The direct proof: _verifiedCount (server-synced, no bucket logic
+    // of its own) must reflect the adopted response's `verified` flag,
+    // not just the pill disappearing (which only proves gpsVerified).
+    expect(find.text('1/1 Listings Fully Verified'), findsOneWidget);
+    // The pill is only shown `if (isPublished && !property.gpsVerified)`
+    // -- its disappearance is direct evidence the adopted response
+    // applied, not just a local gpsVerified flip.
+    expect(find.text(pillText), findsNothing);
+    // The regression this guards: verifying GPS must not trigger a
+    // full-list reload just to reflect one property's change.
+    expect(getCallCount, 1);
   });
 }
