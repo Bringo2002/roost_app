@@ -92,6 +92,29 @@ void main() {
       expect(calls(requests), ['PUT /api/properties/7']);
     });
 
+    // Regression: the old check searched the error text, so a failure that
+    // only mentioned "not found" or "404" looked like a deleted draft and a
+    // second create was attempted.
+    test('does not treat a 400 that mentions "not found" as a deleted draft', () async {
+      final requests = stub(put: http.Response('{"error": "User not found"}', 400));
+
+      await expectLater(
+        PropertyDraftService.save(7, {'title': 'Loft'}),
+        throwsA(isA<ApiException>()),
+      );
+      expect(calls(requests), ['PUT /api/properties/7']);
+    });
+
+    test('does not treat a 500 whose message mentions 404 as a deleted draft', () async {
+      final requests = stub(put: http.Response('{"error": "Upstream returned 404"}', 500));
+
+      await expectLater(
+        PropertyDraftService.save(7, {'title': 'Loft'}),
+        throwsA(isA<ApiException>()),
+      );
+      expect(calls(requests), ['PUT /api/properties/7']);
+    });
+
     test('returns null when the create response carries no id', () async {
       stub(post: http.Response('{}', 201));
 

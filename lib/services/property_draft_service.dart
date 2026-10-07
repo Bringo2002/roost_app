@@ -20,7 +20,10 @@ class PropertyDraftService {
         await ApiService.put('/api/properties/$currentId', payload);
         return currentId;
       } on ApiException catch (e) {
-        if (e.message.contains('not found') || e.message.contains('404')) {
+        // Branch on the status, not the message text: any failure whose
+        // wording merely mentions "not found" or "404" (a validation error,
+        // an upstream error) used to be mistaken for a deleted draft.
+        if (e.statusCode == 404) {
           currentId = null;
         } else {
           rethrow;
