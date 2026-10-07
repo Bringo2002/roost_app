@@ -79,6 +79,7 @@ class ApiService {
       throw ApiException('Request timed out. Please try again.');
     } catch (e) {
       if (e is ApiException) rethrow;
+      debugPrint('ApiService unexpected error: $e');
       throw ApiException('Something went wrong. Please try again.');
     }
   }
@@ -180,49 +181,48 @@ class ApiService {
   }
 
   static dynamic _handleResponse(http.Response response) {
-    if (response.statusCode >= 200 && response.statusCode < 300) {
+    final status = response.statusCode;
+    if (status >= 200 && status < 300) {
       if (response.body.isNotEmpty) {
         return jsonDecode(response.body);
       }
       return null;
-    } else if (response.statusCode == 401) {
-      AuthService.logout();
-      throw ApiException('Session expired. Please sign in again.', statusCode: 401);
-    } else if (response.statusCode == 403) {
-      String errorMessage = 'You do not have permission to perform this action.';
-      try {
-        final errorJson = jsonDecode(response.body);
-        if (errorJson['error'] != null) {
-          errorMessage = errorJson['error'];
-        } else if (errorJson['message'] != null) {
-          errorMessage = errorJson['message'];
-        }
-      } catch (e) {
-        // Body wasn't JSON (or didn't have the expected shape) -- fall
-        // back to the raw body if it has anything readable, otherwise
-        // keep the generic message. Either way we still throw below, so
-        // this never swallows the 403 itself, just how we phrase it.
-        debugPrint('Failed to parse 403 error body: $e');
-        if (response.body.isNotEmpty) {
-          errorMessage = response.body;
-        }
-      }
-      throw ApiException(errorMessage, statusCode: 403);
-    } else {
-      String errorMessage = 'Request failed with status: ${response.statusCode}';
-      try {
-        final errorJson = jsonDecode(response.body);
-        if (errorJson['error'] != null) {
-          errorMessage = errorJson['error'];
-        } else if (errorJson['message'] != null) {
-          errorMessage = errorJson['message'];
-        }
-      } catch (_) {
-        if (response.body.isNotEmpty) {
-          errorMessage = response.body;
-        }
-      }
-      throw ApiException(errorMessage, statusCode: response.statusCode);
     }
+    if (status == 401) {
+      AuthService.logout();
+      throw ApiException('Session expired. Please sign in again.', statusCode: status);
+    }
+    final fallback = status == 403
+        ? 'You do not have permission to perform this action.'
+        : 'Request failed with status: $status';
+    throw ApiException(_errorMessage(response.body, fallback), statusCode: status);
+  }
+
+  /// Extracts the user-facing message from an error response body.
+  ///
+  /// The backend reports every deliberate error as `{"error": "..."}` (see
+  /// GlobalExceptionHandler); Spring's own error JSON may use `"message"`.
+  /// Anything else -- an HTML page from a proxy, plain text, malformed or
+  /// unexpectedly shaped JSON -- is infrastructure noise rather than
+  /// something to show a user, so it yields [fallback] and the raw body is
+  /// logged for diagnosis instead.
+  static String _errorMessage(String body, String fallback) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException {
+      if (body.isNotEmpty) {
+        final preview = body.length > 200 ? '${body.substring(0, 200)}...' : body;
+        debugPrint('Unparseable error body: $preview');
+      }
+      return fallback;
+    }
+    if (decoded is Map) {
+      for (final key in const ['error', 'message']) {
+        final value = decoded[key];
+        if (value is String && value.trim().isNotEmpty) return value;
+      }
+    }
+    return fallback;
   }
 }

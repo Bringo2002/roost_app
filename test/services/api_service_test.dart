@@ -163,12 +163,72 @@ void main() {
       );
     });
 
-    // Current behavior, pinned so a change to it is deliberate: a body that
-    // is not JSON is shown to the user verbatim.
-    test('uses a non-JSON body verbatim as the message', () async {
-      respondWith(500, 'Upstream exploded');
+    // A non-JSON body is infrastructure noise (e.g. a proxy's HTML error
+    // page), not something to show a user.
+    test('does not show a non-JSON body, naming the status instead', () async {
+      respondWith(502, '<html><body>Application failed to respond</body></html>');
 
-      await expectLater(ApiService.get('/api/x'), apiError('Upstream exploded'));
+      await expectLater(
+        ApiService.get('/api/x'),
+        apiError('Request failed with status: 502'),
+      );
+    });
+
+    test('ignores a blank "error" and uses "message"', () async {
+      respondWith(400, '{"error": "  ", "message": "Use this one"}');
+
+      await expectLater(ApiService.get('/api/x'), apiError('Use this one'));
+    });
+
+    test('ignores an "error" that is not a string', () async {
+      respondWith(400, '{"error": 42}');
+
+      await expectLater(
+        ApiService.get('/api/x'),
+        apiError('Request failed with status: 400'),
+      );
+    });
+
+    test('ignores a JSON body that is not an object', () async {
+      respondWith(500, '["boom"]');
+
+      await expectLater(
+        ApiService.get('/api/x'),
+        apiError('Request failed with status: 500'),
+      );
+    });
+  });
+
+  group('statusCode', () {
+    Matcher apiErrorWithStatus(int status) => throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', status),
+        );
+
+    test('is set on a 4xx response', () async {
+      respondWith(404, '{"error": "Property not found"}');
+
+      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(404));
+    });
+
+    test('is set on a 5xx response', () async {
+      respondWith(503);
+
+      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(503));
+    });
+
+    test('is set on a 403 response', () async {
+      respondWith(403, '{"error": "Landlords only"}');
+
+      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(403));
+    });
+
+    test('is null when no response arrived', () async {
+      ApiService.client = MockClient((_) async => throw const SocketException('offline'));
+
+      await expectLater(
+        ApiService.get('/api/x'),
+        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', isNull)),
+      );
     });
   });
 
@@ -203,46 +263,12 @@ void main() {
       );
     });
 
-    // Current behavior, pinned so a change to it is deliberate.
-    test('uses a non-JSON body verbatim as the message', () async {
+    test('does not show a non-JSON body, using the generic message', () async {
       respondWith(403, 'Forbidden by gateway');
 
       await expectLater(
         ApiService.get('/api/x'),
-        apiError('Forbidden by gateway'),
-      );
-    });
-  });
-
-  group('statusCode', () {
-    Matcher apiErrorWithStatus(int status) => throwsA(
-          isA<ApiException>().having((e) => e.statusCode, 'statusCode', status),
-        );
-
-    test('is set on a 4xx response', () async {
-      respondWith(404, '{"error": "Property not found"}');
-
-      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(404));
-    });
-
-    test('is set on a 5xx response', () async {
-      respondWith(503);
-
-      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(503));
-    });
-
-    test('is set on a 403 response', () async {
-      respondWith(403, '{"error": "Landlords only"}');
-
-      await expectLater(ApiService.get('/api/x'), apiErrorWithStatus(403));
-    });
-
-    test('is null when no response arrived', () async {
-      ApiService.client = MockClient((_) async => throw const SocketException('offline'));
-
-      await expectLater(
-        ApiService.get('/api/x'),
-        throwsA(isA<ApiException>().having((e) => e.statusCode, 'statusCode', isNull)),
+        apiError('You do not have permission to perform this action.'),
       );
     });
   });
