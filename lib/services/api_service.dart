@@ -9,7 +9,13 @@ import 'package:roost_app/services/auth_service.dart';
 
 class ApiException implements Exception {
   final String message;
-  ApiException(this.message);
+
+  /// HTTP status of the failed response, or null when the failure happened
+  /// before one arrived (no connection, timeout, unreadable success body).
+  /// Branch on this rather than searching [message] for text.
+  final int? statusCode;
+
+  ApiException(this.message, {this.statusCode});
   @override
   String toString() => message;
 }
@@ -181,7 +187,7 @@ class ApiService {
       return null;
     } else if (response.statusCode == 401) {
       AuthService.logout();
-      throw ApiException('Session expired. Please sign in again.');
+      throw ApiException('Session expired. Please sign in again.', statusCode: 401);
     } else if (response.statusCode == 403) {
       String errorMessage = 'You do not have permission to perform this action.';
       try {
@@ -201,7 +207,7 @@ class ApiService {
           errorMessage = response.body;
         }
       }
-      throw ApiException(errorMessage);
+      throw ApiException(errorMessage, statusCode: 403);
     } else {
       String errorMessage = 'Request failed with status: ${response.statusCode}';
       try {
@@ -216,7 +222,7 @@ class ApiService {
           errorMessage = response.body;
         }
       }
-      throw ApiException(errorMessage);
+      throw ApiException(errorMessage, statusCode: response.statusCode);
     }
   }
 }
