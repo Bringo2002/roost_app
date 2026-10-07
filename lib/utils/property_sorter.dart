@@ -63,8 +63,13 @@ class PropertySorter {
     String? prefBudget,
     String? prefTimeframe,
     bool sortNewestFirst = false,
+    bool keepGivenOrder = false,
   }) {
     final list = List<Property>.from(properties);
+
+    // The server already ordered these (e.g. by its recommended score) and its
+    // page boundaries follow that order, so re-sorting here would undo it.
+    if (keepGivenOrder) return list;
 
     list.sort((a, b) {
       // 1. Explicit Newest-First mode
