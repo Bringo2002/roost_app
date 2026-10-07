@@ -41,3 +41,24 @@ jobs:
 
       - name: Tests
         run: flutter test
+
+  # Fails a pull request whose commits carry AI attribution trailers, which
+  # CLAUDE.md prohibits. Once pushed, such commits stay reachable through
+  # refs/pull/* and only GitHub Support can purge them, so catch them here.
+  commit-hygiene:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          # Full history so BASE..HEAD can be walked.
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Reject AI attribution trailers
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash .github/scripts/check-commit-trailers.sh "$BASE_SHA" "$HEAD_SHA"
