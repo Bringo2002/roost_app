@@ -159,4 +159,63 @@ void main() {
       expect(sorted.length, equals(4));
     });
   });
+
+  group('PropertySorter keepGivenOrder', () {
+    Property prop(int id, {double? lat, double? lng, String? listedAt, bool verified = false}) {
+      return Property.fromJson({
+        'id': id,
+        'title': 'Listing $id',
+        'description': 'Test listing',
+        'location': 'Nairobi',
+        'price': 20000.0,
+        'bedrooms': 1,
+        'type': 'RENTAL',
+        'houseType': '1BR',
+        'landlordPhone': '+254700000000',
+        'available': true,
+        'lat': lat,
+        'lng': lng,
+        'verified': verified,
+        'listedAt': listedAt,
+      });
+    }
+
+    test('returns the list in exactly the order it was given, ignoring distance and date', () {
+      // Given far -> near and old -> new: every normal sort would reorder these.
+      final far = prop(1, lat: -1.40, lng: 36.90, listedAt: '2026-01-01T10:00:00Z');
+      final near = prop(2, lat: -1.287, lng: 36.818, listedAt: '2026-06-01T10:00:00Z', verified: true);
+      final given = [far, near];
+
+      final result = PropertySorter.sort(
+        given,
+        userLat: -1.286389,
+        userLng: 36.817223,
+        keepGivenOrder: true,
+      );
+
+      expect(result.map((p) => p.id), [1, 2]);
+    });
+
+    test('returns a copy, so changing the result never changes the input', () {
+      final given = [prop(1), prop(2)];
+
+      final result = PropertySorter.sort(given, keepGivenOrder: true);
+      result.removeAt(0);
+
+      expect(given.map((p) => p.id), [1, 2]);
+    });
+
+    test('without it, the same inputs are still reordered (the option is opt-in)', () {
+      final far = prop(1, lat: -1.40, lng: 36.90);
+      final near = prop(2, lat: -1.287, lng: 36.818);
+
+      final result = PropertySorter.sort(
+        [far, near],
+        userLat: -1.286389,
+        userLng: 36.817223,
+      );
+
+      expect(result.map((p) => p.id), [2, 1]);
+    });
+  });
 }
