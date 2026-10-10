@@ -46,5 +46,13 @@
   "photoViewerLoadFailed": "Imeshindikana kupakia picha",
   "heroGalleryOpenPhotoHint": "Hufungua picha kwenye skrini nzima",
   "heroGalleryMuteVideo": "Nyamazisha video",
-  "heroGalleryUnmuteVideo": "Washa sauti ya video"
+  "heroGalleryUnmuteVideo": "Washa sauti ya video",
+  "nearbyFacilitiesSectionTitle": "Karibu",
+  "nearbyFacilityCategoryMall": "Duka kuu",
+  "nearbyFacilityCategoryHospital": "Hospitali",
+  "nearbyFacilityCategoryRoad": "Barabara kuu",
+  "nearbyFacilityCategoryOther": "Mahali",
+  "nearbyFacilityDistanceMeters": "{meters}m",
+  "nearbyFacilityDistanceKm": "{km}km",
+  "nearbyFacilityLabel": "{distance} kutoka {name}"
 }
