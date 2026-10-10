@@ -7,6 +7,7 @@ import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 import 'package:roost_app/config.dart';
 import 'package:roost_app/controllers/property_detail_controller.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/chat/chat_room_page.dart';
 import 'package:roost_app/pages/search/in_app_map_page.dart';
@@ -24,6 +25,7 @@ import 'package:roost_app/widgets/property_detail/glass_icon_button.dart';
 import 'package:roost_app/widgets/property_detail/hero_media_gallery.dart';
 import 'package:roost_app/widgets/property_detail/fair_price_indicator.dart';
 import 'package:roost_app/widgets/property_detail/listing_caution_card.dart';
+import 'package:roost_app/widgets/property_detail/nearby_facility_chip.dart';
 import 'package:roost_app/widgets/property_detail/property_bottom_bar.dart';
 import 'package:roost_app/widgets/property_detail/quick_stats_row.dart';
 import 'package:roost_app/widgets/property_detail/report_sheet.dart';
@@ -409,21 +411,15 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
           _buildMapPreview(p),
 
           if (p.nearbyFacilities.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const SizedBox(height: 24),
+            SectionHeader(AppLocalizations.of(context)!.nearbyFacilitiesSectionTitle),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
               children: [
                 for (final facility in p.nearbyFacilities)
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: Row(
-                      children: [
-                        Icon(_nearbyFacilityIcon(facility.category), color: AppColors.grey400, size: 16),
-                        const SizedBox(width: 8),
-                        Text(facility.label, style: TextStyle(color: AppColors.grey300, fontSize: 13)),
-                      ],
-                    ),
-                  ),
+                  NearbyFacilityChip(facility: facility),
               ],
             ),
           ],
@@ -562,19 +558,6 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
         ),
       ),
     );
-  }
-
-  IconData _nearbyFacilityIcon(String category) {
-    switch (category) {
-      case 'mall':
-        return Icons.shopping_bag_outlined;
-      case 'hospital':
-        return Icons.local_hospital_outlined;
-      case 'road':
-        return Icons.add_road_outlined;
-      default:
-        return Icons.place_outlined;
-    }
   }
 
   Widget _buildCommunityCheckPrompt() {

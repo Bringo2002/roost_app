@@ -11,6 +11,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/utils/maps_navigation.dart';
 
 class InAppMapPage extends StatefulWidget {
   final Property property;
@@ -165,28 +166,6 @@ class _InAppMapPageState extends State<InAppMapPage> {
         ),
       ),
     );
-  }
-
-  /// "Start Navigation" goes straight to Google Maps with the property as
-  /// the destination -- no chooser. Tries the Google Maps app first, falls
-  /// back to the Google Maps web page in a browser, and shows a message
-  /// (instead of silently doing nothing) if neither can be opened.
-  Future<void> _launchNavigation() async {
-    final lat = _propertyLatLng.latitude;
-    final lng = _propertyLatLng.longitude;
-    final mapsUri = Uri.parse(
-      'https://www.google.com/maps/dir/?api=1&destination=$lat,$lng&travelmode=driving',
-    );
-
-    try {
-      final launchedApp = await launchUrl(mapsUri, mode: LaunchMode.externalNonBrowserApplication);
-      if (launchedApp) return;
-      final launchedBrowser = await launchUrl(mapsUri, mode: LaunchMode.externalApplication);
-      if (!launchedBrowser) throw Exception('No app or browser could handle the maps link');
-    } catch (_) {
-      if (!mounted) return;
-      _showActionError(AppLocalizations.of(context)!.inAppMapNavigationFailed);
-    }
   }
 
   Future<void> _callLandlord() async {
@@ -439,7 +418,11 @@ class _InAppMapPageState extends State<InAppMapPage> {
                     children: [
                       Expanded(
                         child: ElevatedButton.icon(
-                          onPressed: _launchNavigation,
+                          onPressed: () => launchGoogleMapsNavigation(
+                            context,
+                            lat: _propertyLatLng.latitude,
+                            lng: _propertyLatLng.longitude,
+                          ),
                           icon: const Icon(Icons.navigation, size: 18),
                           label: Text(AppLocalizations.of(context)!.inAppMapStartNavigation,
                               style: const TextStyle(fontWeight: FontWeight.bold)),

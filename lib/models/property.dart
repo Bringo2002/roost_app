@@ -4,7 +4,8 @@ import 'package:roost_app/models/user.dart';
 
 /// A nearby point of interest (closest mall, hospital, or major road),
 /// computed once server-side when a listing's GPS location is verified.
-/// Pure data -- category-to-icon mapping lives in the UI layer, not here.
+/// Pure data -- category-to-icon mapping and distance-label formatting
+/// (which must be localized) live in the UI layer, not here.
 class NearbyFacility {
   final String name;
   final String category; // 'mall' | 'hospital' | 'road'
@@ -28,14 +29,6 @@ class NearbyFacility {
       latitude: (json['lat'] as num?)?.toDouble() ?? 0.0,
       longitude: (json['lng'] as num?)?.toDouble() ?? 0.0,
     );
-  }
-
-  /// e.g. "600m from TRM Mall" or "1.2km from Thika Superhighway".
-  String get label {
-    final dist = distanceMeters < 1000
-        ? '${distanceMeters.round()}m'
-        : '${(distanceMeters / 1000).toStringAsFixed(1)}km';
-    return '$dist from $name';
   }
 }
 

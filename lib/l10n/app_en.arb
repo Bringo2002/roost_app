@@ -234,5 +234,55 @@
   "heroGalleryUnmuteVideo": "Unmute video",
   "@heroGalleryUnmuteVideo": {
     "description": "Tooltip and accessibility label for the listing video button that turns its sound on."
+  },
+  "nearbyFacilitiesSectionTitle": "Nearby",
+  "@nearbyFacilitiesSectionTitle": {
+    "description": "Heading above the list of nearby places (mall, hospital, major road) on a property page."
+  },
+  "nearbyFacilityCategoryMall": "Mall",
+  "@nearbyFacilityCategoryMall": {
+    "description": "Screen-reader category name for a nearby shopping mall."
+  },
+  "nearbyFacilityCategoryHospital": "Hospital",
+  "@nearbyFacilityCategoryHospital": {
+    "description": "Screen-reader category name for a nearby hospital."
+  },
+  "nearbyFacilityCategoryRoad": "Major road",
+  "@nearbyFacilityCategoryRoad": {
+    "description": "Screen-reader category name for a nearby major road."
+  },
+  "nearbyFacilityCategoryOther": "Place",
+  "@nearbyFacilityCategoryOther": {
+    "description": "Screen-reader category name for a nearby place of unknown type."
+  },
+  "nearbyFacilityDistanceMeters": "{meters}m",
+  "@nearbyFacilityDistanceMeters": {
+    "description": "Distance under 1 km, e.g. \"600m\".",
+    "placeholders": {
+      "meters": {
+        "type": "int"
+      }
+    }
+  },
+  "nearbyFacilityDistanceKm": "{km}km",
+  "@nearbyFacilityDistanceKm": {
+    "description": "Distance of 1 km or more, e.g. \"1.2km\".",
+    "placeholders": {
+      "km": {
+        "type": "String"
+      }
+    }
+  },
+  "nearbyFacilityLabel": "{distance} from {name}",
+  "@nearbyFacilityLabel": {
+    "description": "Nearby place label, e.g. \"600m from TRM Mall\". distance is already formatted.",
+    "placeholders": {
+      "distance": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
   }
 }
