@@ -5,14 +5,17 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Design tokens
+// ──────────────────────────────────────────────────────────────────────────────
+
+const _kCardRadius = 22.0;
+const _kIconContainerSize = 38.0;
+const _kExpenseIconSize = 34.0;
+
 /// Breaks down what a tenant actually needs saved up before signing --
 /// rent, deposit, and recurring fees -- with a toggle between the
 /// initial move-in number and a projected total over 6 or 12 months.
-///
-/// Monochrome throughout: the total-cost panel uses a subtle grayscale
-/// gradient (AppColors.black -> grey900) for visual depth rather than
-/// a flat fill, and every itemized row's icon sits in a plain grey800
-/// circle -- no accent colors, matching the rest of the app.
 class MoveInCostCalculatorCard extends StatefulWidget {
   const MoveInCostCalculatorCard({super.key, required this.property});
 
@@ -51,10 +54,6 @@ class _MoveInCostCalculatorCardState extends State<MoveInCostCalculatorCard> {
         (p.totalMonthlyUtilityCost * _leaseDurationMonths);
   }
 
-  /// Builds the same figures the card is currently displaying --
-  /// sharing this with the on-screen build means the copied summary
-  /// can never drift from what the tenant is actually looking at,
-  /// regardless of which duration tab is selected.
   void _copySummaryToClipboard() {
     final p = widget.property;
     final symbol = CountryService.config.currencySymbol;
@@ -93,68 +92,106 @@ Calculated via Roost App 📱
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(_kCardRadius),
         border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Header ──────────────────────────────────────────────────
-          Row(
-            children: [
-              const Icon(Icons.calculate_rounded, color: AppColors.white, size: 22),
-              const SizedBox(width: 8),
-              const Expanded(
-                child: Text(
-                  'Move-in & utility calculator',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.copy_rounded, color: AppColors.grey400, size: 18),
-                onPressed: _copySummaryToClipboard,
-                tooltip: 'Copy breakdown',
-              ),
-            ],
-          ),
-
-          const SizedBox(height: 14),
-
-          // ── Duration selector ───────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: AppColors.black,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: AppColors.border),
-            ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 20, 12, 0),
             child: Row(
               children: [
-                _DurationTab(
-                  label: 'Initial move-in',
-                  isSelected: _leaseDurationMonths == 1,
-                  onTap: () => setState(() => _leaseDurationMonths = 1),
+                // Tinted icon container
+                Container(
+                  width: _kIconContainerSize,
+                  height: _kIconContainerSize,
+                  decoration: BoxDecoration(
+                    color: AppColors.white.withAlpha(12),
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppColors.white.withAlpha(25)),
+                  ),
+                  child: const Icon(
+                    Icons.calculate_rounded,
+                    color: AppColors.white,
+                    size: 18,
+                  ),
                 ),
-                _DurationTab(
-                  label: '6 months',
-                  isSelected: _leaseDurationMonths == 6,
-                  onTap: () => setState(() => _leaseDurationMonths = 6),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Move-in calculator',
+                        style: TextStyle(
+                          color: AppColors.textPrimary,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 2),
+                      Text(
+                        'Rent, deposit & recurring fees',
+                        style: TextStyle(
+                          color: AppColors.grey500,
+                          fontSize: 11.5,
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-                _DurationTab(
-                  label: '1 year',
-                  isSelected: _leaseDurationMonths == 12,
-                  onTap: () => setState(() => _leaseDurationMonths = 12),
+                // Copy button with subtle background
+                Material(
+                  color: AppColors.grey800,
+                  borderRadius: BorderRadius.circular(10),
+                  child: InkWell(
+                    onTap: _copySummaryToClipboard,
+                    borderRadius: BorderRadius.circular(10),
+                    child: const Padding(
+                      padding: EdgeInsets.all(8),
+                      child: Icon(Icons.copy_rounded, color: AppColors.grey300, size: 16),
+                    ),
+                  ),
                 ),
               ],
+            ),
+          ),
+
+          const SizedBox(height: 16),
+
+          // ── Duration selector ───────────────────────────────────────
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: Container(
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: AppColors.black,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Row(
+                children: [
+                  _DurationTab(
+                    label: 'Move-in',
+                    isSelected: _leaseDurationMonths == 1,
+                    onTap: () => setState(() => _leaseDurationMonths = 1),
+                  ),
+                  _DurationTab(
+                    label: '6 months',
+                    isSelected: _leaseDurationMonths == 6,
+                    onTap: () => setState(() => _leaseDurationMonths = 6),
+                  ),
+                  _DurationTab(
+                    label: '1 year',
+                    isSelected: _leaseDurationMonths == 12,
+                    onTap: () => setState(() => _leaseDurationMonths = 12),
+                  ),
+                ],
+              ),
             ),
           ),
 
@@ -165,83 +202,101 @@ Calculated via Roost App 📱
             duration: const Duration(milliseconds: 300),
             switchInCurve: Curves.easeOut,
             switchOutCurve: Curves.easeIn,
-            child: Column(
+            child: Padding(
               key: ValueKey(_leaseDurationMonths),
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // ── Total panel ───────────────────────────────────────
-                _TotalPanel(
-                  label: _leaseDurationMonths == 1
-                      ? 'Total initial move-in capital'
-                      : 'Projected $_leaseDurationMonths-month total',
-                  amount: _displayTotal,
-                  suffix: _leaseDurationMonths == 1
-                      ? 'initial total'
-                      : 'over $_leaseDurationMonths months',
-                  formatCurrency: _formatCurrency,
-                ),
-
-                const SizedBox(height: 20),
-
-                // ── Itemized breakdown ────────────────────────────────
-                const Text(
-                  'Itemized breakdown',
-                  style: TextStyle(
-                    color: AppColors.grey400,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // ── Total panel ─────────────────────────────────────
+                  _TotalPanel(
+                    label: _leaseDurationMonths == 1
+                        ? 'Total initial move-in capital'
+                        : 'Projected $_leaseDurationMonths-month total',
+                    amount: _displayTotal,
+                    suffix: _leaseDurationMonths == 1
+                        ? 'initial total'
+                        : 'over $_leaseDurationMonths months',
+                    formatCurrency: _formatCurrency,
                   ),
-                ),
 
-                const SizedBox(height: 10),
+                  const SizedBox(height: 20),
 
-                _ExpenseRow(
-                  icon: Icons.home_rounded,
-                  title: _rentRowTitle,
-                  subtitle: 'Base monthly rent',
-                  amount: _formatCurrency(p.price * _leaseDurationMonths),
-                ),
-                const Divider(height: 1, color: AppColors.border),
+                  // ── Section header ──────────────────────────────────
+                  Row(
+                    children: [
+                      Container(
+                        width: 3,
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: AppColors.grey500,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        'ITEMIZED BREAKDOWN',
+                        style: TextStyle(
+                          color: AppColors.grey500,
+                          fontSize: 10.5,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                    ],
+                  ),
 
-                _ExpenseRow(
-                  icon: Icons.lock_rounded,
-                  title: 'Refundable security deposit',
-                  subtitle: '${p.depositMonths} month deposit, paid once, held by owner',
-                  amount: _formatCurrency(deposit),
-                ),
-                const Divider(height: 1, color: AppColors.border),
+                  const SizedBox(height: 12),
 
-                _ExpenseRow(
-                  icon: Icons.water_drop_rounded,
-                  title: 'Water & sewage fee',
-                  subtitle: 'Monthly water estimate',
-                  amount: _formatOrNotSpecified(p.waterFee),
-                ),
-                const Divider(height: 1, color: AppColors.border),
+                  // ── Line items ──────────────────────────────────────
+                  _ExpenseRow(
+                    icon: Icons.home_rounded,
+                    title: _rentRowTitle,
+                    subtitle: 'Base monthly rent',
+                    amount: _formatCurrency(p.price * _leaseDurationMonths),
+                  ),
 
-                _ExpenseRow(
-                  icon: Icons.delete_outline_rounded,
-                  title: 'Garbage collection',
-                  subtitle: 'Sanitation & waste pickup',
-                  amount: _formatOrNotSpecified(p.garbageFee),
-                ),
-                const Divider(height: 1, color: AppColors.border),
+                  _ExpenseRow(
+                    icon: Icons.lock_rounded,
+                    title: 'Security deposit',
+                    subtitle: '${p.depositMonths}mo deposit · one-time · refundable',
+                    amount: _formatCurrency(deposit),
+                  ),
 
-                _ExpenseRow(
-                  icon: Icons.shield_outlined,
-                  title: 'Service charge',
-                  subtitle: 'Security, compound & common lighting',
-                  amount: _formatOrNotSpecified(p.serviceCharge),
-                ),
-                const Divider(height: 1, color: AppColors.border),
+                  _ExpenseRow(
+                    icon: Icons.water_drop_rounded,
+                    title: 'Water & sewage',
+                    subtitle: 'Monthly estimate',
+                    amount: _formatOrNotSpecified(p.waterFee),
+                    isDimmed: p.waterFee <= 0,
+                  ),
 
-                _ExpenseRow(
-                  icon: Icons.bolt_rounded,
-                  title: 'Electricity metering',
-                  subtitle: _electricitySubtitle(p.electricityType),
-                  amount: _electricityAmount(p.electricityType),
-                ),
-              ],
+                  _ExpenseRow(
+                    icon: Icons.delete_outline_rounded,
+                    title: 'Garbage collection',
+                    subtitle: 'Sanitation & waste pickup',
+                    amount: _formatOrNotSpecified(p.garbageFee),
+                    isDimmed: p.garbageFee <= 0,
+                  ),
+
+                  _ExpenseRow(
+                    icon: Icons.shield_outlined,
+                    title: 'Service charge',
+                    subtitle: 'Security & common lighting',
+                    amount: _formatOrNotSpecified(p.serviceCharge),
+                    isDimmed: p.serviceCharge <= 0,
+                  ),
+
+                  _ExpenseRow(
+                    icon: Icons.bolt_rounded,
+                    title: 'Electricity',
+                    subtitle: _electricitySubtitle(p.electricityType),
+                    amount: _electricityAmount(p.electricityType),
+                    isDimmed: p.electricityType.toLowerCase() != 'included',
+                    isLast: true,
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -250,9 +305,9 @@ Calculated via Roost App 📱
   }
 
   static String _electricitySubtitle(String type) => switch (type.toLowerCase()) {
-        'tokens' => 'Prepaid KPLC tokens (pay as you use) -- not in total above',
+        'tokens' => 'Prepaid tokens · not in total',
         'included' => 'Included in rent',
-        _ => 'Postpaid monthly bill -- not in total above',
+        _ => 'Postpaid bill · not in total',
       };
 
   static String _electricityAmount(String type) => switch (type.toLowerCase()) {
@@ -265,8 +320,6 @@ Calculated via Roost App 📱
 // Duration tab
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// One segment of the duration selector strip. Extracted from inline
-/// `_buildSegmentTab` method so each tab is an isolated widget subtree.
 class _DurationTab extends StatelessWidget {
   const _DurationTab({
     required this.label,
@@ -282,23 +335,28 @@ class _DurationTab extends StatelessWidget {
   Widget build(BuildContext context) {
     return Expanded(
       child: Material(
-        color: isSelected ? AppColors.white : Colors.transparent,
-        borderRadius: BorderRadius.circular(10),
+        color: Colors.transparent,
         child: InkWell(
           onTap: () {
             HapticFeedback.selectionClick();
             onTap();
           },
           borderRadius: BorderRadius.circular(10),
-          child: Padding(
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            curve: Curves.easeOutCubic,
             padding: const EdgeInsets.symmetric(vertical: 10),
+            decoration: BoxDecoration(
+              color: isSelected ? AppColors.white : Colors.transparent,
+              borderRadius: BorderRadius.circular(10),
+            ),
             child: Text(
               label,
               textAlign: TextAlign.center,
               style: TextStyle(
                 color: isSelected ? AppColors.black : AppColors.grey400,
                 fontSize: 12,
-                fontWeight: FontWeight.bold,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.w500,
               ),
             ),
           ),
@@ -312,8 +370,6 @@ class _DurationTab extends StatelessWidget {
 // Total panel
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// The hero number at the top of the calculator. Separated so the
-/// TweenAnimationBuilder and its key logic stay contained.
 class _TotalPanel extends StatelessWidget {
   const _TotalPanel({
     required this.label,
@@ -331,10 +387,13 @@ class _TotalPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [AppColors.black, AppColors.grey900],
+        gradient: LinearGradient(
+          colors: [
+            AppColors.white.withAlpha(10),
+            AppColors.white.withAlpha(4),
+          ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
@@ -344,49 +403,70 @@ class _TotalPanel extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            label,
-            style: const TextStyle(
-              color: AppColors.grey400,
-              fontSize: 11.5,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.end,
-            spacing: 8,
+          Row(
             children: [
-              TweenAnimationBuilder<double>(
-                key: ValueKey(amount),
-                tween: Tween(begin: amount * 0.8, end: amount),
-                duration: const Duration(milliseconds: 500),
-                curve: Curves.easeOutCubic,
-                builder: (context, val, _) => Text(
-                  formatCurrency(val),
-                  style: const TextStyle(
-                    color: AppColors.white,
-                    fontSize: 26,
-                    fontWeight: FontWeight.bold,
-                  ),
+              Container(
+                width: 6,
+                height: 6,
+                decoration: const BoxDecoration(
+                  color: AppColors.white,
+                  shape: BoxShape.circle,
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.only(bottom: 4),
-                child: Text(
-                  suffix,
-                  style: const TextStyle(color: AppColors.grey400, fontSize: 12),
+              const SizedBox(width: 8),
+              Text(
+                label.toUpperCase(),
+                style: const TextStyle(
+                  color: AppColors.grey400,
+                  fontSize: 10,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.8,
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 6),
-          const Text(
-            '* Excludes electricity, billed separately based on usage',
-            style: TextStyle(
-              color: AppColors.grey500,
-              fontSize: 10.5,
-              fontStyle: FontStyle.italic,
+          const SizedBox(height: 10),
+          TweenAnimationBuilder<double>(
+            key: ValueKey(amount),
+            tween: Tween(begin: amount * 0.8, end: amount),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutCubic,
+            builder: (context, val, _) => Text(
+              formatCurrency(val),
+              style: const TextStyle(
+                color: AppColors.white,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                height: 1.1,
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            suffix,
+            style: const TextStyle(color: AppColors.grey500, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: AppColors.grey800.withAlpha(150),
+              borderRadius: BorderRadius.circular(6),
+            ),
+            child: const Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(Icons.info_outline, color: AppColors.grey500, size: 11),
+                SizedBox(width: 5),
+                Text(
+                  'Excludes electricity (usage-based)',
+                  style: TextStyle(
+                    color: AppColors.grey500,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
@@ -399,77 +479,118 @@ class _TotalPanel extends StatelessWidget {
 // Expense row
 // ──────────────────────────────────────────────────────────────────────────────
 
-/// A single line-item in the itemized breakdown. Extracted from the inline
-/// `_buildExpenseRow` method so each row is a proper widget with its own
-/// element in the tree (better rebuild isolation, profiling, and testing).
 class _ExpenseRow extends StatelessWidget {
   const _ExpenseRow({
     required this.icon,
     required this.title,
     required this.subtitle,
     required this.amount,
+    this.isDimmed = false,
+    this.isLast = false,
   });
 
   final IconData icon;
   final String title;
   final String subtitle;
   final String amount;
+  final bool isDimmed;
+  final bool isLast;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: [
-          Container(
-            width: 34,
-            height: 34,
-            decoration: const BoxDecoration(
-              color: AppColors.grey800,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(icon, color: AppColors.white, size: 16),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                  ),
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 10),
+          child: Row(
+            children: [
+              // Icon container — dimmed items get a lighter treatment
+              Container(
+                width: _kExpenseIconSize,
+                height: _kExpenseIconSize,
+                decoration: BoxDecoration(
+                  color: isDimmed
+                      ? AppColors.grey800.withAlpha(120)
+                      : AppColors.grey800,
+                  borderRadius: BorderRadius.circular(10),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  subtitle,
-                  style: const TextStyle(
-                    color: AppColors.grey400,
-                    fontSize: 11,
-                  ),
+                child: Icon(
+                  icon,
+                  color: isDimmed ? AppColors.grey600 : AppColors.white,
+                  size: 16,
                 ),
-              ],
-            ),
-          ),
-          const SizedBox(width: 8),
-          Flexible(
-            flex: 0,
-            child: Text(
-              amount,
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 13,
-                fontWeight: FontWeight.bold,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        color: isDimmed
+                            ? AppColors.grey500
+                            : AppColors.textPrimary,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      subtitle,
+                      style: TextStyle(
+                        color: isDimmed ? AppColors.grey600 : AppColors.grey400,
+                        fontSize: 11,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 8),
+              // Amount — "Not specified" gets a muted pill style
+              if (isDimmed && amount == 'Not specified')
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 3,
+                  ),
+                  decoration: BoxDecoration(
+                    color: AppColors.grey800.withAlpha(120),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: Text(
+                    amount,
+                    style: const TextStyle(
+                      color: AppColors.grey600,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                )
+              else
+                Flexible(
+                  flex: 0,
+                  child: Text(
+                    amount,
+                    style: TextStyle(
+                      color: isDimmed ? AppColors.grey500 : AppColors.white,
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+            ],
           ),
-        ],
-      ),
+        ),
+        if (!isLast)
+          Divider(
+            height: 1,
+            color: AppColors.grey800.withAlpha(120),
+            indent: _kExpenseIconSize + 12,
+          ),
+      ],
     );
   }
 }
