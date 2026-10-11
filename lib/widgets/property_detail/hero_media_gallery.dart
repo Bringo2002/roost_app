@@ -1,6 +1,7 @@
 import 'dart:ui';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:video_player/video_player.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
@@ -38,20 +39,41 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
   final PageController _pageController = PageController();
   int _currentIndex = 0;
 
-  List<String> get _photoUrls {
+  /// Cached, deduplicated photo URLs. Computed once in [initState] and
+  /// [didUpdateWidget] instead of every build, avoiding O(n²) `.contains()`
+  /// on each swipe rebuild.
+  late List<String> _photoUrls;
+  late bool _hasVideo;
+
+  @override
+  void initState() {
+    super.initState();
+    _computeMedia();
+  }
+
+  @override
+  void didUpdateWidget(covariant HeroMediaGallery oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.property != widget.property) {
+      _computeMedia();
+    }
+  }
+
+  void _computeMedia() {
+    final seen = <String>{};
     final urls = <String>[];
-    if (widget.property.imageUrl != null && widget.property.imageUrl!.isNotEmpty) {
-      urls.add(widget.property.imageUrl!);
+    final primary = widget.property.imageUrl;
+    if (primary != null && primary.isNotEmpty && seen.add(primary)) {
+      urls.add(primary);
     }
     for (final url in widget.property.imageUrls) {
-      if (url.isNotEmpty && !urls.contains(url)) {
+      if (url.isNotEmpty && seen.add(url)) {
         urls.add(url);
       }
     }
-    return urls;
+    _photoUrls = urls;
+    _hasVideo = widget.property.videoUrl != null && widget.property.videoUrl!.isNotEmpty;
   }
-
-  bool get _hasVideo => widget.property.videoUrl != null && widget.property.videoUrl!.isNotEmpty;
 
   // Keeps this gallery on the photo the full-screen viewer is showing, so that
   // closing the viewer flies the photo back to its thumbnail. Jumps rather than
@@ -70,14 +92,13 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
 
   @override
   Widget build(BuildContext context) {
-    final urls = _photoUrls;
-    final slideCount = urls.length + (_hasVideo ? 1 : 0);
+    final slideCount = _photoUrls.length + (_hasVideo ? 1 : 0);
 
     return Stack(
       fit: StackFit.expand,
       children: [
-        _buildGallery(urls, slideCount),
-        _buildBottomScrim(),
+        _buildGallery(_photoUrls, slideCount),
+        const _BottomScrim(),
         if (slideCount > 1) _buildDotIndicator(slideCount),
         if (slideCount > 1) _buildPhotoCounter(slideCount),
       ],
@@ -105,7 +126,7 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
         final photoIdx = _hasVideo ? idx - 1 : idx;
         final l10n = AppLocalizations.of(context)!;
         final propertyId = widget.property.id;
-        final thumbnail = _buildPhotoThumbnail(urls[photoIdx]);
+        final thumbnail = _PhotoThumbnail(url: urls[photoIdx]);
         return GestureDetector(
           onTap: () => FullScreenImageGallery.open(
             context,
@@ -131,32 +152,6 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
           ),
         );
       },
-    );
-  }
-
-  Widget _buildPhotoThumbnail(String url) {
-    return CachedNetworkImage(
-      imageUrl: url,
-      fit: BoxFit.cover,
-      placeholder: (context, url) => Shimmer.fromColors(
-        baseColor: AppColors.grey800,
-        highlightColor: AppColors.grey700,
-        child: Container(color: AppColors.black),
-      ),
-      errorWidget: (context, url, error) => Container(
-        color: AppColors.surface,
-        child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 48),
-      ),
-    );
-  }
-
-  Widget _buildBottomScrim() {
-    return IgnorePointer(
-      child: Container(
-        decoration: BoxDecoration(
-          gradient: AppColors.mediaBottomScrimGradient,
-        ),
-      ),
     );
   }
 
@@ -222,6 +217,56 @@ class _HeroMediaGalleryState extends State<HeroMediaGallery> {
   }
 }
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Photo thumbnail (extracted from inline method)
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _PhotoThumbnail extends StatelessWidget {
+  const _PhotoThumbnail({required this.url});
+
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    return CachedNetworkImage(
+      imageUrl: url,
+      fit: BoxFit.cover,
+      placeholder: (context, url) => Shimmer.fromColors(
+        baseColor: AppColors.grey800,
+        highlightColor: AppColors.grey700,
+        child: Container(color: AppColors.black),
+      ),
+      errorWidget: (context, url, error) => Container(
+        color: AppColors.surface,
+        child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 48),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Bottom scrim overlay
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _BottomScrim extends StatelessWidget {
+  const _BottomScrim();
+
+  @override
+  Widget build(BuildContext context) {
+    return IgnorePointer(
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: AppColors.mediaBottomScrimGradient,
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Video slide
+// ──────────────────────────────────────────────────────────────────────────────
+
 class _HeroVideoSlide extends StatefulWidget {
   const _HeroVideoSlide({required this.url});
 
@@ -258,6 +303,7 @@ class _HeroVideoSlideState extends State<_HeroVideoSlide> {
   }
 
   void _toggleMute() {
+    HapticFeedback.lightImpact();
     setState(() {
       _muted = !_muted;
       _controller?.setVolume(_muted ? 0 : 1);
@@ -290,6 +336,7 @@ class _HeroVideoSlideState extends State<_HeroVideoSlide> {
     }
 
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTap: _toggleMute,
       child: Stack(
         fit: StackFit.expand,
