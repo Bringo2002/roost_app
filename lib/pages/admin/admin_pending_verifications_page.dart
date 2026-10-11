@@ -679,13 +679,13 @@ class _ShimmerBox extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Shimmer.fromColors(
-      baseColor: Colors.grey[850]!,
+      baseColor: Colors.grey[800]!,
       highlightColor: Colors.grey[700]!,
       child: Container(
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: Colors.grey[850],
+          color: Colors.grey[800],
           borderRadius: borderRadius ?? BorderRadius.circular(10),
         ),
       ),
@@ -701,7 +701,7 @@ class _AuditDocumentSheet extends StatefulWidget {
   final Property property;
   final bool busy;
   final VoidCallback onApprove;
-  final Function(String reason) onReject;
+  final ValueChanged<String> onReject;
 
   const _AuditDocumentSheet({
     required this.property,
@@ -720,6 +720,10 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
 
   /// Each section gets its own staggered [Animation<double>].
   late final List<Animation<double>> _sectionAnims;
+
+  /// Cached slide position animations — built once in [initState], not on
+  /// every frame.
+  late final List<Animation<Offset>> _slideAnims;
 
   static const _sectionCount = 6; // header, landlord, AI, docs, photos, buttons
 
@@ -741,6 +745,12 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
         curve: Interval(start, end, curve: Curves.easeOut),
       );
     });
+    _slideAnims = List.generate(_sectionCount, (i) {
+      return Tween<Offset>(
+        begin: const Offset(0, 0.08),
+        end: Offset.zero,
+      ).animate(_sectionAnims[i]);
+    });
     _animController.forward();
   }
 
@@ -754,10 +764,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
     return FadeTransition(
       opacity: _sectionAnims[index],
       child: SlideTransition(
-        position: Tween<Offset>(
-          begin: const Offset(0, 0.08),
-          end: Offset.zero,
-        ).animate(_sectionAnims[index]),
+        position: _slideAnims[index],
         child: child,
       ),
     );
@@ -1065,16 +1072,16 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
             itemCount: photos.length,
             itemBuilder: (_, idx) {
               return GestureDetector(
-                onTap: () => _openGallery(context, photos, idx),
+                onTap: () => _pushGallery(context, photos, idx),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: CachedNetworkImage(
                     imageUrl: photos[idx],
                     fit: BoxFit.cover,
                     placeholder: (_, __) =>
-                        const _ShimmerBox(borderRadius: BorderRadius.zero),
+                        _ShimmerBox(borderRadius: BorderRadius.zero),
                     errorWidget: (_, __, ___) =>
-                        Container(color: Colors.grey[850]),
+                        Container(color: Colors.grey[800]),
                   ),
                 ),
               );
@@ -1259,12 +1266,12 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
 
   void _showRejectDialog(BuildContext context) {
     HapticFeedback.lightImpact();
+    final controller = TextEditingController();
     showDialog(
       context: context,
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, _) {
-            final controller = TextEditingController();
             return AlertDialog(
               backgroundColor: AppColors.zinc900,
               shape: RoundedRectangleBorder(
@@ -1330,22 +1337,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
     );
   }
 
-  // ── Gallery launcher ──────────────────────────────────────────────────
 
-  void _openGallery(
-      BuildContext context, List<String> urls, int initialIndex) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.black87,
-        barrierDismissible: true,
-        pageBuilder: (_, __, ___) =>
-            _FullScreenGallery(urls: urls, initialIndex: initialIndex),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-      ),
-    );
-  }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1387,8 +1379,9 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
         children: [
           // Dismiss on background tap
           GestureDetector(
+            behavior: HitTestBehavior.opaque,
             onTap: () => Navigator.pop(context),
-            child: Container(color: Colors.transparent),
+            child: const SizedBox.expand(),
           ),
           // Swipeable pages
           PageView.builder(
@@ -1558,7 +1551,7 @@ class _DocumentPreview extends StatelessWidget {
                   imageUrl: url,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) => const _ShimmerBox(
+                  placeholder: (_, __) => _ShimmerBox(
                     borderRadius: BorderRadius.zero,
                   ),
                   errorWidget: (_, __, ___) => Container(
@@ -1590,20 +1583,30 @@ class _DocumentPreview extends StatelessWidget {
   }
 
   void _openGallery(BuildContext context) {
-    Navigator.of(context).push(
-      PageRouteBuilder(
-        opaque: false,
-        barrierColor: Colors.black87,
-        barrierDismissible: true,
-        pageBuilder: (_, __, ___) => _FullScreenGallery(
-          urls: allUrls,
-          initialIndex: docNumber - 1,
-        ),
-        transitionsBuilder: (_, anim, __, child) =>
-            FadeTransition(opacity: anim, child: child),
-      ),
-    );
+    _pushGallery(context, allUrls, docNumber - 1);
   }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Shared gallery launcher
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Opens the [_FullScreenGallery] with a fade transition.
+///
+/// Shared by both the photo grid and document preview widgets to avoid
+/// duplicating the [PageRouteBuilder] boilerplate.
+void _pushGallery(BuildContext context, List<String> urls, int initialIndex) {
+  Navigator.of(context).push(
+    PageRouteBuilder(
+      opaque: false,
+      barrierColor: Colors.black87,
+      barrierDismissible: true,
+      pageBuilder: (_, __, ___) =>
+          _FullScreenGallery(urls: urls, initialIndex: initialIndex),
+      transitionsBuilder: (_, anim, __, child) =>
+          FadeTransition(opacity: anim, child: child),
+    ),
+  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
