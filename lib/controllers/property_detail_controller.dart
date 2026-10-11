@@ -145,4 +145,18 @@ class PropertyDetailController extends ChangeNotifier {
       'reason': reason,
     });
   }
+
+  /// Reports that the renter was asked to pay a viewing fee — something
+  /// Roost's policy explicitly prohibits. Same throw-on-failure contract
+  /// as [reportProperty].
+  ///
+  /// Previously this call lived directly in [ReportViewingFeeSheet],
+  /// bypassing the controller entirely. Centralising it here keeps
+  /// every report endpoint in one place and makes unit-testing trivial.
+  Future<void> reportViewingFee(String detail) async {
+    await ApiService.post('/api/properties/${property.id}/report', {
+      'reason': 'Viewing fee charged',
+      'detail': detail,
+    });
+  }
 }

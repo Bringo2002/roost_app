@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:roost_app/controllers/property_detail_controller.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property_detail/report_viewing_fee_sheet.dart';
 
 /// The "Roost prohibits charging for viewings" trust banner. Previously
 /// teal-accented (`AppColors.landlordAccent`) -- now a plain white-bordered
 /// card, consistent with the rest of the monochrome trust UI.
+///
+/// Takes a [PropertyDetailController] so the report flows through the
+/// same centralised API layer as every other action on the detail page.
 class FreeViewingsBanner extends StatelessWidget {
-  const FreeViewingsBanner({super.key, this.propertyId});
+  const FreeViewingsBanner({super.key, required this.controller});
 
-  final int? propertyId;
+  final PropertyDetailController controller;
 
   @override
   Widget build(BuildContext context) {
@@ -51,7 +55,7 @@ class FreeViewingsBanner extends StatelessWidget {
             child: InkWell(
               onTap: () {
                 HapticFeedback.lightImpact();
-                ReportViewingFeeSheet.show(context, propertyId: propertyId);
+                ReportViewingFeeSheet.show(context, controller);
               },
               borderRadius: BorderRadius.circular(8),
               child: Container(
