@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
@@ -81,7 +82,10 @@ class _AmenitiesSectionState extends State<AmenitiesSection> {
         if (showToggle) ...[
           const SizedBox(height: 16),
           OutlinedButton(
-            onPressed: () => setState(() => _expanded = !_expanded),
+            onPressed: () {
+              HapticFeedback.selectionClick();
+              setState(() => _expanded = !_expanded);
+            },
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.white,
               side: const BorderSide(color: AppColors.border),
@@ -115,7 +119,6 @@ class _AmenityChip extends StatelessWidget {
         border: Border.all(color: AppColors.border),
       ),
       child: Row(
-        mainAxisSize: MainAxisSize.max,
         children: [
           Container(
             width: 30,
