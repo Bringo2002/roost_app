@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:roost_app/controllers/property_detail_controller.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/widgets/property_detail/roost_bottom_sheet.dart';
 
@@ -16,20 +17,20 @@ enum ViewingFeeDetail {
 }
 
 /// Lets a renter flag that they were asked to pay for a viewing --
-/// something Roost's policy explicitly prohibits. Takes the property ID
-/// directly rather than a controller, since this report isn't tied to
-/// the rest of the detail page's state.
+/// something Roost's policy explicitly prohibits. Routes through the
+/// [PropertyDetailController] so every report endpoint is centralised
+/// in one place, matching [ReportSheet].
 class ReportViewingFeeSheet extends StatefulWidget {
-  const ReportViewingFeeSheet({super.key, required this.propertyId});
+  const ReportViewingFeeSheet({super.key, required this.controller});
 
-  final int? propertyId;
+  final PropertyDetailController controller;
 
-  static Future<void> show(BuildContext context, {int? propertyId}) {
+  static Future<void> show(BuildContext context, PropertyDetailController controller) {
     return RoostBottomSheet.show(
       context: context,
       title: 'Report Viewing Fee',
       subtitle: 'Property viewings on Roost are always free. If someone asked you to pay, let us know so we can take action.',
-      builder: (_) => ReportViewingFeeSheet(propertyId: propertyId),
+      builder: (_) => ReportViewingFeeSheet(controller: controller),
     );
   }
 
@@ -45,12 +46,7 @@ class _ReportViewingFeeSheetState extends State<ReportViewingFeeSheet> {
     setState(() => _isSubmitting = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      if (widget.propertyId != null) {
-        await ApiService.post('/api/properties/${widget.propertyId}/report', {
-          'reason': 'Viewing fee charged',
-          'detail': _selected.label,
-        });
-      }
+      await widget.controller.reportViewingFee(_selected.label);
       if (!mounted) return;
       Navigator.pop(context);
       messenger.showSnackBar(
@@ -60,7 +56,6 @@ class _ReportViewingFeeSheetState extends State<ReportViewingFeeSheet> {
         ),
       );
     } catch (e) {
-      // Surface the error instead of silently swallowing it.
       if (!mounted) return;
       Navigator.pop(context);
       messenger.showSnackBar(
