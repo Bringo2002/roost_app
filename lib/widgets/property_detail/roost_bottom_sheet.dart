@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 
@@ -107,7 +108,7 @@ class RoostSheetSubmitButton extends StatelessWidget {
           backgroundColor: isDestructive ? AppColors.grey800 : AppColors.white,
           foregroundColor: isDestructive ? AppColors.white : AppColors.black,
           disabledBackgroundColor:
-              (isDestructive ? AppColors.grey800 : AppColors.white).withValues(alpha: 0.5),
+              (isDestructive ? AppColors.grey800 : AppColors.white).withAlpha(128),
           elevation: 0,
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
         ),
@@ -122,6 +123,57 @@ class RoostSheetSubmitButton extends StatelessWidget {
               )
             : Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
       ),
+    );
+  }
+}
+
+/// Reusable single-select radio list used by both [ReportSheet] and
+/// [ReportViewingFeeSheet], eliminating the duplicated ListTile+radio
+/// pattern. Each option gets haptic feedback and an ink-splash on tap.
+class RoostRadioList<T> extends StatelessWidget {
+  const RoostRadioList({
+    super.key,
+    required this.options,
+    required this.labelOf,
+    required this.selected,
+    required this.onChanged,
+    this.enabled = true,
+  });
+
+  final List<T> options;
+  final String Function(T) labelOf;
+  final T selected;
+  final ValueChanged<T> onChanged;
+  final bool enabled;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: options.map((option) {
+        final isSelected = option == selected;
+        return ListTile(
+          title: Text(
+            labelOf(option),
+            style: TextStyle(
+              color: isSelected ? AppColors.textPrimary : AppColors.textTertiary,
+              fontSize: 14,
+            ),
+          ),
+          trailing: Icon(
+            isSelected ? Icons.radio_button_checked : Icons.radio_button_off,
+            color: isSelected ? AppColors.white : AppColors.grey500,
+            size: 20,
+          ),
+          contentPadding: EdgeInsets.zero,
+          onTap: enabled
+              ? () {
+                  HapticFeedback.selectionClick();
+                  onChanged(option);
+                }
+              : null,
+        );
+      }).toList(),
     );
   }
 }

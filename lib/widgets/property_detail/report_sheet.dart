@@ -1,25 +1,30 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/controllers/property_detail_controller.dart';
 import 'package:roost_app/services/api_service.dart';
-import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property_detail/roost_bottom_sheet.dart';
 
+/// Reason codes for flagging a listing. Using an enum prevents typos
+/// in the reason string and makes it trivial to add analytics or
+/// server-side mapping later.
+enum ReportReason {
+  fakeListing('Fake listing'),
+  incorrectPrice('Incorrect price / hidden fees'),
+  alreadyTaken('Already taken / not available'),
+  fraudOrScam('Fraud or scam attempt'),
+  inaccurateMedia('Inaccurate photos / location'),
+  other('Other');
+
+  const ReportReason(this.label);
+  final String label;
+}
+
 /// Lets a renter flag a listing as fake, mispriced, unavailable, or
-/// otherwise wrong. Reason is a fixed set rather than free text so
-/// reports are triageable in bulk on the backend.
+/// otherwise wrong. Reason is a fixed enum so reports are triageable
+/// in bulk on the backend.
 class ReportSheet extends StatefulWidget {
   const ReportSheet({super.key, required this.controller});
 
   final PropertyDetailController controller;
-
-  static const List<String> reasons = [
-    'Fake listing',
-    'Incorrect price / hidden fees',
-    'Already taken / not available',
-    'Fraud or scam attempt',
-    'Inaccurate photos / location',
-    'Other',
-  ];
 
   static Future<void> show(BuildContext context, PropertyDetailController controller) {
     return RoostBottomSheet.show(
@@ -35,14 +40,14 @@ class ReportSheet extends StatefulWidget {
 }
 
 class _ReportSheetState extends State<ReportSheet> {
-  String _selectedReason = ReportSheet.reasons.first;
+  ReportReason _selected = ReportReason.fakeListing;
   bool _isSubmitting = false;
 
   Future<void> _submit() async {
     setState(() => _isSubmitting = true);
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await widget.controller.reportProperty(_selectedReason);
+      await widget.controller.reportProperty(_selected.label);
       if (!mounted) return;
       Navigator.pop(context);
       messenger.showSnackBar(
@@ -66,22 +71,13 @@ class _ReportSheetState extends State<ReportSheet> {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        ...ReportSheet.reasons.map((r) {
-          final selected = _selectedReason == r;
-          return ListTile(
-            title: Text(
-              r,
-              style: TextStyle(color: selected ? AppColors.textPrimary : AppColors.textTertiary, fontSize: 14),
-            ),
-            trailing: Icon(
-              selected ? Icons.radio_button_checked : Icons.radio_button_off,
-              color: selected ? AppColors.white : AppColors.grey500,
-              size: 20,
-            ),
-            contentPadding: EdgeInsets.zero,
-            onTap: _isSubmitting ? null : () => setState(() => _selectedReason = r),
-          );
-        }),
+        RoostRadioList<ReportReason>(
+          options: ReportReason.values,
+          labelOf: (r) => r.label,
+          selected: _selected,
+          onChanged: (r) => setState(() => _selected = r),
+          enabled: !_isSubmitting,
+        ),
         const SizedBox(height: 12),
         RoostSheetSubmitButton(
           label: 'Submit Report',
