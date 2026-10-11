@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/search/move_in_inspection_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
@@ -23,57 +24,93 @@ class InspectionActionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header
-          const Row(
+          // ── Header ──────────────────────────────────────────────────
+          Row(
             children: [
-              Icon(Icons.checklist_rounded, color: AppColors.white, size: 22),
-              SizedBox(width: 8),
-              Text(
-                'Move-in Inspection',
-                style: TextStyle(
-                  color: AppColors.textPrimary,
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
+              Container(
+                width: 38,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AppColors.white.withAlpha(12),
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.white.withAlpha(25)),
+                ),
+                child: const Icon(
+                  Icons.checklist_rounded,
+                  color: AppColors.white,
+                  size: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Move-in Inspection',
+                      style: TextStyle(
+                        color: AppColors.textPrimary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Digital deposit protection report',
+                      style: TextStyle(
+                        color: AppColors.grey500,
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ],
           ),
 
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
 
-          // Description
-          Text(
+          // ── Description ─────────────────────────────────────────────
+          const Text(
             'Protect your deposit with a room-by-room condition report. '
             'Document walls, plumbing, appliances, and meter readings with '
             'photo evidence before you move in.',
             style: TextStyle(
-              color: Colors.grey[400],
+              color: AppColors.grey400,
               fontSize: 13,
               height: 1.5,
             ),
           ),
 
-          const SizedBox(height: 8),
+          const SizedBox(height: 12),
 
-          // Feature pills
-          Wrap(
+          // ── Feature pills ───────────────────────────────────────────
+          const Wrap(
             spacing: 8,
             runSpacing: 8,
             children: [
-              _buildPill(Icons.camera_alt_outlined, 'Photo Evidence'),
-              _buildPill(Icons.electric_meter_outlined, 'Meter Readings'),
-              _buildPill(Icons.edit_outlined, 'Digital Sign-off'),
-              _buildPill(Icons.share_outlined, 'Shareable Report'),
+              _FeaturePill(icon: Icons.camera_alt_outlined, label: 'Photo Evidence'),
+              _FeaturePill(icon: Icons.electric_meter_outlined, label: 'Meter Readings'),
+              _FeaturePill(icon: Icons.draw_outlined, label: 'Digital Sign-off'),
+              _FeaturePill(icon: Icons.share_outlined, label: 'Shareable Report'),
             ],
           ),
 
-          const SizedBox(height: 16),
+          const SizedBox(height: 18),
 
-          // CTA Button
+          // ── CTA Button ──────────────────────────────────────────────
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: () => _startInspection(context),
+              onPressed: () {
+                HapticFeedback.lightImpact();
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => MoveInInspectionPage(property: property),
+                  ),
+                );
+              },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.white,
                 foregroundColor: AppColors.black,
@@ -103,8 +140,20 @@ class InspectionActionCard extends StatelessWidget {
       ),
     );
   }
+}
 
-  Widget _buildPill(IconData icon, String label) {
+// ──────────────────────────────────────────────────────────────────────────────
+// Feature pill
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _FeaturePill extends StatelessWidget {
+  const _FeaturePill({required this.icon, required this.label});
+
+  final IconData icon;
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
@@ -126,15 +175,6 @@ class InspectionActionCard extends StatelessWidget {
             ),
           ),
         ],
-      ),
-    );
-  }
-
-  void _startInspection(BuildContext context) {
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => MoveInInspectionPage(property: property),
       ),
     );
   }
