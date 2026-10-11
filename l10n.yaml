@@ -3,8 +3,7 @@ template-arb-file: app_en.arb
 output-localization-file: app_localizations.dart
 output-class: AppLocalizations
 output-dir: lib/l10n/generated
-# Generate a real, importable Dart package file rather than relying on the
-# deprecated synthetic `package:flutter_gen` output -- this keeps the
-# generated code visible in the repo tree and importable with a normal,
-# stable path (package:roost_app/l10n/generated/app_localizations.dart).
-synthetic-package: false
+# Generated code is written to output-dir (visible in the repo tree) and
+# imported as package:roost_app/l10n/generated/app_localizations.dart.
+# (The old `synthetic-package: false` option was removed: Flutter now
+# always generates into output-dir, and warns that the option has no effect.)
