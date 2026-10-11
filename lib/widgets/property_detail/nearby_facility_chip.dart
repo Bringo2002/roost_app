@@ -13,31 +13,19 @@ class NearbyFacilityChip extends StatelessWidget {
 
   const NearbyFacilityChip({super.key, required this.facility});
 
-  static IconData _icon(String category) {
-    switch (category) {
-      case 'mall':
-        return Icons.shopping_bag_outlined;
-      case 'hospital':
-        return Icons.local_hospital_outlined;
-      case 'road':
-        return Icons.add_road_outlined;
-      default:
-        return Icons.place_outlined;
-    }
-  }
+  static IconData _icon(String category) => switch (category) {
+        'mall' => Icons.shopping_bag_outlined,
+        'hospital' => Icons.local_hospital_outlined,
+        'road' => Icons.add_road_outlined,
+        _ => Icons.place_outlined,
+      };
 
-  static String _categoryLabel(AppLocalizations l10n, String category) {
-    switch (category) {
-      case 'mall':
-        return l10n.nearbyFacilityCategoryMall;
-      case 'hospital':
-        return l10n.nearbyFacilityCategoryHospital;
-      case 'road':
-        return l10n.nearbyFacilityCategoryRoad;
-      default:
-        return l10n.nearbyFacilityCategoryOther;
-    }
-  }
+  static String _categoryLabel(AppLocalizations l10n, String category) => switch (category) {
+        'mall' => l10n.nearbyFacilityCategoryMall,
+        'hospital' => l10n.nearbyFacilityCategoryHospital,
+        'road' => l10n.nearbyFacilityCategoryRoad,
+        _ => l10n.nearbyFacilityCategoryOther,
+      };
 
   static String _label(AppLocalizations l10n, NearbyFacility f) {
     final distance = f.distanceMeters < 1000
