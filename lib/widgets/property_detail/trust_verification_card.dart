@@ -24,9 +24,21 @@ class TrustVerificationCard extends StatelessWidget {
 
   String get _name => property.landlordName ?? (property.owner?.name ?? 'Landlord');
 
+  /// Formats the response-time label defensively.
+  ///
+  /// The backend may send the raw duration (e.g. `"15 min"`) or a
+  /// pre-formatted string (e.g. `"Usually responds within 15 min"`).
+  /// Without this guard, the old code would produce the doubled text
+  /// "Usually responds within Usually responds within 15 min".
+  String get _responseTimeLabel {
+    final raw = property.owner?.responseTime;
+    if (raw == null || raw.isEmpty) return 'Response time unavailable';
+    if (raw.toLowerCase().startsWith('usually')) return raw;
+    return 'Usually responds within $raw';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final firstLetter = _name.isNotEmpty ? _name[0].toUpperCase() : 'L';
     final avatarUrl = property.owner?.avatarUrl;
     final gpsOk = property.gpsVerified || property.verified;
     final docOk = property.documentVerified || property.documentUrls.isNotEmpty || property.verified;
@@ -47,7 +59,7 @@ class TrustVerificationCard extends StatelessWidget {
                 context,
                 MaterialPageRoute(
                   builder: (_) => PublicHostProfilePage(
-                    hostId: property.landlordId?.toString() ?? property.id?.toString() ?? 'host_123',
+                    hostId: property.landlordId?.toString() ?? '',
                     hostName: _name,
                     hostPhone: property.landlordPhone,
                     hostRole: 'LANDLORD',
@@ -65,96 +77,9 @@ class TrustVerificationCard extends StatelessWidget {
               child: Row(
                 children: [
                   // ── Avatar — tappable to view full-screen when a photo exists ──
-                  GestureDetector(
-                    behavior: HitTestBehavior.opaque,
-                    onTap: (avatarUrl != null && avatarUrl.isNotEmpty)
-                        ? () => FullScreenImageGallery.open(context, [avatarUrl])
-                        : null,
-                    child: Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(2),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(color: AppColors.grey700, width: 1.5),
-                          ),
-                          child: ClipOval(
-                            child: (avatarUrl != null && avatarUrl.isNotEmpty)
-                                ? CachedNetworkImage(
-                                    imageUrl: avatarUrl,
-                                    width: 48,
-                                    height: 48,
-                                    fit: BoxFit.cover,
-                                    placeholder: (context, url) => Container(
-                                      width: 48,
-                                      height: 48,
-                                      color: AppColors.white,
-                                      child: Center(
-                                        child: Text(
-                                          firstLetter,
-                                          style: const TextStyle(
-                                            color: AppColors.black,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                    errorWidget: (context, url, error) => Container(
-                                      width: 48,
-                                      height: 48,
-                                      color: AppColors.white,
-                                      child: Center(
-                                        child: Text(
-                                          firstLetter,
-                                          style: const TextStyle(
-                                            color: AppColors.black,
-                                            fontWeight: FontWeight.bold,
-                                            fontSize: 20,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  )
-                                : Container(
-                                    width: 48,
-                                    height: 48,
-                                    color: AppColors.white,
-                                    child: Center(
-                                      child: Text(
-                                        firstLetter,
-                                        style: const TextStyle(
-                                          color: AppColors.black,
-                                          fontWeight: FontWeight.bold,
-                                          fontSize: 20,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                          ),
-                        ),
-                        // Expand hint badge — only shown when a real photo is set
-                        if (avatarUrl != null && avatarUrl.isNotEmpty)
-                          Positioned(
-                            bottom: -2,
-                            right: -2,
-                            child: Container(
-                              padding: const EdgeInsets.all(3),
-                              decoration: BoxDecoration(
-                                color: AppColors.grey800,
-                                shape: BoxShape.circle,
-                                border: Border.all(color: AppColors.grey600, width: 0.8),
-                              ),
-                              child: const Icon(
-                                Icons.open_in_full_rounded,
-                                color: AppColors.white,
-                                size: 9,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+                  _HostAvatar(
+                    name: _name,
+                    avatarUrl: avatarUrl,
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -181,13 +106,15 @@ class TrustVerificationCard extends StatelessWidget {
                         const SizedBox(height: 4),
                         Row(
                           children: [
-                            Icon(Icons.bolt, color: AppColors.grey500, size: 14),
+                            const Icon(Icons.bolt, color: AppColors.grey500, size: 14),
                             const SizedBox(width: 4),
-                            Text(
-                              property.owner?.responseTime != null && property.owner!.responseTime!.isNotEmpty
-                                  ? 'Usually responds within ${property.owner!.responseTime}'
-                                  : 'Response time unavailable',
-                              style: const TextStyle(color: AppColors.grey500, fontSize: 12),
+                            Flexible(
+                              child: Text(
+                                _responseTimeLabel,
+                                style: const TextStyle(color: AppColors.grey500, fontSize: 12),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
                           ],
                         ),
@@ -200,10 +127,10 @@ class TrustVerificationCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 16),
-          Divider(height: 1, color: AppColors.divider),
+          const Divider(height: 1, color: AppColors.divider),
           const SizedBox(height: 14),
 
-          Text('Landlord Verification Proof', style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold)),
+          const Text('Landlord Verification Proof', style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
           Row(
             children: [
@@ -290,6 +217,99 @@ class TrustVerificationCard extends StatelessWidget {
             ),
           ),
         ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Host avatar (extracted from 3x-duplicated inline code)
+// ──────────────────────────────────────────────────────────────────────────────
+
+/// Circular avatar with letter-initial fallback, expand-hint badge when a
+/// real photo exists, and full-screen tap-to-view. Replaces three identical
+/// copy-pasted avatar containers that were inline in [TrustVerificationCard].
+class _HostAvatar extends StatelessWidget {
+  const _HostAvatar({required this.name, required this.avatarUrl});
+
+  final String name;
+  final String? avatarUrl;
+
+  static const _size = 48.0;
+
+  String get _initial => name.isNotEmpty ? name[0].toUpperCase() : 'L';
+
+  bool get _hasPhoto => avatarUrl != null && avatarUrl!.isNotEmpty;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: _hasPhoto
+          ? () => FullScreenImageGallery.open(context, [avatarUrl!])
+          : null,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(2),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.grey700, width: 1.5),
+            ),
+            child: ClipOval(child: _buildImage()),
+          ),
+          if (_hasPhoto)
+            Positioned(
+              bottom: -2,
+              right: -2,
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  color: AppColors.grey800,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppColors.grey600, width: 0.8),
+                ),
+                child: const Icon(
+                  Icons.open_in_full_rounded,
+                  color: AppColors.white,
+                  size: 9,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildImage() {
+    if (!_hasPhoto) return _letterFallback();
+    return CachedNetworkImage(
+      imageUrl: avatarUrl!,
+      width: _size,
+      height: _size,
+      fit: BoxFit.cover,
+      memCacheWidth: (_size * 2).toInt(),
+      memCacheHeight: (_size * 2).toInt(),
+      placeholder: (_, __) => _letterFallback(),
+      errorWidget: (_, __, ___) => _letterFallback(),
+    );
+  }
+
+  Widget _letterFallback() {
+    return Container(
+      width: _size,
+      height: _size,
+      color: AppColors.white,
+      child: Center(
+        child: Text(
+          _initial,
+          style: const TextStyle(
+            color: AppColors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
       ),
     );
   }
@@ -410,7 +430,7 @@ class _ProofModalRow extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 2),
-              Text(subtitle, style: TextStyle(color: AppColors.grey400, fontSize: 12)),
+              Text(subtitle, style: const TextStyle(color: AppColors.grey400, fontSize: 12)),
             ],
           ),
         ),
