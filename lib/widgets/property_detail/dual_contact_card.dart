@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
@@ -37,7 +38,7 @@ class DualContactCard extends StatelessWidget {
         children: [
           const Text('Property Contacts', style: TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 14)),
           const SizedBox(height: 4),
-          Text('Both contacts are shown for your trust and convenience', style: TextStyle(color: AppColors.grey500, fontSize: 11)),
+          const Text('Both contacts are shown for your trust and convenience', style: TextStyle(color: AppColors.grey500, fontSize: 11)),
           const SizedBox(height: 16),
           _ContactRow(
             roleLabel: property.isCaretaker ? 'On-site Caretaker' : 'Authorized Agent',
@@ -48,7 +49,7 @@ class DualContactCard extends StatelessWidget {
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Divider(height: 1, color: AppColors.divider),
+            child: const Divider(height: 1, color: AppColors.divider),
           ),
           _ContactRow(
             roleLabel: 'Property Owner',
@@ -118,12 +119,12 @@ class _ContactRow extends StatelessWidget {
               const SizedBox(height: 3),
               Row(
                 children: [
-                  Text(roleLabel, style: TextStyle(color: AppColors.grey500, fontSize: 11)),
+                  Text(roleLabel, style: const TextStyle(color: AppColors.grey500, fontSize: 11)),
                   if (livesOnSite) ...[
                     const SizedBox(width: 6),
-                    Icon(Icons.location_on, color: AppColors.grey600, size: 11),
+                    const Icon(Icons.location_on, color: AppColors.grey600, size: 11),
                     const SizedBox(width: 2),
-                    Text('Lives on-site', style: TextStyle(color: AppColors.grey500, fontSize: 10)),
+                    const Text('Lives on-site', style: TextStyle(color: AppColors.grey500, fontSize: 10)),
                   ],
                 ],
               ),
@@ -155,18 +156,24 @@ class _ContactIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          width: 34,
-          height: 34,
-          decoration: BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () {
+            HapticFeedback.lightImpact();
+            onTap();
+          },
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: AppColors.border),
+            ),
+            child: Icon(icon, color: AppColors.white, size: 16),
           ),
-          child: Icon(icon, color: AppColors.white, size: 16),
         ),
       ),
     );

@@ -96,7 +96,7 @@ class FairPriceIndicator extends StatelessWidget {
                           border: Border.all(color: AppColors.black, width: 2),
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.black.withValues(alpha: 0.3),
+                              color: AppColors.black.withAlpha(77),
                               blurRadius: 4,
                             ),
                           ],
