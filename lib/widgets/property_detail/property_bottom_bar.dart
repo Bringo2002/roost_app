@@ -35,7 +35,7 @@ class PropertyBottomBar extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surfaceRaised.withValues(alpha: 0.93),
         border: const Border(top: BorderSide(color: AppColors.divider)),
-        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.6), blurRadius: 20, offset: const Offset(0, -6))],
+        boxShadow: [BoxShadow(color: AppColors.black.withAlpha(153), blurRadius: 20, offset: const Offset(0, -6))],
       ),
       child: ClipRect(
         child: BackdropFilter(
@@ -135,6 +135,7 @@ class _BounceButton extends StatefulWidget {
 class _BounceButtonState extends State<_BounceButton> with SingleTickerProviderStateMixin {
   late final AnimationController _controller;
   late final Animation<double> _scale;
+  bool _isPressed = false;
 
   @override
   void initState() {
@@ -154,15 +155,20 @@ class _BounceButtonState extends State<_BounceButton> with SingleTickerProviderS
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
+      behavior: HitTestBehavior.opaque,
       onTapDown: (_) {
+        _isPressed = true;
         HapticFeedback.lightImpact();
         _controller.forward();
       },
       onTapUp: (_) {
+        if (!_isPressed) return;
+        _isPressed = false;
         _controller.reverse();
         widget.onPressed();
       },
       onTapCancel: () {
+        _isPressed = false;
         _controller.reverse();
       },
       child: ScaleTransition(
