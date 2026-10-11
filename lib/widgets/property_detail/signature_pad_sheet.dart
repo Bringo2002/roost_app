@@ -86,7 +86,7 @@ class _SignaturePadSheetState extends State<SignaturePadSheet> {
           const SizedBox(height: 4),
           Text(
             'Sign below with your finger or a stylus',
-            style: TextStyle(color: AppColors.grey400, fontSize: 12.5),
+            style: const TextStyle(color: AppColors.grey400, fontSize: 12.5),
           ),
           const SizedBox(height: 16),
           Container(

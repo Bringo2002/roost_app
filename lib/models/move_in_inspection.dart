@@ -6,31 +6,19 @@ enum ItemCondition {
 }
 
 extension ItemConditionX on ItemCondition {
-  String get label {
-    switch (this) {
-      case ItemCondition.good:
-        return 'Good';
-      case ItemCondition.minorWear:
-        return 'Minor Wear';
-      case ItemCondition.damaged:
-        return 'Damaged';
-      case ItemCondition.notApplicable:
-        return 'N/A';
-    }
-  }
+  String get label => switch (this) {
+        ItemCondition.good => 'Good',
+        ItemCondition.minorWear => 'Minor Wear',
+        ItemCondition.damaged => 'Damaged',
+        ItemCondition.notApplicable => 'N/A',
+      };
 
-  String get emoji {
-    switch (this) {
-      case ItemCondition.good:
-        return '✅';
-      case ItemCondition.minorWear:
-        return '⚠️';
-      case ItemCondition.damaged:
-        return '❌';
-      case ItemCondition.notApplicable:
-        return '➖';
-    }
-  }
+  String get emoji => switch (this) {
+        ItemCondition.good => '✅',
+        ItemCondition.minorWear => '⚠️',
+        ItemCondition.damaged => '❌',
+        ItemCondition.notApplicable => '➖',
+      };
 }
 
 class InspectionItem {
@@ -150,6 +138,27 @@ class MoveInInspection {
 
   double get completionPercentage => totalItems == 0 ? 0 : inspectedItems / totalItems;
 
+  /// Single-pass condition counts across all rooms, avoiding
+  /// iterating the full item list once per condition type.
+  ({int good, int wear, int damaged}) get conditionCounts {
+    var good = 0, wear = 0, damaged = 0;
+    for (final room in rooms) {
+      for (final item in room.items) {
+        switch (item.condition) {
+          case ItemCondition.good:
+            good++;
+          case ItemCondition.minorWear:
+            wear++;
+          case ItemCondition.damaged:
+            damaged++;
+          case ItemCondition.notApplicable:
+            break;
+        }
+      }
+    }
+    return (good: good, wear: wear, damaged: damaged);
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -267,52 +276,39 @@ class MoveInInspection {
     final dateStr =
         '${createdAt.year}-${createdAt.month.toString().padLeft(2, '0')}-${createdAt.day.toString().padLeft(2, '0')}';
 
-    final buffer = StringBuffer();
-    buffer.writeln('🏠 MOVE-IN INSPECTION REPORT');
-    buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━');
-    buffer.writeln('Property: $propertyTitle');
-    buffer.writeln('Tenant: $tenantName');
-    buffer.writeln('Date: $dateStr');
-    buffer.writeln();
+    final counts = conditionCounts;
+    final buffer = StringBuffer()
+      ..writeln('🏠 MOVE-IN INSPECTION REPORT')
+      ..writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━')
+      ..writeln('Property: $propertyTitle')
+      ..writeln('Tenant: $tenantName')
+      ..writeln('Date: $dateStr')
+      ..writeln();
 
     for (final room in rooms) {
       buffer.writeln('${room.roomIcon} ${room.roomName.toUpperCase()}');
       for (final item in room.items) {
-        final conditionLabel = item.condition.label;
         final notesPart = item.notes.isNotEmpty ? ': ${item.notes}' : '';
-        buffer.writeln('  ${item.condition.emoji} ${item.name} — $conditionLabel$notesPart');
+        buffer.writeln('  ${item.condition.emoji} ${item.name} — ${item.condition.label}$notesPart');
       }
       buffer.writeln();
     }
 
-    buffer.writeln('📊 SUMMARY');
-    int goodCount = 0;
-    int minorWearCount = 0;
-    int damagedCount = 0;
+    buffer
+      ..writeln('📊 SUMMARY')
+      ..writeln('Total Items: $totalItems | Good: ${counts.good} | Minor Wear: ${counts.wear} | Damaged: ${counts.damaged}');
 
-    for (final room in rooms) {
-      for (final item in room.items) {
-        if (item.condition == ItemCondition.good) {
-          goodCount++;
-        } else if (item.condition == ItemCondition.minorWear) {
-          minorWearCount++;
-        } else if (item.condition == ItemCondition.damaged) {
-          damagedCount++;
-        }
-      }
-    }
-
-    buffer.writeln('Total Items: $totalItems | Good: $goodCount | Minor Wear: $minorWearCount | Damaged: $damagedCount');
-    
     final elec = meterElectricity ?? 'N/A';
     final water = meterWater ?? 'N/A';
-    buffer.writeln('Meter Readings: Electricity: $elec | Water: $water');
-    buffer.writeln();
+    buffer
+      ..writeln('Meter Readings: Electricity: $elec | Water: $water')
+      ..writeln();
 
     final tSign = tenantSignature != null ? tenantName : 'Pending';
     final lSign = landlordSignature != null ? (landlordName ?? 'Landlord') : 'Pending';
-    buffer.writeln('✍️ Signed by: $tSign & $lSign');
-    buffer.writeln('Generated via Roost App 📱');
+    buffer
+      ..writeln('✍️ Signed by: $tSign & $lSign')
+      ..writeln('Generated via Roost App 📱');
 
     return buffer.toString().trimRight();
   }

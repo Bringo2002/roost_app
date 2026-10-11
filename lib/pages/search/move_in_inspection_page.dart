@@ -45,6 +45,11 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
   final _meterWaterCtrl = TextEditingController();
   final _picker = ImagePicker();
 
+  // Per-item note controllers — created once per item and reused
+  // across rebuilds, preventing the P0 memory leak caused by
+  // allocating a new TextEditingController inside itemBuilder.
+  late List<List<TextEditingController>> _noteControllers;
+
   @override
   void initState() {
     super.initState();
@@ -53,20 +58,25 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
       propertyTitle: widget.property.title,
       tenantName: 'Tenant',
     );
+    _initNoteControllers();
     _loadUserName();
     _initializeServerRecord();
   }
 
+  /// Creates one TextEditingController per inspection item, organized
+  /// by room. Called once in initState and again if a server-side
+  /// inspection is resumed (which may have different note content).
+  void _initNoteControllers() {
+    _noteControllers = _inspection.rooms.map((room) {
+      return room.items.map((item) {
+        return TextEditingController(text: item.notes);
+      }).toList();
+    }).toList();
+  }
+
   /// Resumes an existing in-progress inspection for this property if
   /// one exists, rather than silently starting a duplicate every time
-  /// the tenant reopens the wizard -- otherwise every accidental back-
-  /// swipe would orphan a fresh inspection record. Creates a new one
-  /// server-side only when nothing resumable is found.
-  ///
-  /// If the property has no id, or the network call fails, the wizard
-  /// still works locally (same as before this feature existed) -- it
-  /// just can't save, which _saveFailed surfaces to the tenant rather
-  /// than silently losing their work a second time.
+  /// the tenant reopens the wizard.
   Future<void> _initializeServerRecord() async {
     final propertyId = widget.property.id;
     if (propertyId == null) {
@@ -86,6 +96,9 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
           _meterWaterCtrl.text = toResume.meterWater ?? '';
           _initializing = false;
         });
+        // Re-create controllers with resumed content.
+        _disposeNoteControllers();
+        _initNoteControllers();
         return;
       }
 
@@ -103,13 +116,10 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     }
   }
 
-  /// Fires an autosave after a discrete action (condition set, photo
-  /// added, room transition) immediately, or after typing pauses
-  /// (notes) with a short debounce -- same debounce pattern the search
-  /// bar already uses, so a fast typist doesn't fire a request per
-  /// keystroke.
+  /// Fires an autosave after a discrete action immediately, or after
+  /// typing pauses with a short debounce.
   void _autosave({bool immediate = false}) {
-    if (_inspection.id == null) return; // server record isn't ready yet
+    if (_inspection.id == null) return;
     _autosaveDebounce?.cancel();
     if (immediate) {
       _performAutosave();
@@ -125,11 +135,6 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
       await MoveInInspectionApiService.update(id, rooms: _inspection.rooms);
       if (mounted && _saveFailed) setState(() => _saveFailed = false);
     } catch (_) {
-      // Silent on any single failure -- the next successful autosave
-      // catches up, and surfacing a snackbar on every transient
-      // network hiccup during a multi-minute inspection would be more
-      // annoying than helpful. _saveFailed still gets set so a
-      // persistent outage is visible rather than silently invisible.
       if (mounted) setState(() => _saveFailed = true);
     }
   }
@@ -156,11 +161,20 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     }
   }
 
+  void _disposeNoteControllers() {
+    for (final roomCtrls in _noteControllers) {
+      for (final ctrl in roomCtrls) {
+        ctrl.dispose();
+      }
+    }
+  }
+
   @override
   void dispose() {
     _autosaveDebounce?.cancel();
     _meterElectricityCtrl.dispose();
     _meterWaterCtrl.dispose();
+    _disposeNoteControllers();
     super.dispose();
   }
 
@@ -171,7 +185,6 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     if (_currentRoomIndex < _inspection.rooms.length - 1) {
       setState(() => _currentRoomIndex++);
     } else {
-      // Save meter readings and show summary
       _inspection.meterElectricity = _meterElectricityCtrl.text.trim().isEmpty
           ? null
           : _meterElectricityCtrl.text.trim();
@@ -196,10 +209,6 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     HapticFeedback.selectionClick();
     setState(() {
       _currentRoom.items[itemIndex].condition = condition;
-      // Setting a condition is the act of reviewing that item --
-      // without this, isInspected (and everything derived from it:
-      // RoomInspection.isComplete, completionPercentage) stayed false
-      // forever, since nothing else in this wizard ever set it.
       _currentRoom.items[itemIndex].isInspected = true;
     });
     _autosave(immediate: true);
@@ -268,7 +277,12 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     }
   }
 
-  Future<void> _shareReport() async {
+  // ── Report generation (de-duplicated) ─────────────────────────────────────
+
+  /// Finalizes the inspection (marks complete, saves to server) and
+  /// returns the generated report text. Shared by _shareReport and
+  /// _copyReport to eliminate the 67 lines of duplication.
+  Future<String> _finalizeAndGenerateReport() async {
     _inspection.completedAt = DateTime.now();
     _inspection.meterElectricity = _meterElectricityCtrl.text.trim().isEmpty
         ? null
@@ -288,46 +302,25 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
           markComplete: true,
         );
       } catch (_) {
-        // Still share the report locally even if the final save
-        // failed -- see _copyReport's identical reasoning.
+        // Still generate the report locally even if the final save
+        // failed — the tenant's evidence is valuable regardless.
       }
     }
 
-    final report = _inspection.generateReport();
+    return _inspection.generateReport();
+  }
+
+  Future<void> _shareReport() async {
+    final report = await _finalizeAndGenerateReport();
     if (!mounted) return;
     await Share.share(report, subject: 'Move-in Inspection Report — ${widget.property.title}');
   }
 
   Future<void> _copyReport() async {
-    _inspection.completedAt = DateTime.now();
-    _inspection.meterElectricity = _meterElectricityCtrl.text.trim().isEmpty
-        ? null
-        : _meterElectricityCtrl.text.trim();
-    _inspection.meterWater = _meterWaterCtrl.text.trim().isEmpty
-        ? null
-        : _meterWaterCtrl.text.trim();
-
-    final id = _inspection.id;
-    if (id != null) {
-      try {
-        await MoveInInspectionApiService.update(
-          id,
-          rooms: _inspection.rooms,
-          meterElectricity: _inspection.meterElectricity,
-          meterWater: _inspection.meterWater,
-          markComplete: true,
-        );
-      } catch (_) {
-        // Still generate and copy the report locally even if the
-        // final save failed -- the tenant's evidence isn't only
-        // useful once it's synced, and blocking the copy action on a
-        // network call would be worse than a best-effort save.
-      }
-    }
-
-    final report = _inspection.generateReport();
-    Clipboard.setData(ClipboardData(text: report));
+    final report = await _finalizeAndGenerateReport();
     if (!mounted) return;
+    HapticFeedback.lightImpact();
+    Clipboard.setData(ClipboardData(text: report));
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
         content: Text('Deposit Protection Report copied to clipboard!'),
@@ -335,6 +328,8 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
       ),
     );
   }
+
+  // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
@@ -375,7 +370,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                     )
                   : Tooltip(
                       message: _saveFailed
-                          ? "Not saved -- check your connection. Your work stays on this screen until you retry."
+                          ? "Not saved — check your connection. Your work stays on this screen until you retry."
                           : 'Saved',
                       child: Icon(
                         _saveFailed ? Icons.cloud_off_outlined : Icons.cloud_done_outlined,
@@ -455,219 +450,37 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
             padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
             physics: const BouncingScrollPhysics(),
             itemCount: room.items.length,
-            itemBuilder: (_, i) => _buildItemCard(room.items[i], i),
+            itemBuilder: (_, i) => _InspectionItemCard(
+              item: room.items[i],
+              noteController: _noteControllers[_currentRoomIndex][i],
+              uploading: _uploading,
+              onConditionChanged: (c) => _setCondition(i, c),
+              onNotesChanged: (v) => _setNotes(i, v),
+              onAttachPhoto: () => _attachPhoto(i),
+            ),
           ),
         ),
       ],
     );
   }
 
-  Widget _buildItemCard(InspectionItem item, int index) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(
-          color: item.condition == ItemCondition.damaged
-              ? AppColors.grey500
-              : item.condition == ItemCondition.minorWear
-                  ? AppColors.grey700
-                  : AppColors.border,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Item name
-          Text(
-            item.name,
-            style: const TextStyle(
-              color: AppColors.textPrimary,
-              fontSize: 15,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 12),
-
-          // Condition toggles
-          Row(
-            children: ItemCondition.values.map((c) {
-              final selected = item.condition == c;
-              return Expanded(
-                child: GestureDetector(
-                  onTap: () => _setCondition(index, c),
-                  child: Container(
-                    margin: EdgeInsets.only(
-                      right: c != ItemCondition.notApplicable ? 6 : 0,
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 8),
-                    decoration: BoxDecoration(
-                      color: selected ? AppColors.white.withValues(alpha: 0.12) : AppColors.black,
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: selected ? AppColors.white : AppColors.border,
-                        width: selected ? 1.5 : 1,
-                      ),
-                    ),
-                    child: Column(
-                      children: [
-                        Text(c.emoji, style: const TextStyle(fontSize: 16)),
-                        const SizedBox(height: 2),
-                        Text(
-                          c.label,
-                          style: TextStyle(
-                            color: selected ? AppColors.white : AppColors.grey500,
-                            fontSize: 9,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          textAlign: TextAlign.center,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              );
-            }).toList(),
-          ),
-
-          // Notes field (shown if not Good)
-          if (item.condition != ItemCondition.good &&
-              item.condition != ItemCondition.notApplicable) ...[
-            const SizedBox(height: 12),
-            TextField(
-              onChanged: (v) => _setNotes(index, v),
-              controller: TextEditingController(text: item.notes)
-                ..selection = TextSelection.collapsed(offset: item.notes.length),
-              style: const TextStyle(color: AppColors.white, fontSize: 13),
-              maxLines: 2,
-              decoration: InputDecoration(
-                hintText: 'Describe the issue...',
-                hintStyle: const TextStyle(color: AppColors.grey600, fontSize: 13),
-                filled: true,
-                fillColor: AppColors.black,
-                contentPadding: const EdgeInsets.all(12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.border),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  borderSide: const BorderSide(color: AppColors.grey400),
-                ),
-              ),
-            ),
-          ],
-
-          // Photo attachment
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              GestureDetector(
-                onTap: _uploading ? null : () => _attachPhoto(index),
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: AppColors.black,
-                    borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        _uploading ? Icons.hourglass_top : Icons.camera_alt_outlined,
-                        color: AppColors.grey400,
-                        size: 16,
-                      ),
-                      const SizedBox(width: 6),
-                      Text(
-                        _uploading ? 'Uploading...' : 'Add Photo',
-                        style: const TextStyle(color: AppColors.grey300, fontSize: 12),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 8),
-              if (item.photoUrls.isNotEmpty)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey800,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Text(
-                    '${item.photoUrls.length} photo${item.photoUrls.length > 1 ? 's' : ''}',
-                    style: const TextStyle(color: AppColors.grey300, fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                ),
-            ],
-          ),
-
-          // Photo thumbnails
-          if (item.photoUrls.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            SizedBox(
-              height: 56,
-              child: ListView.separated(
-                scrollDirection: Axis.horizontal,
-                itemCount: item.photoUrls.length,
-                separatorBuilder: (_, __) => const SizedBox(width: 6),
-                itemBuilder: (_, i) => ClipRRect(
-                  borderRadius: BorderRadius.circular(8),
-                  child: CachedNetworkImage(
-                    imageUrl: item.photoUrls[i],
-                    width: 56,
-                    height: 56,
-                    fit: BoxFit.cover,
-                    memCacheWidth: 112,
-                    memCacheHeight: 112,
-                    placeholder: (_, __) => Container(
-                      width: 56,
-                      height: 56,
-                      color: AppColors.grey800,
-                    ),
-                    errorWidget: (_, __, ___) => Container(
-                      width: 56,
-                      height: 56,
-                      color: AppColors.grey800,
-                      child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 20),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
   // ── Summary View ──────────────────────────────────────────────────────────
   Widget _buildSummary() {
-    final totalItems = _inspection.totalItems;
-    final goodCount = _inspection.rooms.expand((r) => r.items).where((i) => i.condition == ItemCondition.good).length;
-    final wearCount = _inspection.rooms.expand((r) => r.items).where((i) => i.condition == ItemCondition.minorWear).length;
-    final dmgCount = _inspection.totalIssues;
+    final counts = _inspection.conditionCounts;
 
     return ListView(
       padding: const EdgeInsets.all(20),
       physics: const BouncingScrollPhysics(),
       children: [
-        // Property info header -- monochrome grayscale gradient
-        // (black -> grey900) for depth, matching the move-in cost
-        // calculator card, instead of the purple-toned one this used.
+        // Property info header
         Container(
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [AppColors.black, AppColors.grey900],
+            gradient: LinearGradient(
+              colors: [
+                AppColors.white.withAlpha(10),
+                AppColors.white.withAlpha(4),
+              ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -701,29 +514,23 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
 
         const SizedBox(height: 20),
 
-        // Stats row -- severity conveyed by icon, not color: a plain
-        // check for "Good", a warning triangle for "Wear", an error
-        // icon for "Damaged", all rendered in the same white/grey
-        // hierarchy used everywhere else in the app.
+        // Stats row — uses conditionCounts (single pass)
         Row(
           children: [
-            _buildSummaryStat('Total', '$totalItems', null),
+            _SummaryStat(label: 'Total', value: '${_inspection.totalItems}'),
             const SizedBox(width: 8),
-            _buildSummaryStat('Good', '$goodCount', Icons.check_circle_outline),
+            _SummaryStat(label: 'Good', value: '${counts.good}', icon: Icons.check_circle_outline),
             const SizedBox(width: 8),
-            _buildSummaryStat('Wear', '$wearCount', Icons.warning_amber_rounded),
+            _SummaryStat(label: 'Wear', value: '${counts.wear}', icon: Icons.warning_amber_rounded),
             const SizedBox(width: 8),
-            _buildSummaryStat('Damaged', '$dmgCount', Icons.error_outline),
+            _SummaryStat(label: 'Damaged', value: '${counts.damaged}', icon: Icons.error_outline),
           ],
         ),
 
         const SizedBox(height: 20),
 
         // Meter readings section
-        Text(
-          'Meter readings',
-          style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
+        _buildSectionHeader('METER READINGS'),
         const SizedBox(height: 10),
         Row(
           children: [
@@ -750,34 +557,25 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
         const SizedBox(height: 24),
 
         // Room-by-room breakdown
-        Text(
-          'Room breakdown',
-          style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
+        _buildSectionHeader('ROOM BREAKDOWN'),
         const SizedBox(height: 10),
         for (final room in _inspection.rooms) ...[
-          _buildRoomSummaryCard(room),
+          _RoomSummaryCard(room: room),
           const SizedBox(height: 10),
         ],
 
         const SizedBox(height: 24),
 
-        // Digital sign-off -- both parties sign on the same device,
-        // handed over physically (matching how this is used in
-        // practice: the tenant signs, then hands the phone to the
-        // landlord to sign in turn).
-        Text(
-          'Sign-off',
-          style: TextStyle(color: AppColors.grey400, fontSize: 12, fontWeight: FontWeight.bold),
-        ),
+        // Digital sign-off
+        _buildSectionHeader('SIGN-OFF'),
         const SizedBox(height: 10),
-        _buildSignatureRow(
+        _SignatureRow(
           label: 'Tenant signature',
           signatureUrl: _inspection.tenantSignature,
           onTap: () => _signAs(isTenant: true),
         ),
         const SizedBox(height: 8),
-        _buildSignatureRow(
+        _SignatureRow(
           label: 'Landlord signature',
           signatureUrl: _inspection.landlordSignature,
           onTap: () => _signAs(isTenant: false),
@@ -793,10 +591,10 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.verified_user_outlined, color: AppColors.white, size: 16),
-              const SizedBox(width: 8),
+              Icon(Icons.verified_user_outlined, color: AppColors.white, size: 16),
+              SizedBox(width: 8),
               Expanded(
                 child: Text(
                   'This report serves as evidence of property condition at move-in. '
@@ -813,157 +611,28 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     );
   }
 
-  Widget _buildSignatureRow({required String label, required String? signatureUrl, required VoidCallback onTap}) {
-    final signed = signatureUrl != null && signatureUrl.isNotEmpty;
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceRaised,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: signed ? AppColors.white : AppColors.border),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              signed ? Icons.check_circle : Icons.draw_outlined,
-              color: signed ? AppColors.white : AppColors.grey400,
-              size: 20,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                label,
-                style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
-              ),
-            ),
-            Text(
-              signed ? 'Signed · tap to redo' : 'Tap to sign',
-              style: TextStyle(color: signed ? AppColors.grey400 : AppColors.grey500, fontSize: 11.5),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSummaryStat(String label, String value, IconData? icon) {
-    return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: AppColors.surfaceRaised,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          children: [
-            if (icon != null) ...[
-              Icon(icon, color: AppColors.white, size: 16),
-              const SizedBox(height: 2),
-            ],
-            Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 22,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: const TextStyle(color: AppColors.grey500, fontSize: 11),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRoomSummaryCard(RoomInspection room) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceRaised,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(
-          color: room.issueCount > 0
-              ? AppColors.grey500
-              : room.wearCount > 0
-                  ? AppColors.grey600
-                  : AppColors.border,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Text(room.roomIcon, style: const TextStyle(fontSize: 18)),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                  room.roomName,
-                  style: const TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 14,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-              if (room.issueCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.white,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${room.issueCount} issue${room.issueCount > 1 ? 's' : ''}',
-                    style: const TextStyle(color: AppColors.black, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                )
-              else if (room.wearCount > 0)
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey800,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    '${room.wearCount} wear',
-                    style: const TextStyle(color: AppColors.grey300, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                )
-              else
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                    color: AppColors.grey900,
-                    borderRadius: BorderRadius.circular(6),
-                  ),
-                  child: Text(
-                    'All Good',
-                    style: TextStyle(color: AppColors.grey500, fontSize: 10, fontWeight: FontWeight.bold),
-                  ),
-                ),
-            ],
+  Widget _buildSectionHeader(String title) {
+    return Row(
+      children: [
+        Container(
+          width: 3,
+          height: 14,
+          decoration: BoxDecoration(
+            color: AppColors.grey500,
+            borderRadius: BorderRadius.circular(2),
           ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 4,
-            runSpacing: 4,
-            children: room.items.map((item) {
-              return Text(
-                '${item.condition.emoji} ${item.name}',
-                style: const TextStyle(color: AppColors.grey400, fontSize: 11),
-              );
-            }).toList(),
+        ),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: AppColors.grey500,
+            fontSize: 10.5,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -1055,11 +724,15 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        Text(
-                          _currentRoomIndex < _inspection.rooms.length - 1
-                              ? 'Next: ${_inspection.rooms[_currentRoomIndex + 1].roomName}'
-                              : 'View Summary',
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                        Flexible(
+                          child: Text(
+                            _currentRoomIndex < _inspection.rooms.length - 1
+                                ? 'Next: ${_inspection.rooms[_currentRoomIndex + 1].roomName}'
+                                : 'View Summary',
+                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
                         const SizedBox(width: 6),
                         const Icon(Icons.arrow_forward, size: 18),
@@ -1090,6 +763,420 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: const BorderSide(color: AppColors.grey400),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Inspection item card (extracted from 184-line _buildItemCard method)
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _InspectionItemCard extends StatelessWidget {
+  const _InspectionItemCard({
+    required this.item,
+    required this.noteController,
+    required this.uploading,
+    required this.onConditionChanged,
+    required this.onNotesChanged,
+    required this.onAttachPhoto,
+  });
+
+  final InspectionItem item;
+  final TextEditingController noteController;
+  final bool uploading;
+  final ValueChanged<ItemCondition> onConditionChanged;
+  final ValueChanged<String> onNotesChanged;
+  final VoidCallback onAttachPhoto;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(
+          color: switch (item.condition) {
+            ItemCondition.damaged => AppColors.grey500,
+            ItemCondition.minorWear => AppColors.grey700,
+            _ => AppColors.border,
+          },
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Item name
+          Text(
+            item.name,
+            style: const TextStyle(
+              color: AppColors.textPrimary,
+              fontSize: 15,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Condition toggles — InkWell instead of GestureDetector
+          Row(
+            children: ItemCondition.values.map((c) {
+              final selected = item.condition == c;
+              return Expanded(
+                child: Padding(
+                  padding: EdgeInsets.only(
+                    right: c != ItemCondition.notApplicable ? 6 : 0,
+                  ),
+                  child: Material(
+                    color: selected ? AppColors.white.withAlpha(30) : AppColors.black,
+                    borderRadius: BorderRadius.circular(10),
+                    child: InkWell(
+                      onTap: () => onConditionChanged(c),
+                      borderRadius: BorderRadius.circular(10),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(
+                            color: selected ? AppColors.white : AppColors.border,
+                            width: selected ? 1.5 : 1,
+                          ),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(c.emoji, style: const TextStyle(fontSize: 16)),
+                            const SizedBox(height: 2),
+                            Text(
+                              c.label,
+                              style: TextStyle(
+                                color: selected ? AppColors.white : AppColors.grey500,
+                                fontSize: 9,
+                                fontWeight: FontWeight.bold,
+                              ),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+
+          // Notes field (shown if not Good)
+          if (item.condition != ItemCondition.good &&
+              item.condition != ItemCondition.notApplicable) ...[
+            const SizedBox(height: 12),
+            TextField(
+              controller: noteController,
+              onChanged: onNotesChanged,
+              style: const TextStyle(color: AppColors.white, fontSize: 13),
+              maxLines: 2,
+              decoration: InputDecoration(
+                hintText: 'Describe the issue...',
+                hintStyle: const TextStyle(color: AppColors.grey600, fontSize: 13),
+                filled: true,
+                fillColor: AppColors.black,
+                contentPadding: const EdgeInsets.all(12),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.grey400),
+                ),
+              ),
+            ),
+          ],
+
+          // Photo attachment — InkWell with proper tap target
+          const SizedBox(height: 10),
+          Row(
+            children: [
+              Material(
+                color: AppColors.black,
+                borderRadius: BorderRadius.circular(10),
+                child: InkWell(
+                  onTap: uploading ? null : onAttachPhoto,
+                  borderRadius: BorderRadius.circular(10),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(color: AppColors.border),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(
+                          uploading ? Icons.hourglass_top : Icons.camera_alt_outlined,
+                          color: AppColors.grey400,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 6),
+                        Text(
+                          uploading ? 'Uploading...' : 'Add Photo',
+                          style: const TextStyle(color: AppColors.grey300, fontSize: 12),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              if (item.photoUrls.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: AppColors.grey800,
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: Text(
+                    '${item.photoUrls.length} photo${item.photoUrls.length > 1 ? 's' : ''}',
+                    style: const TextStyle(color: AppColors.grey300, fontSize: 11, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+
+          // Photo thumbnails
+          if (item.photoUrls.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              height: 56,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: item.photoUrls.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 6),
+                itemBuilder: (_, i) => ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: CachedNetworkImage(
+                    imageUrl: item.photoUrls[i],
+                    width: 56,
+                    height: 56,
+                    fit: BoxFit.cover,
+                    memCacheWidth: 112,
+                    memCacheHeight: 112,
+                    placeholder: (_, __) => Container(
+                      width: 56,
+                      height: 56,
+                      color: AppColors.grey800,
+                    ),
+                    errorWidget: (_, __, ___) => Container(
+                      width: 56,
+                      height: 56,
+                      color: AppColors.grey800,
+                      child: const Icon(Icons.broken_image, color: AppColors.grey500, size: 20),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Summary stat widget
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _SummaryStat extends StatelessWidget {
+  const _SummaryStat({required this.label, required this.value, this.icon});
+
+  final String label;
+  final String value;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceRaised,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          children: [
+            if (icon != null) ...[
+              Icon(icon, color: AppColors.white, size: 16),
+              const SizedBox(height: 2),
+            ],
+            Text(
+              value,
+              style: const TextStyle(
+                color: AppColors.white,
+                fontSize: 22,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              label,
+              style: const TextStyle(color: AppColors.grey500, fontSize: 11),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Room summary card
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _RoomSummaryCard extends StatelessWidget {
+  const _RoomSummaryCard({required this.room});
+
+  final RoomInspection room;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceRaised,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: switch (room.issueCount) {
+            > 0 => AppColors.grey500,
+            _ when room.wearCount > 0 => AppColors.grey600,
+            _ => AppColors.border,
+          },
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(room.roomIcon, style: const TextStyle(fontSize: 18)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  room.roomName,
+                  style: const TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+              _buildStatusPill(),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 4,
+            runSpacing: 4,
+            children: room.items.map((item) {
+              return Text(
+                '${item.condition.emoji} ${item.name}',
+                style: const TextStyle(color: AppColors.grey400, fontSize: 11),
+              );
+            }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatusPill() {
+    final (String text, Color bg, Color fg) = switch (room.issueCount) {
+      > 0 => (
+          '${room.issueCount} issue${room.issueCount > 1 ? 's' : ''}',
+          AppColors.white,
+          AppColors.black,
+        ),
+      _ when room.wearCount > 0 => (
+          '${room.wearCount} wear',
+          AppColors.grey800,
+          AppColors.grey300,
+        ),
+      _ => ('All Good', AppColors.grey900, AppColors.grey500),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.bold),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Signature row
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _SignatureRow extends StatelessWidget {
+  const _SignatureRow({
+    required this.label,
+    required this.signatureUrl,
+    required this.onTap,
+  });
+
+  final String label;
+  final String? signatureUrl;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final signed = signatureUrl != null && signatureUrl!.isNotEmpty;
+    return Material(
+      color: AppColors.surfaceRaised,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: () {
+          HapticFeedback.selectionClick();
+          onTap();
+        },
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: signed ? AppColors.white : AppColors.border),
+          ),
+          child: Row(
+            children: [
+              Icon(
+                signed ? Icons.check_circle : Icons.draw_outlined,
+                color: signed ? AppColors.white : AppColors.grey400,
+                size: 20,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: const TextStyle(color: AppColors.textPrimary, fontSize: 13, fontWeight: FontWeight.bold),
+                ),
+              ),
+              Text(
+                signed ? 'Signed · tap to redo' : 'Tap to sign',
+                style: TextStyle(color: signed ? AppColors.grey400 : AppColors.grey500, fontSize: 11.5),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
