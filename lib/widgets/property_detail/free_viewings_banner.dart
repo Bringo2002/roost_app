@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property_detail/report_viewing_fee_sheet.dart';
 
@@ -24,24 +25,50 @@ class FreeViewingsBanner extends StatelessWidget {
         children: [
           const Icon(Icons.shield_outlined, color: AppColors.white, size: 22),
           const SizedBox(width: 12),
-          Expanded(
+          const Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('100% Free Viewings Guarantee', style: TextStyle(color: AppColors.textPrimary, fontSize: 12, fontWeight: FontWeight.w700)),
-                const SizedBox(height: 2),
-                Text('Roost prohibits charging for property viewings. Report any fees.', style: TextStyle(color: AppColors.grey400, fontSize: 10.5)),
+                Text(
+                  '100% Free Viewings Guarantee',
+                  style: TextStyle(
+                    color: AppColors.textPrimary,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                SizedBox(height: 2),
+                Text(
+                  'Roost prohibits charging for property viewings. Report any fees.',
+                  style: TextStyle(color: AppColors.grey400, fontSize: 10.5),
+                ),
               ],
             ),
           ),
           const SizedBox(width: 8),
-          InkWell(
-            onTap: () => ReportViewingFeeSheet.show(context, propertyId: propertyId),
-            borderRadius: BorderRadius.circular(8),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-              decoration: BoxDecoration(border: Border.all(color: AppColors.grey600), borderRadius: BorderRadius.circular(8)),
-              child: const Text('Report', style: TextStyle(color: AppColors.white, fontSize: 10, fontWeight: FontWeight.w600)),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: () {
+                HapticFeedback.lightImpact();
+                ReportViewingFeeSheet.show(context, propertyId: propertyId);
+              },
+              borderRadius: BorderRadius.circular(8),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  border: Border.all(color: AppColors.grey600),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'Report',
+                  style: TextStyle(
+                    color: AppColors.white,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
             ),
           ),
         ],
@@ -49,4 +76,3 @@ class FreeViewingsBanner extends StatelessWidget {
     );
   }
 }
-
