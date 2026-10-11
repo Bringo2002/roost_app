@@ -1,9 +1,11 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:shimmer/shimmer.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Constants
@@ -13,6 +15,7 @@ const _kCardRadius = 16.0;
 const _kSheetRadius = 24.0;
 const _kInnerRadius = 14.0;
 const _kGridSpacing = 8.0;
+const _kStaggerDelayMs = 60;
 
 // ──────────────────────────────────────────────────────────────────────────────
 // API paths
@@ -99,10 +102,12 @@ class _AdminPendingVerificationsPageState
     try {
       await ApiService.post(_approvePath(id));
       if (!mounted) return;
+      HapticFeedback.mediumImpact();
       setState(() => _pending.removeWhere((p) => p.id == id));
       _showSnack('🎉 Verification & Proofs Approved!', AppColors.verified);
     } catch (e) {
       if (!mounted) return;
+      HapticFeedback.heavyImpact();
       _showSnack('Could not approve: $e');
     } finally {
       if (mounted) setState(() => _busyIds.remove(id));
@@ -116,10 +121,12 @@ class _AdminPendingVerificationsPageState
     try {
       await ApiService.post(_rejectPath(id), {'reason': reason});
       if (!mounted) return;
+      HapticFeedback.mediumImpact();
       setState(() => _pending.removeWhere((p) => p.id == id));
       _showSnack('Verification rejected for "${property.title}"');
     } catch (e) {
       if (!mounted) return;
+      HapticFeedback.heavyImpact();
       _showSnack('Could not reject: $e');
     } finally {
       if (mounted) setState(() => _busyIds.remove(id));
@@ -129,10 +136,7 @@ class _AdminPendingVerificationsPageState
   void _showSnack(String message, [Color? color]) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(message),
-        backgroundColor: color,
-      ),
+      SnackBar(content: Text(message), backgroundColor: color),
     );
   }
 
@@ -145,7 +149,8 @@ class _AdminPendingVerificationsPageState
       backgroundColor: AppColors.sheetDeep,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(_kSheetRadius)),
+        borderRadius:
+            BorderRadius.vertical(top: Radius.circular(_kSheetRadius)),
       ),
       builder: (ctx) => _AuditDocumentSheet(
         property: property,
@@ -461,12 +466,15 @@ class _ProofBadge extends StatelessWidget {
             color: isDone ? AppColors.verifiedLight : Colors.white38,
           ),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: isDone ? AppColors.verifiedLight : Colors.white54,
-              fontSize: 10,
-              fontWeight: FontWeight.w600,
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: isDone ? AppColors.verifiedLight : Colors.white54,
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+              ),
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
@@ -559,20 +567,21 @@ class _AuditCard extends StatelessWidget {
 
   Widget _buildProofRow() {
     final docCount = property.documentUrls.length;
-    return Row(
+    // Wrap instead of Row to prevent overflow on narrow screens.
+    return Wrap(
+      spacing: 6,
+      runSpacing: 6,
       children: [
         const _ProofBadge(
           label: 'Phone SMS',
           isDone: true,
           icon: Icons.phone_android,
         ),
-        const SizedBox(width: 6),
         _ProofBadge(
           label: 'GPS Location',
           isDone: property.gpsVerified,
           icon: Icons.my_location,
         ),
-        const SizedBox(width: 6),
         _ProofBadge(
           label: docCount > 0 ? '$docCount Docs Attached' : 'No Docs',
           isDone: docCount > 0,
@@ -645,12 +654,7 @@ class _PropertyThumbnail extends StatelessWidget {
       fit: BoxFit.cover,
       memCacheWidth: (_size * 2).toInt(),
       memCacheHeight: (_size * 2).toInt(),
-      placeholder: (_, __) => Container(
-        width: _size,
-        height: _size,
-        color: Colors.grey[800],
-        child: _fallback,
-      ),
+      placeholder: (_, __) => _ShimmerBox(width: _size, height: _size),
       errorWidget: (_, __, ___) => Container(
         width: _size,
         height: _size,
@@ -662,10 +666,38 @@ class _PropertyThumbnail extends StatelessWidget {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Audit bottom sheet
+// Shimmer placeholder
 // ──────────────────────────────────────────────────────────────────────────────
 
-class _AuditDocumentSheet extends StatelessWidget {
+class _ShimmerBox extends StatelessWidget {
+  const _ShimmerBox({this.width, this.height, this.borderRadius});
+
+  final double? width;
+  final double? height;
+  final BorderRadius? borderRadius;
+
+  @override
+  Widget build(BuildContext context) {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[850]!,
+      highlightColor: Colors.grey[700]!,
+      child: Container(
+        width: width,
+        height: height,
+        decoration: BoxDecoration(
+          color: Colors.grey[850],
+          borderRadius: borderRadius ?? BorderRadius.circular(10),
+        ),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Audit bottom sheet with staggered animations
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _AuditDocumentSheet extends StatefulWidget {
   final Property property;
   final bool busy;
   final VoidCallback onApprove;
@@ -679,9 +711,62 @@ class _AuditDocumentSheet extends StatelessWidget {
   });
 
   @override
+  State<_AuditDocumentSheet> createState() => _AuditDocumentSheetState();
+}
+
+class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _animController;
+
+  /// Each section gets its own staggered [Animation<double>].
+  late final List<Animation<double>> _sectionAnims;
+
+  static const _sectionCount = 6; // header, landlord, AI, docs, photos, buttons
+
+  @override
+  void initState() {
+    super.initState();
+    _animController = AnimationController(
+      vsync: this,
+      duration: Duration(
+        milliseconds: 300 + (_sectionCount * _kStaggerDelayMs),
+      ),
+    );
+    _sectionAnims = List.generate(_sectionCount, (i) {
+      final start = (i * _kStaggerDelayMs) /
+          (300 + (_sectionCount * _kStaggerDelayMs));
+      final end = (start + 0.4).clamp(0.0, 1.0);
+      return CurvedAnimation(
+        parent: _animController,
+        curve: Interval(start, end, curve: Curves.easeOut),
+      );
+    });
+    _animController.forward();
+  }
+
+  @override
+  void dispose() {
+    _animController.dispose();
+    super.dispose();
+  }
+
+  Widget _staggered(int index, Widget child) {
+    return FadeTransition(
+      opacity: _sectionAnims[index],
+      child: SlideTransition(
+        position: Tween<Offset>(
+          begin: const Offset(0, 0.08),
+          end: Offset.zero,
+        ).animate(_sectionAnims[index]),
+        child: child,
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final docs = property.documentUrls;
-    final photos = property.imageUrls;
+    final docs = widget.property.documentUrls;
+    final photos = widget.property.imageUrls;
     final bottomInset = MediaQuery.viewPaddingOf(context).bottom;
 
     return DraggableScrollableSheet(
@@ -697,25 +782,25 @@ class _AuditDocumentSheet extends StatelessWidget {
             children: [
               _buildDragHandle(),
               const SizedBox(height: 16),
-              _buildTitleRow(context),
+              _staggered(0, _buildTitleRow(context)),
               const SizedBox(height: 16),
-              _buildLandlordCard(),
+              _staggered(1, _buildLandlordCard()),
               const SizedBox(height: 18),
               Expanded(
                 child: ListView(
                   controller: scrollController,
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    _buildAISummary(docs),
-                    _buildDocsSection(context, docs),
+                    _staggered(2, _buildAISummary(docs)),
+                    _staggered(3, _buildDocsSection(context, docs)),
                     const SizedBox(height: 20),
-                    _buildPhotosSection(photos),
+                    _staggered(4, _buildPhotosSection(photos)),
                     const SizedBox(height: 20),
                   ],
                 ),
               ),
               const SizedBox(height: 12),
-              _buildActionButtons(context),
+              _staggered(5, _buildActionButtons(context)),
             ],
           ),
         );
@@ -747,7 +832,7 @@ class _AuditDocumentSheet extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                property.title,
+                widget.property.title,
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 18,
@@ -758,7 +843,7 @@ class _AuditDocumentSheet extends StatelessWidget {
               ),
               const SizedBox(height: 2),
               Text(
-                '${property.location} · ${CountryService.price(property.price)}',
+                '${widget.property.location} · ${CountryService.price(widget.property.price)}',
                 style: const TextStyle(color: Colors.white54, fontSize: 13),
               ),
               const SizedBox(height: 4),
@@ -767,7 +852,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                   const Icon(Icons.schedule, size: 12, color: AppColors.verified),
                   const SizedBox(width: 4),
                   Text(
-                    _formatRelativeTime(property.listedAt),
+                    _formatRelativeTime(widget.property.listedAt),
                     style: const TextStyle(
                       color: AppColors.verifiedLight,
                       fontSize: 11,
@@ -807,7 +892,7 @@ class _AuditDocumentSheet extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  property.landlordName ?? 'Landlord User',
+                  widget.property.landlordName ?? 'Landlord User',
                   style: const TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.bold,
@@ -816,13 +901,13 @@ class _AuditDocumentSheet extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  'Phone: ${property.landlordPhone.isNotEmpty ? property.landlordPhone : 'SMS Verified'}',
+                  'Phone: ${widget.property.landlordPhone.isNotEmpty ? widget.property.landlordPhone : 'SMS Verified'}',
                   style: const TextStyle(color: Colors.white54, fontSize: 12),
                 ),
               ],
             ),
           ),
-          if (property.gpsVerified)
+          if (widget.property.gpsVerified)
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
               decoration: BoxDecoration(
@@ -863,7 +948,8 @@ class _AuditDocumentSheet extends StatelessWidget {
         children: [
           const Row(
             children: [
-              Icon(Icons.psychology_outlined, color: AppColors.indigoLight, size: 16),
+              Icon(Icons.psychology_outlined,
+                  color: AppColors.indigoLight, size: 16),
               SizedBox(width: 6),
               Text(
                 'AI VERIFICATION SIGNALS',
@@ -915,24 +1001,19 @@ class _AuditDocumentSheet extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Icon(Icons.description, color: AppColors.skyBlue, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'ATTACHED OWNERSHIP PROOFS (${docs.length})',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
+        _buildSectionHeader(
+          icon: Icons.description,
+          color: AppColors.skyBlue,
+          title: 'ATTACHED OWNERSHIP PROOFS (${docs.length})',
         ),
         const SizedBox(height: 10),
         if (docs.isEmpty)
-          _buildNoDocsNotice()
+          _buildEmptyNotice(
+            icon: Icons.info_outline,
+            color: AppColors.warning,
+            text:
+                'No title deed or utility documents attached to this submission.',
+          )
         else
           GridView.builder(
             shrinkWrap: true,
@@ -944,33 +1025,13 @@ class _AuditDocumentSheet extends StatelessWidget {
               childAspectRatio: 1.2,
             ),
             itemCount: docs.length,
-            itemBuilder: (_, idx) =>
-                _DocumentPreview(url: docs[idx], docNumber: idx + 1),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildNoDocsNotice() {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppColors.zinc900,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.warning.withAlpha(50)),
-      ),
-      child: const Row(
-        children: [
-          Icon(Icons.info_outline, color: AppColors.warning, size: 20),
-          SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              'No title deed or utility documents attached to this submission.',
-              style: TextStyle(color: Colors.white70, fontSize: 12),
+            itemBuilder: (_, idx) => _DocumentPreview(
+              url: docs[idx],
+              docNumber: idx + 1,
+              allUrls: docs,
             ),
           ),
-        ],
-      ),
+      ],
     );
   }
 
@@ -980,44 +1041,97 @@ class _AuditDocumentSheet extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            const Icon(Icons.photo_library, color: AppColors.warning, size: 18),
-            const SizedBox(width: 8),
-            Text(
-              'LISTING PHOTOS (${photos.length})',
-              style: const TextStyle(
-                color: Colors.white70,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 1,
-              ),
-            ),
-          ],
+        _buildSectionHeader(
+          icon: Icons.photo_library,
+          color: AppColors.warning,
+          title: 'LISTING PHOTOS (${photos.length})',
         ),
         const SizedBox(height: 10),
-        GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 3,
-            crossAxisSpacing: _kGridSpacing,
-            mainAxisSpacing: _kGridSpacing,
+        if (photos.isEmpty)
+          _buildEmptyNotice(
+            icon: Icons.image_not_supported_outlined,
+            color: Colors.white38,
+            text: 'No listing photos have been uploaded for this property.',
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: 3,
+              crossAxisSpacing: _kGridSpacing,
+              mainAxisSpacing: _kGridSpacing,
+            ),
+            itemCount: photos.length,
+            itemBuilder: (_, idx) {
+              return GestureDetector(
+                onTap: () => _openGallery(context, photos, idx),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: CachedNetworkImage(
+                    imageUrl: photos[idx],
+                    fit: BoxFit.cover,
+                    placeholder: (_, __) =>
+                        const _ShimmerBox(borderRadius: BorderRadius.zero),
+                    errorWidget: (_, __, ___) =>
+                        Container(color: Colors.grey[850]),
+                  ),
+                ),
+              );
+            },
           ),
-          itemCount: photos.length,
-          itemBuilder: (_, idx) {
-            return ClipRRect(
-              borderRadius: BorderRadius.circular(10),
-              child: CachedNetworkImage(
-                imageUrl: photos[idx],
-                fit: BoxFit.cover,
-                placeholder: (_, __) => Container(color: Colors.grey[850]),
-                errorWidget: (_, __, ___) => Container(color: Colors.grey[850]),
-              ),
-            );
-          },
+      ],
+    );
+  }
+
+  // ── Reusable section helpers ──────────────────────────────────────────
+
+  Widget _buildSectionHeader({
+    required IconData icon,
+    required Color color,
+    required String title,
+  }) {
+    return Row(
+      children: [
+        Icon(icon, color: color, size: 18),
+        const SizedBox(width: 8),
+        Text(
+          title,
+          style: const TextStyle(
+            color: Colors.white70,
+            fontSize: 12,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
         ),
       ],
+    );
+  }
+
+  Widget _buildEmptyNotice({
+    required IconData icon,
+    required Color color,
+    required String text,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.zinc900,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: color.withAlpha(50)),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              text,
+              style: const TextStyle(color: Colors.white70, fontSize: 12),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1028,9 +1142,7 @@ class _AuditDocumentSheet extends StatelessWidget {
       children: [
         Expanded(
           child: OutlinedButton.icon(
-            onPressed: busy
-                ? null
-                : () => _showRejectDialog(context),
+            onPressed: widget.busy ? null : () => _showRejectDialog(context),
             icon: const Icon(Icons.cancel_outlined, size: 16),
             label: const Text('Reject Proofs'),
             style: OutlinedButton.styleFrom(
@@ -1057,8 +1169,8 @@ class _AuditDocumentSheet extends StatelessWidget {
               ],
             ),
             child: ElevatedButton.icon(
-              onPressed: busy ? null : onApprove,
-              icon: busy
+              onPressed: widget.busy ? null : () => _showApproveConfirmation(context),
+              icon: widget.busy
                   ? const SizedBox(
                       width: 16,
                       height: 16,
@@ -1069,7 +1181,7 @@ class _AuditDocumentSheet extends StatelessWidget {
                     )
                   : const Icon(Icons.verified, size: 16),
               label: Text(
-                busy ? 'Processing...' : 'Grant VERIFIED',
+                widget.busy ? 'Processing...' : 'Grant VERIFIED',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -1087,20 +1199,77 @@ class _AuditDocumentSheet extends StatelessWidget {
     );
   }
 
+  // ── Approve confirmation dialog ───────────────────────────────────────
+
+  void _showApproveConfirmation(BuildContext context) {
+    HapticFeedback.lightImpact();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.zinc900,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.verified, color: AppColors.verified, size: 22),
+            SizedBox(width: 8),
+            Text(
+              'Confirm Verification',
+              style: TextStyle(color: Colors.white, fontSize: 16),
+            ),
+          ],
+        ),
+        content: Text(
+          'Grant VERIFIED status to "${widget.property.title}"?\n\n'
+          'This action marks the listing as authentic and displays '
+          'a verified badge to all users.',
+          style: const TextStyle(color: Colors.white70, fontSize: 13),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text(
+              'Cancel',
+              style: TextStyle(color: Colors.white54),
+            ),
+          ),
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.verified,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+            ),
+            icon: const Icon(Icons.verified, size: 16),
+            label: const Text('Confirm'),
+            onPressed: () {
+              HapticFeedback.mediumImpact();
+              Navigator.pop(ctx);
+              widget.onApprove();
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Reject dialog ─────────────────────────────────────────────────────
 
   void _showRejectDialog(BuildContext context) {
+    HapticFeedback.lightImpact();
     showDialog(
       context: context,
       builder: (ctx) {
-        // StatefulBuilder scopes the TextEditingController lifecycle to the
-        // dialog overlay, so it is disposed automatically when the dialog
-        // pops — no leak.
         return StatefulBuilder(
           builder: (ctx, _) {
             final controller = TextEditingController();
             return AlertDialog(
               backgroundColor: AppColors.zinc900,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
               title: const Text(
                 'Reject Verification',
                 style: TextStyle(color: Colors.white),
@@ -1144,11 +1313,12 @@ class _AuditDocumentSheet extends StatelessWidget {
                     foregroundColor: Colors.white,
                   ),
                   onPressed: () {
+                    HapticFeedback.mediumImpact();
                     final reason = controller.text.trim().isEmpty
                         ? 'Invalid document proof'
                         : controller.text.trim();
                     Navigator.pop(ctx);
-                    onReject(reason);
+                    widget.onReject(reason);
                   },
                   child: const Text('Confirm Reject'),
                 ),
@@ -1157,6 +1327,127 @@ class _AuditDocumentSheet extends StatelessWidget {
           },
         );
       },
+    );
+  }
+
+  // ── Gallery launcher ──────────────────────────────────────────────────
+
+  void _openGallery(
+      BuildContext context, List<String> urls, int initialIndex) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        barrierDismissible: true,
+        pageBuilder: (_, __, ___) =>
+            _FullScreenGallery(urls: urls, initialIndex: initialIndex),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+    );
+  }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Full-screen swipeable gallery
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _FullScreenGallery extends StatefulWidget {
+  const _FullScreenGallery({required this.urls, required this.initialIndex});
+
+  final List<String> urls;
+  final int initialIndex;
+
+  @override
+  State<_FullScreenGallery> createState() => _FullScreenGalleryState();
+}
+
+class _FullScreenGalleryState extends State<_FullScreenGallery> {
+  late final PageController _pageController;
+  late int _currentPage;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentPage = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Stack(
+        children: [
+          // Dismiss on background tap
+          GestureDetector(
+            onTap: () => Navigator.pop(context),
+            child: Container(color: Colors.transparent),
+          ),
+          // Swipeable pages
+          PageView.builder(
+            controller: _pageController,
+            itemCount: widget.urls.length,
+            onPageChanged: (i) => setState(() => _currentPage = i),
+            itemBuilder: (_, i) => Center(
+              child: InteractiveViewer(
+                minScale: 0.5,
+                maxScale: 4.0,
+                child: CachedNetworkImage(
+                  imageUrl: widget.urls[i],
+                  fit: BoxFit.contain,
+                  placeholder: (_, __) => const Center(
+                    child: CircularProgressIndicator(color: AppColors.verified),
+                  ),
+                  errorWidget: (_, __, ___) => const Center(
+                    child: Icon(Icons.broken_image, color: Colors.white38, size: 48),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          // Close button
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 8,
+            right: 12,
+            child: IconButton(
+              icon: const Icon(Icons.close, color: Colors.white, size: 28),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ),
+          // Page indicator
+          if (widget.urls.length > 1)
+            Positioned(
+              bottom: MediaQuery.viewPaddingOf(context).bottom + 24,
+              left: 0,
+              right: 0,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(
+                  widget.urls.length,
+                  (i) => AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    width: i == _currentPage ? 24 : 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: i == _currentPage
+                          ? AppColors.verified
+                          : Colors.white38,
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+        ],
+      ),
     );
   }
 }
@@ -1237,15 +1528,20 @@ class _AICheckRow extends StatelessWidget {
 }
 
 class _DocumentPreview extends StatelessWidget {
-  const _DocumentPreview({required this.url, required this.docNumber});
+  const _DocumentPreview({
+    required this.url,
+    required this.docNumber,
+    required this.allUrls,
+  });
 
   final String url;
   final int docNumber;
+  final List<String> allUrls;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: () => _showFullScreen(context),
+      onTap: () => _openGallery(context),
       child: Container(
         decoration: BoxDecoration(
           color: AppColors.zinc900,
@@ -1262,13 +1558,8 @@ class _DocumentPreview extends StatelessWidget {
                   imageUrl: url,
                   width: double.infinity,
                   fit: BoxFit.cover,
-                  placeholder: (_, __) => Container(
-                    color: Colors.grey[900],
-                    child: const Icon(
-                      Icons.description,
-                      color: AppColors.skyBlue,
-                      size: 36,
-                    ),
+                  placeholder: (_, __) => const _ShimmerBox(
+                    borderRadius: BorderRadius.zero,
                   ),
                   errorWidget: (_, __, ___) => Container(
                     color: Colors.grey[900],
@@ -1298,14 +1589,18 @@ class _DocumentPreview extends StatelessWidget {
     );
   }
 
-  void _showFullScreen(BuildContext context) {
-    showDialog(
-      context: context,
-      builder: (_) => Dialog(
-        backgroundColor: Colors.black,
-        child: InteractiveViewer(
-          child: CachedNetworkImage(imageUrl: url, fit: BoxFit.contain),
+  void _openGallery(BuildContext context) {
+    Navigator.of(context).push(
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black87,
+        barrierDismissible: true,
+        pageBuilder: (_, __, ___) => _FullScreenGallery(
+          urls: allUrls,
+          initialIndex: docNumber - 1,
         ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
       ),
     );
   }
