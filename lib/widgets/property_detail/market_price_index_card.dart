@@ -27,7 +27,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
   late final AnimationController _gaugeAnim;
   late final Animation<double> _gaugeCurve;
 
-  final _fmt = NumberFormat('#,##0', 'en_US');
+  static final _fmt = NumberFormat('#,##0', 'en_US');
 
   @override
   void initState() {
@@ -90,7 +90,6 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
   }
 
   // ── Loading State ─────────────────────────────────────────────────────────
-  /// Shimmer skeleton that previews the gauge layout while data loads.
   Widget _buildLoading() {
     return Shimmer.fromColors(
       baseColor: AppColors.grey800,
@@ -152,10 +151,10 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
             borderRadius: BorderRadius.circular(12),
             border: Border.all(color: AppColors.border),
           ),
-          child: Row(
+          child: const Row(
             children: [
-              const Icon(Icons.info_outline, color: AppColors.grey500, size: 16),
-              const SizedBox(width: 10),
+              Icon(Icons.info_outline, color: AppColors.grey500, size: 16),
+              SizedBox(width: 10),
               Expanded(
                 child: Text(
                   'Not enough comparable listings in this area yet to generate a market estimate.',
@@ -203,7 +202,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
               ),
               child: Text(
                 '${est.comparableCount} comps',
-                style: TextStyle(color: AppColors.grey400, fontSize: 11),
+                style: const TextStyle(color: AppColors.grey400, fontSize: 11),
               ),
             ),
           ],
@@ -218,35 +217,35 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           decoration: BoxDecoration(
             gradient: LinearGradient(
               colors: [
-                est.ratingColor.withValues(alpha: 0.15),
-                est.ratingColor.withValues(alpha: 0.05),
+                est.rating.color.withAlpha(38),
+                est.rating.color.withAlpha(13),
               ],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
             borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: est.ratingColor.withValues(alpha: 0.3)),
+            border: Border.all(color: est.rating.color.withAlpha(77)),
           ),
           child: Row(
             children: [
-              Text(est.ratingEmoji, style: const TextStyle(fontSize: 28)),
+              Text(est.rating.emoji, style: const TextStyle(fontSize: 28)),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      est.ratingLabel,
+                      est.rating.label,
                       style: TextStyle(
-                        color: est.ratingColor,
+                        color: est.rating.color,
                         fontSize: 18,
                         fontWeight: FontWeight.bold,
                       ),
                     ),
                     const SizedBox(height: 2),
                     Text(
-                      _ratingSubtitle(est),
-                      style: TextStyle(color: AppColors.grey400, fontSize: 12),
+                      est.rating.subtitle,
+                      style: const TextStyle(color: AppColors.grey400, fontSize: 12),
                     ),
                   ],
                 ),
@@ -268,18 +267,18 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         // ── Market Range Stats ──────────────────────────────────────────────
         Row(
           children: [
-            _buildStatChip('Low', _fmtPrice(est.minPrice), AppColors.grey400),
+            _StatChip(label: 'Low', value: _fmtPrice(est.minPrice)),
             const SizedBox(width: 8),
-            _buildStatChip('Median', _fmtPrice(est.medianPrice), AppColors.grey400),
+            _StatChip(label: 'Median', value: _fmtPrice(est.medianPrice)),
             const SizedBox(width: 8),
-            _buildStatChip('High', _fmtPrice(est.maxPrice), AppColors.grey400),
+            _StatChip(label: 'High', value: _fmtPrice(est.maxPrice)),
           ],
         ),
 
         // ── Value Drivers ──────────────────────────────────────────────────
         if (est.valueDrivers.isNotEmpty) ...[
           const SizedBox(height: 20),
-          Text(
+          const Text(
             'VALUE DRIVERS',
             style: TextStyle(
               color: AppColors.grey500,
@@ -289,7 +288,8 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
             ),
           ),
           const SizedBox(height: 10),
-          for (final driver in est.valueDrivers) _buildDriverRow(driver),
+          for (final driver in est.valueDrivers)
+            _DriverRow(driver: driver),
         ],
       ],
     );
@@ -302,7 +302,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
+        const Text(
           'PRICE POSITION',
           style: TextStyle(
             color: AppColors.grey500,
@@ -350,7 +350,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
                       width: pinPos,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(4),
-                        color: est.ratingColor.withValues(alpha: 0.6),
+                        color: est.rating.color.withAlpha(153),
                       ),
                     ),
                   ),
@@ -363,20 +363,20 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: est.ratingColor,
+                            color: est.rating.color,
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(
                             '${(est.percentile * 100).round()}th',
                             style: const TextStyle(
-                              color: Colors.black,
+                              color: AppColors.black,
                               fontSize: 10,
                               fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                         const SizedBox(height: 2),
-                        Icon(Icons.arrow_drop_down, color: est.ratingColor, size: 16),
+                        Icon(Icons.arrow_drop_down, color: est.rating.color, size: 16),
                       ],
                     ),
                   ),
@@ -386,7 +386,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           ),
         ),
         const SizedBox(height: 6),
-        Row(
+        const Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
             Text('Lower', style: TextStyle(color: AppColors.grey600, fontSize: 10)),
@@ -397,8 +397,20 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
       ],
     );
   }
+}
 
-  Widget _buildStatChip(String label, String value, Color color) {
+// ──────────────────────────────────────────────────────────────────────────────
+// Stat chip (Low / Median / High)
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _StatChip extends StatelessWidget {
+  const _StatChip({required this.label, required this.value});
+
+  final String label;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.all(10),
@@ -412,8 +424,8 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           children: [
             Text(
               label,
-              style: TextStyle(
-                color: color,
+              style: const TextStyle(
+                color: AppColors.grey400,
                 fontSize: 10,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 0.5,
@@ -435,8 +447,19 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
       ),
     );
   }
+}
 
-  Widget _buildDriverRow(ValueDriver driver) {
+// ──────────────────────────────────────────────────────────────────────────────
+// Value driver row
+// ──────────────────────────────────────────────────────────────────────────────
+
+class _DriverRow extends StatelessWidget {
+  const _DriverRow({required this.driver});
+
+  final ValueDriver driver;
+
+  @override
+  Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(
@@ -474,18 +497,5 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         ],
       ),
     );
-  }
-
-  String _ratingSubtitle(RentEstimate est) {
-    switch (est.rating) {
-      case 'GREAT_DEAL':
-        return 'This rent is below the area median — strong value for tenants.';
-      case 'FAIR_PRICE':
-        return 'This rent aligns with comparable listings in the neighborhood.';
-      case 'ABOVE_MARKET':
-        return 'This rent is above most comparables — premium positioning.';
-      default:
-        return '';
-    }
   }
 }

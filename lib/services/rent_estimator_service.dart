@@ -1,7 +1,57 @@
-import 'package:flutter/material.dart';
+import 'dart:ui';
+
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
+
+/// Market position rating returned by the server's comparable
+/// analysis. Using an enum eliminates 4 separate string-switch
+/// statements across the widget and service layers.
+enum MarketRating {
+  greatDeal,
+  fairPrice,
+  aboveMarket,
+  unknown;
+
+  /// Maps the server's SCREAMING_SNAKE key to a typed value.
+  static MarketRating fromKey(String key) => switch (key) {
+        'GREAT_DEAL' => MarketRating.greatDeal,
+        'FAIR_PRICE' => MarketRating.fairPrice,
+        'ABOVE_MARKET' => MarketRating.aboveMarket,
+        _ => MarketRating.unknown,
+      };
+
+  String get label => switch (this) {
+        MarketRating.greatDeal => 'Great Deal',
+        MarketRating.fairPrice => 'Fair Market Price',
+        MarketRating.aboveMarket => 'Above Average',
+        MarketRating.unknown => 'Unknown',
+      };
+
+  String get emoji => switch (this) {
+        MarketRating.greatDeal => '🔥',
+        MarketRating.fairPrice => '✓',
+        MarketRating.aboveMarket => '📈',
+        MarketRating.unknown => '',
+      };
+
+  String get subtitle => switch (this) {
+        MarketRating.greatDeal => 'This rent is below the area median — strong value for tenants.',
+        MarketRating.fairPrice => 'This rent aligns with comparable listings in the neighborhood.',
+        MarketRating.aboveMarket => 'This rent is above most comparables — premium positioning.',
+        MarketRating.unknown => '',
+      };
+
+  /// Monochrome throughout -- the gauge conveys position via the
+  /// needle/marker itself, not color, matching every other
+  /// trust/status indicator in the app.
+  Color get color => switch (this) {
+        MarketRating.greatDeal => AppColors.white,
+        MarketRating.fairPrice => AppColors.grey300,
+        MarketRating.aboveMarket => AppColors.grey500,
+        MarketRating.unknown => AppColors.grey600,
+      };
+}
 
 class ValueDriver {
   final String label;
@@ -27,7 +77,7 @@ class RentEstimate {
   final double minPrice;
   final double medianPrice;
   final double maxPrice;
-  final String rating;
+  final MarketRating rating;
   final double percentile;
   final List<ValueDriver> valueDrivers;
   final int comparableCount;
@@ -47,56 +97,13 @@ class RentEstimate {
       minPrice: (json['minPrice'] as num).toDouble(),
       medianPrice: (json['medianPrice'] as num).toDouble(),
       maxPrice: (json['maxPrice'] as num).toDouble(),
-      rating: json['rating'] as String,
+      rating: MarketRating.fromKey(json['rating'] as String),
       percentile: (json['percentile'] as num).toDouble(),
       comparableCount: json['comparableCount'] as int,
       valueDrivers: (json['valueDrivers'] as List)
           .map((d) => ValueDriver.fromJson(d as Map<String, dynamic>))
           .toList(),
     );
-  }
-
-  String get ratingLabel {
-    switch (rating) {
-      case 'GREAT_DEAL':
-        return 'Great Deal';
-      case 'FAIR_PRICE':
-        return 'Fair Market Price';
-      case 'ABOVE_MARKET':
-        return 'Above Average';
-      default:
-        return 'Unknown';
-    }
-  }
-
-  String get ratingEmoji {
-    switch (rating) {
-      case 'GREAT_DEAL':
-        return '🔥';
-      case 'FAIR_PRICE':
-        return '✓';
-      case 'ABOVE_MARKET':
-        return '📈';
-      default:
-        return '';
-    }
-  }
-
-  /// Monochrome throughout -- previously green/blue/amber, a purely
-  /// decorative distinction the rating label and emoji already carry.
-  /// The gauge widget conveys position via the needle/marker itself,
-  /// not color, matching every other trust/status indicator in the app.
-  Color get ratingColor {
-    switch (rating) {
-      case 'GREAT_DEAL':
-        return AppColors.white;
-      case 'FAIR_PRICE':
-        return AppColors.grey300;
-      case 'ABOVE_MARKET':
-        return AppColors.grey500;
-      default:
-        return AppColors.grey600;
-    }
   }
 }
 
