@@ -28,8 +28,10 @@ class NearbyFacilityChip extends StatelessWidget {
       };
 
   static String _label(AppLocalizations l10n, NearbyFacility f) {
-    final distance = f.distanceMeters < 1000
-        ? l10n.nearbyFacilityDistanceMeters(f.distanceMeters.round())
+    // Round first, then pick the unit: 999.6m must read "1.0km", not "1000m".
+    final meters = f.distanceMeters.round();
+    final distance = meters < 1000
+        ? l10n.nearbyFacilityDistanceMeters(meters)
         : l10n.nearbyFacilityDistanceKm((f.distanceMeters / 1000).toStringAsFixed(1));
     return l10n.nearbyFacilityLabel(distance, f.name);
   }
