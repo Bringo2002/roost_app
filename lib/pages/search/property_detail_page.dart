@@ -231,10 +231,14 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
             title: Text(_property.title, style: AppTextStyles.title),
             leading: Padding(
               padding: const EdgeInsets.all(8.0),
-              child: GlassIconButton(icon: Icons.arrow_back, onTap: () {
-                HapticFeedback.lightImpact();
-                Navigator.pop(context);
-              }),
+              child: GlassIconButton(
+                icon: Icons.arrow_back,
+                tooltip: MaterialLocalizations.of(context).backButtonTooltip,
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  Navigator.pop(context);
+                },
+              ),
             ),
             actions: [
               if (_property.id != null)
@@ -244,6 +248,9 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                     listenable: _controller,
                     builder: (context, _) => GlassIconButton(
                       icon: Icons.favorite_border,
+                      tooltip: _controller.isFavorite
+                          ? AppLocalizations.of(context)!.propertyCardRemoveFromFavorites
+                          : AppLocalizations.of(context)!.propertyCardAddToFavorites,
                       onTap: () {
                         HapticFeedback.lightImpact();
                         _controller.toggleFavorite();
@@ -265,7 +272,11 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
                 ),
               Padding(
                 padding: const EdgeInsets.only(right: 12),
-                child: GlassIconButton(icon: Icons.share_outlined, onTap: _shareListing),
+                child: GlassIconButton(
+                  icon: Icons.share_outlined,
+                  tooltip: MaterialLocalizations.of(context).shareButtonLabel,
+                  onTap: _shareListing,
+                ),
               ),
             ],
             flexibleSpace: FlexibleSpaceBar(
