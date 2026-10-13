@@ -25,7 +25,6 @@ import 'package:roost_app/utils/property_search.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
-
 import 'package:roost_app/pages/profile/notifications_page.dart';
 import 'package:roost_app/pages/splash/splash_page.dart';
 import 'package:roost_app/services/push_notification_service.dart';
