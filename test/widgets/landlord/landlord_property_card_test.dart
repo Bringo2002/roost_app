@@ -202,6 +202,12 @@ void main() {
       expect(tester.widget<Switch>(find.byType(Switch)).onChanged, isNull);
     });
 
+    testWidgets('missing listedAt renders "Listed recently"', (tester) async {
+      await tester.pumpWidget(_card(property: _property()));
+
+      expect(find.text('Listed recently'), findsOneWidget);
+    });
+
     testWidgets('malformed listedAt does not throw and falls back to "Listed recently"', (tester) async {
       await tester.pumpWidget(_card(property: _property(listedAt: 'not-a-real-date')));
 
