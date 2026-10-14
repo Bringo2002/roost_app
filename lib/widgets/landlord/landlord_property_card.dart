@@ -35,17 +35,17 @@ class LandlordPropertyCard extends StatelessWidget {
 
   static final DateFormat _listedDateFormat = DateFormat('dd MMM yyyy');
 
-  /// Renders `listedAt` for display, never throwing into `build()`.
-  /// `listedAt` comes straight off the wire (see [Property.fromJson]) with
-  /// no format guarantee enforced client-side, so an unparseable value here
-  /// must degrade to "unknown" rather than crash the whole list.
+  /// Renders `listedAt` for display. `listedAt` is a raw `String?` off the
+  /// wire (see [Property.fromJson]); a value that doesn't parse is treated
+  /// as unknown ("Listed recently"), the same tolerance `PropertySorter`
+  /// applies with `DateTime.tryParse`. Treating a malformed date as a hard
+  /// contract failure instead would mean parsing it once into a typed
+  /// `DateTime?` in the model -- a larger change across every `listedAt`
+  /// consumer, deliberately not done here.
   static String? _formatListedDate(String? listedAt) {
     if (listedAt == null) return null;
-    try {
-      return _listedDateFormat.format(DateTime.parse(listedAt));
-    } catch (_) {
-      return null;
-    }
+    final parsed = DateTime.tryParse(listedAt);
+    return parsed == null ? null : _listedDateFormat.format(parsed);
   }
 
   @override
