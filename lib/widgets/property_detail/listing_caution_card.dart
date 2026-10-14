@@ -63,9 +63,9 @@ const _kIconContainerSize = 36.0;
 
 /// Muted amber used for the caution card's tinted background and accents.
 /// Intentionally lower opacity so it doesn't fight the monochrome palette.
-const _kCautionAmber = Color(0xFFFFC107);
-const _kCautionAmberTint = Color(0x18FFC107); // ~9% opacity
-const _kCautionBorder = Color(0x30FFC107); // ~19% opacity
+const _kCautionAmber = AppColors.warning;
+const _kCautionAmberTint = AppColors.warningTint; // ~9% opacity
+const _kCautionBorder = AppColors.warningBorder; // ~19% opacity
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ListingCautionCard
