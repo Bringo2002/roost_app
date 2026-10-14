@@ -192,4 +192,22 @@ void main() {
       expect(AppColors.warningAccent.toARGB32(), Colors.orangeAccent.toARGB32());
     });
   });
+
+  group('AppColors warning tints', () {
+    // Compare ARGB ints, not Color objects.
+    test('warningTint keeps its original value', () {
+      expect(AppColors.warningTint.toARGB32(), 0x18FFC107);
+    });
+
+    test('warningBorder keeps its original value', () {
+      expect(AppColors.warningBorder.toARGB32(), 0x30FFC107);
+    });
+
+    test('the tints share warning\'s RGB and differ only in alpha', () {
+      const rgb = 0x00FFFFFF;
+      final base = AppColors.warning.toARGB32() & rgb;
+      expect(AppColors.warningTint.toARGB32() & rgb, base);
+      expect(AppColors.warningBorder.toARGB32() & rgb, base);
+    });
+  });
 }
