@@ -101,6 +101,12 @@ class AppColors {
   /// Brighter orange (Material orangeAccent) for non-blocking notices.
   static const Color warningAccent = Color(0xFFFFAB40);
 
+  /// [warning] at ~9% opacity, for tinted caution backgrounds.
+  static const Color warningTint = Color(0x18FFC107);
+
+  /// [warning] at ~19% opacity, for caution card borders.
+  static const Color warningBorder = Color(0x30FFC107);
+
   /// The app's single red, for errors, validation failures and destructive
   /// actions (delete, clear, reject). Red is kept as a deliberate exception
   /// to the monochrome palette because it is the universally understood
