@@ -6,6 +6,7 @@ import 'package:url_launcher_platform_interface/url_launcher_platform_interface.
 import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/models/user.dart';
+import 'package:roost_app/services/listing_event_service.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/widgets/property/property_image.dart';
 
@@ -86,6 +87,18 @@ Property _property({
     bathrooms: bathrooms,
     managerRole: managerRole,
     owner: owner,
+  );
+}
+
+/// An event service that records uploaded batches into [bodies] instead of
+/// calling the backend, so tapping Chat never touches the app-wide instance.
+ListingEventService _recordingEvents(List<Map<String, dynamic>> bodies) {
+  return ListingEventService(
+    isSignedIn: () async => true,
+    poster: (endpoint, body) async {
+      bodies.add(body);
+      return {'accepted': 1, 'dropped': 0};
+    },
   );
 }
 
@@ -229,10 +242,46 @@ void main() {
     testWidgets('Chat pushes a route when the property has a linked owner', (tester) async {
       final observer = _RecordingNavigatorObserver();
       final owner = User(id: 1, name: 'Jane Landlord', email: 'jane@example.com', role: 'LANDLORD');
-      await tester.pumpWidget(_wrap(PropertyCard(property: _property(owner: owner)), observer: observer));
+      final events = _recordingEvents([]);
+      await tester.pumpWidget(_wrap(
+        PropertyCard(property: _property(owner: owner), eventService: events),
+        observer: observer,
+      ));
 
       await tester.tap(find.byTooltip('Chat'));
       expect(observer.pushed, isNotEmpty);
+      await events.flush();
+    });
+
+    testWidgets('Chat reports a CHAT_STARTED event for the listing', (tester) async {
+      final bodies = <Map<String, dynamic>>[];
+      final observer = _RecordingNavigatorObserver();
+      final owner = User(id: 1, name: 'Jane Landlord', email: 'jane@example.com', role: 'LANDLORD');
+      final events = _recordingEvents(bodies);
+      await tester.pumpWidget(_wrap(
+        PropertyCard(property: _property(id: 7, owner: owner), eventService: events),
+        observer: observer,
+      ));
+
+      await tester.tap(find.byTooltip('Chat'));
+      await events.flush();
+
+      expect(bodies, hasLength(1));
+      expect(bodies.single['events'], [
+        {'propertyId': 7, 'type': 'CHAT_STARTED'},
+      ]);
+    });
+
+    testWidgets('Chat reports no event when there is no owner to chat with', (tester) async {
+      final bodies = <Map<String, dynamic>>[];
+      final events = _recordingEvents(bodies);
+      await tester.pumpWidget(_wrap(PropertyCard(property: _property(owner: null), eventService: events)));
+
+      await tester.tap(find.byTooltip('Chat'));
+      await tester.pump();
+      await events.flush();
+
+      expect(bodies, isEmpty);
     });
 
     testWidgets('Chat shows a snackbar instead of navigating when there is no owner', (tester) async {

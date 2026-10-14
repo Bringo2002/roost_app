@@ -8,6 +8,7 @@ import 'package:roost_app/pages/search/in_app_map_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/property/property_image.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/services/listing_event_service.dart';
 import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/l10n/property_labels.dart';
 
@@ -33,6 +34,7 @@ class PropertyCard extends StatefulWidget {
     this.onCall,
     this.onChat,
     this.onNavigate,
+    this.eventService,
   });
 
   final Property property;
@@ -58,6 +60,11 @@ class PropertyCard extends StatefulWidget {
   final VoidCallback? onCall;
   final VoidCallback? onChat;
   final VoidCallback? onNavigate;
+
+  /// Where the chat-started event is reported; defaults to the app-wide
+  /// [ListingEventService.instance]. Injectable so tests don't leave the
+  /// shared instance's flush timer pending.
+  final ListingEventService? eventService;
 
   @override
   State<PropertyCard> createState() => _PropertyCardState();
@@ -182,6 +189,11 @@ class _PropertyCardState extends State<PropertyCard> {
 
   void _chatLandlord(BuildContext context) {
     if (property.owner != null) {
+      final propertyId = property.id;
+      if (propertyId != null) {
+        (widget.eventService ?? ListingEventService.instance)
+            .track(propertyId, ListingEventType.chatStarted);
+      }
       Navigator.push(
         context,
         MaterialPageRoute(

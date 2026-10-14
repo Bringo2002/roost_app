@@ -133,6 +133,10 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
 
   void _openChat() {
     if (_property.owner != null) {
+      final propertyId = _property.id;
+      if (propertyId != null) {
+        ListingEventService.instance.track(propertyId, ListingEventType.chatStarted);
+      }
       Navigator.push(context, MaterialPageRoute(builder: (_) => ChatRoomPage(partner: _property.owner!)));
     }
   }
