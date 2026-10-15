@@ -652,8 +652,9 @@ class _PropertyThumbnail extends StatelessWidget {
       width: _size,
       height: _size,
       fit: BoxFit.cover,
+      // Width only: setting both memCacheWidth and memCacheHeight decodes to an
+      // exact box and squeezes photos whose ratio differs.
       memCacheWidth: (_size * 2).toInt(),
-      memCacheHeight: (_size * 2).toInt(),
       placeholder: (_, __) => _ShimmerBox(width: _size, height: _size),
       errorWidget: (_, __, ___) => Container(
         width: _size,

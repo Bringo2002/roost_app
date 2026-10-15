@@ -362,8 +362,9 @@ class _InAppMapPageState extends State<InAppMapPage> {
                             width: 60,
                             height: 60,
                             fit: BoxFit.cover,
+                            // Width only: setting both memCacheWidth and memCacheHeight decodes to an
+                            // exact box and squeezes photos whose ratio differs.
                             memCacheWidth: 120,
-                            memCacheHeight: 120,
                             placeholder: (context, url) => Container(
                               width: 60,
                               height: 60,

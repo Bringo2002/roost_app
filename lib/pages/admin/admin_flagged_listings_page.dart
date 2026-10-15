@@ -121,8 +121,9 @@ class _AdminFlaggedListingsPageState extends State<AdminFlaggedListingsPage> {
                                           width: 60,
                                           height: 60,
                                           fit: BoxFit.cover,
+                                          // Width only: setting both memCacheWidth and memCacheHeight decodes to an
+                                          // exact box and squeezes photos whose ratio differs.
                                           memCacheWidth: 120,
-                                          memCacheHeight: 120,
                                           placeholder: (context, url) => Container(width: 60, height: 60, color: Colors.grey[800]),
                                           errorWidget: (context, url, error) => Container(width: 60, height: 60, color: Colors.grey[800]),
                                         )

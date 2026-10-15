@@ -289,8 +289,10 @@ class _HostAvatar extends StatelessWidget {
       width: _size,
       height: _size,
       fit: BoxFit.cover,
-      memCacheWidth: (_size * 2).toInt(),
-      memCacheHeight: (_size * 2).toInt(),
+      // Width only: setting both makes Flutter decode to an exact square and
+      // squeezes any photo that isn't one. The height follows the photo's
+      // own ratio and BoxFit.cover crops it. 3x covers dense phone screens.
+      memCacheWidth: (_size * 3).toInt(),
       placeholder: (_, __) => _letterFallback(),
       errorWidget: (_, __, ___) => _letterFallback(),
     );

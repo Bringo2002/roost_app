@@ -963,8 +963,9 @@ class _InspectionItemCard extends StatelessWidget {
                     width: 56,
                     height: 56,
                     fit: BoxFit.cover,
+                    // Width only: setting both memCacheWidth and memCacheHeight decodes to an
+                    // exact box and squeezes photos whose ratio differs.
                     memCacheWidth: 112,
-                    memCacheHeight: 112,
                     placeholder: (_, __) => Container(
                       width: 56,
                       height: 56,

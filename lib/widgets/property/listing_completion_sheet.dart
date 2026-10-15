@@ -291,8 +291,9 @@ class _ListingCompletionSheetState extends State<ListingCompletionSheet>
                                 ? CachedNetworkImage(
                                     imageUrl: displayImage,
                                     fit: BoxFit.cover,
+                                    // Width only: setting both memCacheWidth and memCacheHeight decodes to an
+                                    // exact box and squeezes photos whose ratio differs.
                                     memCacheWidth: 144,
-                                    memCacheHeight: 144,
                                     placeholder: (_, __) => _buildFallbackThumbnail(),
                                     errorWidget: (_, __, ___) => _buildFallbackThumbnail(),
                                   )
