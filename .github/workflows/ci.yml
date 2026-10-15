@@ -40,7 +40,17 @@ jobs:
         run: flutter analyze
 
       - name: Tests
-        run: flutter test
+        run: flutter test --coverage
+
+      # Reported, not gated: lets the number be watched before a floor is set.
+      - name: Coverage summary
+        run: bash .github/scripts/coverage-summary.sh
+
+      - name: Upload coverage report
+        uses: actions/upload-artifact@v4
+        with:
+          name: lcov
+          path: coverage/lcov.info
 
   # Fails a pull request whose commits carry AI attribution trailers, which
   # CLAUDE.md prohibits. Once pushed, such commits stay reachable through
