@@ -513,8 +513,9 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                         width: 58,
                         height: 58,
                         fit: BoxFit.cover,
+                        // Width only: setting both memCacheWidth and memCacheHeight decodes to an
+                        // exact box and squeezes photos whose ratio differs.
                         memCacheWidth: 116,
-                        memCacheHeight: 116,
                         placeholder: (_, __) => Container(
                           width: 58,
                           height: 58,
