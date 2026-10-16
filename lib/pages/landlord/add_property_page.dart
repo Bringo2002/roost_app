@@ -22,6 +22,7 @@ import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/property_draft_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/landlord/amenity_options.dart';
+import 'package:roost_app/widgets/landlord/landlord_input_decoration.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:intl/intl.dart';
@@ -3202,31 +3203,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     Widget? prefixIcon,
     String? counterText,
   }) {
-    return InputDecoration(
-      labelText: label,
-      labelStyle: TextStyle(color: Colors.grey[500], fontSize: 14),
-      filled: true,
-      fillColor: AppColors.surfaceContainer,
+    return landlordInputDecoration(
+      label,
+      errorText: errorText,
       prefixIcon: prefixIcon,
       counterText: counterText,
-      border: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: BorderSide.none,
-      ),
-      focusedBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: Colors.white30, width: 1.2),
-      ),
-      errorText: errorText,
-      errorStyle: const TextStyle(color: AppColors.destructive, fontSize: 12),
-      errorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.destructive, width: 1.2),
-      ),
-      focusedErrorBorder: OutlineInputBorder(
-        borderRadius: BorderRadius.circular(12),
-        borderSide: const BorderSide(color: AppColors.destructive, width: 1.6),
-      ),
     );
   }
 }
