@@ -20,169 +20,13 @@ import 'package:roost_app/services/cloudinary_service.dart';
 import 'package:roost_app/services/doc_verification_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/property_draft_service.dart';
-import 'package:roost_app/theme/amenity_colors.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/landlord/amenity_options.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:intl/intl.dart';
 import 'package:roost_app/services/rent_estimator_service.dart';
 import 'package:roost_app/widgets/property/listing_completion_sheet.dart';
-
-// ─── Amenity descriptor ────────────────────────────────────────────────────
-
-class _Amenity {
-  const _Amenity({
-    required this.key,
-    required this.label,
-    required this.icon,
-    required this.color,
-  });
-
-  final String key;
-  final String label;
-  final IconData icon;
-  final Color color;
-}
-
-const _amenities = <_Amenity>[
-  // Comfort & Essentials
-  _Amenity(
-      key: 'furnished',
-      label: 'Furnished',
-      icon: Icons.chair_outlined,
-      color: AppColors.indigo),
-  _Amenity(
-      key: 'wifi',
-      label: 'WiFi / Fiber',
-      icon: Icons.wifi,
-      color: AppColors.landlordAccent),
-  _Amenity(
-      key: 'water',
-      label: '24hr Water / Borehole',
-      icon: Icons.water_drop_outlined,
-      color: AmenityColors.water),
-  _Amenity(
-      key: 'generator',
-      label: 'Backup Generator',
-      icon: Icons.power_outlined,
-      color: AmenityColors.generator),
-  _Amenity(
-      key: 'solar',
-      label: 'Solar Water Heater',
-      icon: Icons.wb_sunny_outlined,
-      color: AmenityColors.solar),
-  _Amenity(
-      key: 'ac',
-      label: 'Air Conditioning',
-      icon: Icons.ac_unit,
-      color: AmenityColors.ac),
-  _Amenity(
-      key: 'heating',
-      label: 'Heating',
-      icon: Icons.local_fire_department_outlined,
-      color: AmenityColors.heating),
-  _Amenity(
-      key: 'laundry',
-      label: 'In-Unit Laundry',
-      icon: Icons.local_laundry_service_outlined,
-      color: AmenityColors.laundry),
-  _Amenity(
-      key: 'dstv',
-      label: 'DSTV / Cable TV',
-      icon: Icons.tv_outlined,
-      color: AmenityColors.dstv),
-
-  // Security & Building
-  _Amenity(
-      key: 'security',
-      label: 'CCTV & Security',
-      icon: Icons.security,
-      color: AmenityColors.security),
-  _Amenity(
-      key: 'fence',
-      label: 'Electric Fence',
-      icon: Icons.fence,
-      color: AmenityColors.fence),
-  _Amenity(
-      key: 'intercom',
-      label: 'Intercom Access',
-      icon: Icons.doorbell_outlined,
-      color: AmenityColors.intercom),
-  _Amenity(
-      key: 'elevator',
-      label: 'Elevator / Lift',
-      icon: Icons.elevator_outlined,
-      color: AmenityColors.elevator),
-  _Amenity(
-      key: 'parking',
-      label: 'Dedicated Parking',
-      icon: Icons.local_parking_outlined,
-      color: AmenityColors.parking),
-  _Amenity(
-      key: 'caretaker',
-      label: 'On-site Caretaker',
-      icon: Icons.person_pin_outlined,
-      color: AmenityColors.caretaker),
-
-  // Space & Comfort
-  _Amenity(
-      key: 'balcony',
-      label: 'Private Balcony',
-      icon: Icons.deck_outlined,
-      color: AmenityColors.balcony),
-  _Amenity(
-      key: 'rooftop',
-      label: 'Rooftop Terrace',
-      icon: Icons.apartment_outlined,
-      color: AmenityColors.rooftop),
-  _Amenity(
-      key: 'garden',
-      label: 'Garden / Lawn',
-      icon: Icons.grass_outlined,
-      color: AmenityColors.garden),
-  _Amenity(
-      key: 'storage',
-      label: 'Storage Unit',
-      icon: Icons.inventory_2_outlined,
-      color: AmenityColors.storage),
-
-  // Leisure & Services
-  _Amenity(
-      key: 'pool',
-      label: 'Swimming Pool',
-      icon: Icons.pool,
-      color: AmenityColors.pool),
-  _Amenity(
-      key: 'gym',
-      label: 'Gym & Fitness',
-      icon: Icons.fitness_center,
-      color: AmenityColors.gym),
-  _Amenity(
-      key: 'playArea',
-      label: 'Kids Play Area',
-      icon: Icons.child_care_outlined,
-      color: AmenityColors.playArea),
-  _Amenity(
-      key: 'petFriendly',
-      label: 'Pet Friendly',
-      icon: Icons.pets,
-      color: AmenityColors.petFriendly),
-  _Amenity(
-      key: 'cleaning',
-      label: 'Housekeeping',
-      icon: Icons.cleaning_services_outlined,
-      color: AmenityColors.cleaning),
-  _Amenity(
-      key: 'garbage',
-      label: 'Garbage Collection',
-      icon: Icons.delete_outline,
-      color: AmenityColors.garbage),
-  _Amenity(
-      key: 'wheelchair',
-      label: 'Wheelchair Access',
-      icon: Icons.accessible,
-      color: AmenityColors.wheelchair),
-];
 
 // ─── House type options ────────────────────────────────────────────────────
 
@@ -263,7 +107,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _gpsVerified = false;
   bool _checkingGps = false;
 
-  // Amenity toggles — keyed by _Amenity.key
+  // Amenity toggles — keyed by AmenityOption.key
   final Map<String, bool> _amenityState = {
     'furnished': false,
     'parking': false,
@@ -2651,7 +2495,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         Wrap(
           spacing: 12,
           runSpacing: 12,
-          children: _amenities.map((a) {
+          children: kAmenityOptions.map((a) {
             final on = _amenityState[a.key] ?? false;
             return GestureDetector(
               onTap: () {
@@ -3259,7 +3103,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   // ─────────────────────────────────────────────────────────────────────
 
   Widget _buildReviewStep() {
-    final selectedStandard = _amenities
+    final selectedStandard = kAmenityOptions
         .where((a) => _amenityState[a.key] == true)
         .map((a) => a.label);
     final selected = [...selectedStandard, ..._customAmenities];
