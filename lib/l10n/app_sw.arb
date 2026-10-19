@@ -51,5 +51,12 @@
   "nearbyFacilityCategoryOther": "Mahali",
   "nearbyFacilityDistanceMeters": "{meters}m",
   "nearbyFacilityDistanceKm": "{km}km",
-  "nearbyFacilityLabel": "{distance} kutoka {name}"
+  "nearbyFacilityLabel": "{distance} kutoka {name}",
+  "propertyDetailCallHost": "Piga simu kwa mwenyeji",
+  "propertyDetailChatWithHost": "Ongea na mwenyeji",
+  "propertyDetailStatusVerified": "Imethibitishwa",
+  "propertyDetailStatusPending": "Inasubiri",
+  "propertyDetailMapPreviewLabel": "Ramani inayoonyesha mali hii ilipo",
+  "propertyDetailMapPreviewHint": "Hufungua ramani kwenye skrini nzima",
+  "roostSheetSubmitting": "{label}, inatuma"
 }

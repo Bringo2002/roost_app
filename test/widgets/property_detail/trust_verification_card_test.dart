@@ -2,11 +2,17 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/models/user.dart';
 import 'package:roost_app/widgets/property_detail/trust_verification_card.dart';
 
-Property _property({User? owner}) {
+Property _property({
+  User? owner,
+  bool verified = true,
+  bool gpsVerified = false,
+  bool documentVerified = false,
+}) {
   return Property(
     id: 1,
     title: 'Modern Apartments',
@@ -17,7 +23,9 @@ Property _property({User? owner}) {
     type: 'RENTAL',
     landlordPhone: '+254712345678',
     available: true,
-    verified: true,
+    verified: verified,
+    gpsVerified: gpsVerified,
+    documentVerified: documentVerified,
     riskFlags: const [],
     imageUrls: const [],
     bathrooms: 1,
@@ -26,8 +34,11 @@ Property _property({User? owner}) {
   );
 }
 
-Widget _wrap(Widget child) {
+Widget _wrap(Widget child, {Locale locale = const Locale('en')}) {
   return MaterialApp(
+    locale: locale,
+    localizationsDelegates: AppLocalizations.localizationsDelegates,
+    supportedLocales: AppLocalizations.supportedLocales,
     home: Scaffold(body: SingleChildScrollView(child: child)),
   );
 }
@@ -78,6 +89,90 @@ void main() {
 
       expect(find.byType(CachedNetworkImage), findsNothing);
       expect(find.text('B'), findsOneWidget);
+    });
+  });
+
+  group('TrustVerificationCard checkpoint semantics', () {
+    testWidgets('a fully verified listing reads every checkpoint as verified', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(_wrap(TrustVerificationCard(property: _property())));
+
+      for (final label in const [
+        'Phone SMS, Verified',
+        'GPS Location, Verified',
+        'Doc Proof, Verified',
+      ]) {
+        expect(
+          tester.getSemantics(find.bySemanticsLabel(label)),
+          containsSemantics(label: label, isButton: true, hasTapAction: true),
+        );
+      }
+      handle.dispose();
+    });
+
+    testWidgets('an unverified listing reads GPS and document proof as pending', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(TrustVerificationCard(property: _property(verified: false))),
+      );
+
+      // Phone is always shown as verified; the other two follow the listing.
+      expect(find.bySemanticsLabel('Phone SMS, Verified'), findsOneWidget);
+      expect(find.bySemanticsLabel('GPS Location, Pending'), findsOneWidget);
+      expect(find.bySemanticsLabel('Doc Proof, Pending'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('each checkpoint follows its own flag', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(
+          TrustVerificationCard(
+            property: _property(verified: false, gpsVerified: true),
+          ),
+        ),
+      );
+
+      expect(find.bySemanticsLabel('GPS Location, Verified'), findsOneWidget);
+      expect(find.bySemanticsLabel('Doc Proof, Pending'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('the state words are localized to Swahili', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(
+          TrustVerificationCard(property: _property(verified: false)),
+          locale: const Locale('sw'),
+        ),
+      );
+
+      expect(find.bySemanticsLabel('Phone SMS, Imethibitishwa'), findsOneWidget);
+      expect(find.bySemanticsLabel('GPS Location, Inasubiri'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('a checkpoint opens the details sheet, whose rows spell out the state', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(TrustVerificationCard(property: _property(verified: false))),
+      );
+
+      tester.semantics.tap(find.semantics.byLabel('GPS Location, Pending'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Roost Trust & Verification Proof'), findsOneWidget);
+      expect(
+        find.bySemanticsLabel(RegExp(r'^On-Site GPS Location, Pending\.')),
+        findsOneWidget,
+      );
+      expect(
+        find.bySemanticsLabel(RegExp(r'^Phone Authenticated, Verified\.')),
+        findsOneWidget,
+      );
+      handle.dispose();
     });
   });
 }

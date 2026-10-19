@@ -1,5 +1,6 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
@@ -346,6 +347,8 @@ class _ManagementRoleBadge extends StatelessWidget {
   }
 }
 
+/// The verified / pending state of a checkpoint is drawn only as an icon, so
+/// it is spelled out in the semantics label ("GPS Location, Verified").
 class _TrustCheckpointPill extends StatelessWidget {
   const _TrustCheckpointPill({required this.icon, required this.title, required this.isVerified, required this.onTap});
 
@@ -356,38 +359,47 @@ class _TrustCheckpointPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
+    final l10n = AppLocalizations.of(context)!;
+    final status = isVerified ? l10n.propertyDetailStatusVerified : l10n.propertyDetailStatusPending;
+    return Semantics(
+      container: true,
+      button: true,
+      excludeSemantics: true,
+      label: '$title, $status',
       onTap: onTap,
-      borderRadius: BorderRadius.circular(10),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
-        decoration: BoxDecoration(
-          color: isVerified ? AppColors.grey800 : AppColors.surface,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: isVerified ? AppColors.grey600 : AppColors.divider),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
-              color: isVerified ? AppColors.white : AppColors.grey500,
-              size: 13,
-            ),
-            const SizedBox(width: 4),
-            Flexible(
-              child: Text(
-                title,
-                style: TextStyle(
-                  color: isVerified ? AppColors.white : AppColors.grey400,
-                  fontSize: 11,
-                  fontWeight: isVerified ? FontWeight.bold : FontWeight.w500,
-                ),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 6),
+          decoration: BoxDecoration(
+            color: isVerified ? AppColors.grey800 : AppColors.surface,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: isVerified ? AppColors.grey600 : AppColors.divider),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(
+                isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
+                color: isVerified ? AppColors.white : AppColors.grey500,
+                size: 13,
               ),
-            ),
-          ],
+              const SizedBox(width: 4),
+              Flexible(
+                child: Text(
+                  title,
+                  style: TextStyle(
+                    color: isVerified ? AppColors.white : AppColors.grey400,
+                    fontSize: 11,
+                    fontWeight: isVerified ? FontWeight.bold : FontWeight.w500,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -404,39 +416,48 @@ class _ProofModalRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(8),
-          decoration: BoxDecoration(
-            color: isVerified ? AppColors.grey800 : AppColors.surface,
-            borderRadius: BorderRadius.circular(10),
+    final l10n = AppLocalizations.of(context)!;
+    final status = isVerified ? l10n.propertyDetailStatusVerified : l10n.propertyDetailStatusPending;
+    // One reading per row ("Phone Authenticated, Verified. Landlord phone ..."),
+    // with the state spelled out because the row only draws it as an icon.
+    return Semantics(
+      container: true,
+      excludeSemantics: true,
+      label: '$title, $status. $subtitle',
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration: BoxDecoration(
+              color: isVerified ? AppColors.grey800 : AppColors.surface,
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: Icon(icon, color: isVerified ? AppColors.white : AppColors.grey500, size: 20),
           ),
-          child: Icon(icon, color: isVerified ? AppColors.white : AppColors.grey500, size: 20),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                children: [
-                  Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
-                  const SizedBox(width: 6),
-                  Icon(
-                    isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
-                    color: isVerified ? AppColors.white : AppColors.grey500,
-                    size: 14,
-                  ),
-                ],
-              ),
-              const SizedBox(height: 2),
-              Text(subtitle, style: const TextStyle(color: AppColors.grey400, fontSize: 12)),
-            ],
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(title, style: const TextStyle(color: AppColors.textPrimary, fontSize: 14, fontWeight: FontWeight.bold)),
+                    const SizedBox(width: 6),
+                    Icon(
+                      isVerified ? Icons.check_circle_rounded : Icons.pending_outlined,
+                      color: isVerified ? AppColors.white : AppColors.grey500,
+                      size: 14,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 2),
+                Text(subtitle, style: const TextStyle(color: AppColors.grey400, fontSize: 12)),
+              ],
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

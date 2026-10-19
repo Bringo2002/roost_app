@@ -2,6 +2,7 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
@@ -29,6 +30,7 @@ class PropertyBottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = AppLocalizations.of(context)!;
     final depositText = _depositText();
 
     return Container(
@@ -80,6 +82,7 @@ class PropertyBottomBar extends StatelessWidget {
                   const SizedBox(width: 12),
                   _BounceButton(
                     onPressed: onCall,
+                    semanticLabel: l10n.propertyDetailCallHost,
                     child: Container(
                       height: 48,
                       width: 48,
@@ -95,6 +98,7 @@ class PropertyBottomBar extends StatelessWidget {
                   const SizedBox(width: 8),
                   _BounceButton(
                     onPressed: onChat,
+                    semanticLabel: l10n.propertyDetailChatWithHost,
                     child: Container(
                       height: 48,
                       padding: const EdgeInsets.symmetric(horizontal: 16),
@@ -103,12 +107,15 @@ class PropertyBottomBar extends StatelessWidget {
                         borderRadius: BorderRadius.circular(14),
                       ),
                       alignment: Alignment.center,
-                      child: const Row(
+                      child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 17, color: AppColors.black),
-                          SizedBox(width: 6),
-                          Text('Chat with Host', style: TextStyle(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 13.5)),
+                          const Icon(Icons.chat_bubble_outline, size: 17, color: AppColors.black),
+                          const SizedBox(width: 6),
+                          Text(
+                            l10n.propertyDetailChatWithHost,
+                            style: const TextStyle(color: AppColors.black, fontWeight: FontWeight.bold, fontSize: 13.5),
+                          ),
                         ],
                       ),
                     ),
@@ -123,10 +130,16 @@ class PropertyBottomBar extends StatelessWidget {
   }
 }
 
+/// A press-and-bounce button built on a bare [GestureDetector], which exposes
+/// no name and no button role to a screen reader. [semanticLabel] names it,
+/// and the wrapping [Semantics] makes it an activatable button; the visual
+/// child (an icon, or text that duplicates the label) is excluded so it isn't
+/// read twice.
 class _BounceButton extends StatefulWidget {
-  const _BounceButton({required this.child, required this.onPressed});
+  const _BounceButton({required this.child, required this.onPressed, required this.semanticLabel});
   final Widget child;
   final VoidCallback onPressed;
+  final String semanticLabel;
 
   @override
   State<_BounceButton> createState() => _BounceButtonState();
@@ -154,26 +167,33 @@ class _BounceButtonState extends State<_BounceButton> with SingleTickerProviderS
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTapDown: (_) {
-        _isPressed = true;
-        HapticFeedback.lightImpact();
-        _controller.forward();
-      },
-      onTapUp: (_) {
-        if (!_isPressed) return;
-        _isPressed = false;
-        _controller.reverse();
-        widget.onPressed();
-      },
-      onTapCancel: () {
-        _isPressed = false;
-        _controller.reverse();
-      },
-      child: ScaleTransition(
-        scale: _scale,
-        child: widget.child,
+    return Semantics(
+      container: true,
+      button: true,
+      label: widget.semanticLabel,
+      onTap: widget.onPressed,
+      excludeSemantics: true,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) {
+          _isPressed = true;
+          HapticFeedback.lightImpact();
+          _controller.forward();
+        },
+        onTapUp: (_) {
+          if (!_isPressed) return;
+          _isPressed = false;
+          _controller.reverse();
+          widget.onPressed();
+        },
+        onTapCancel: () {
+          _isPressed = false;
+          _controller.reverse();
+        },
+        child: ScaleTransition(
+          scale: _scale,
+          child: widget.child,
+        ),
       ),
     );
   }

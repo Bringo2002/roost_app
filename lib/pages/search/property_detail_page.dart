@@ -25,6 +25,7 @@ import 'package:roost_app/widgets/property_detail/glass_icon_button.dart';
 import 'package:roost_app/widgets/property_detail/hero_media_gallery.dart';
 import 'package:roost_app/widgets/property_detail/fair_price_indicator.dart';
 import 'package:roost_app/widgets/property_detail/listing_caution_card.dart';
+import 'package:roost_app/widgets/property_detail/map_preview_tap_target.dart';
 import 'package:roost_app/widgets/property_detail/nearby_facility_chip.dart';
 import 'package:roost_app/widgets/property_detail/property_bottom_bar.dart';
 import 'package:roost_app/widgets/property_detail/quick_stats_row.dart';
@@ -520,48 +521,56 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
         decoration: BoxDecoration(border: Border.all(color: AppColors.border), borderRadius: BorderRadius.circular(20)),
         child: Stack(
           children: [
-            GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: p.latitude != null && p.longitude != null
-                    ? LatLng(p.latitude!, p.longitude!)
-                    : AppConfig.defaultMapCenter,
-                zoom: 14,
-              ),
-              // No custom style: Google's own colors/icons/labels.
-              buildingsEnabled: true,
-              zoomControlsEnabled: false,
-              myLocationButtonEnabled: false,
-              scrollGesturesEnabled: false,
-              zoomGesturesEnabled: false,
-              tiltGesturesEnabled: false,
-              rotateGesturesEnabled: false,
-              markers: {
-                Marker(
-                  markerId: MarkerId('detail_prop_${p.id}'),
-                  position: p.latitude != null && p.longitude != null
+            // The preview is decorative and non-interactive (every gesture is
+            // off), so it is hidden from screen readers. MapPreviewTapTarget is
+            // the one labelled control that opens the full-screen map.
+            ExcludeSemantics(
+              child: GoogleMap(
+                initialCameraPosition: CameraPosition(
+                  target: p.latitude != null && p.longitude != null
                       ? LatLng(p.latitude!, p.longitude!)
                       : AppConfig.defaultMapCenter,
+                  zoom: 14,
                 ),
-              },
+                // No custom style: Google's own colors/icons/labels.
+                buildingsEnabled: true,
+                zoomControlsEnabled: false,
+                myLocationButtonEnabled: false,
+                scrollGesturesEnabled: false,
+                zoomGesturesEnabled: false,
+                tiltGesturesEnabled: false,
+                rotateGesturesEnabled: false,
+                markers: {
+                  Marker(
+                    markerId: MarkerId('detail_prop_${p.id}'),
+                    position: p.latitude != null && p.longitude != null
+                        ? LatLng(p.latitude!, p.longitude!)
+                        : AppConfig.defaultMapCenter,
+                  ),
+                },
+              ),
             ),
-            Positioned.fill(child: Material(color: Colors.transparent, child: InkWell(onTap: _navigateToMap))),
+            Positioned.fill(child: MapPreviewTapTarget(onTap: _navigateToMap)),
             Positioned(
               bottom: 12,
               right: 12,
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.85),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.touch_app, color: AppColors.white, size: 14),
-                    SizedBox(width: 6),
-                    Text('Tap to Explore Map', style: TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.bold)),
-                  ],
+              // Purely visual: the tap target above already names the action.
+              child: ExcludeSemantics(
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withValues(alpha: 0.85),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.border),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.touch_app, color: AppColors.white, size: 14),
+                      SizedBox(width: 6),
+                      Text('Tap to Explore Map', style: TextStyle(color: AppColors.white, fontSize: 11, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
                 ),
               ),
             ),

@@ -426,18 +426,25 @@ class _TotalPanel extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 10),
-          TweenAnimationBuilder<double>(
-            key: ValueKey(amount),
-            tween: Tween(begin: amount * 0.8, end: amount),
-            duration: const Duration(milliseconds: 500),
-            curve: Curves.easeOutCubic,
-            builder: (context, val, _) => Text(
-              formatCurrency(val),
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 28,
-                fontWeight: FontWeight.w800,
-                height: 1.1,
+          // The figure animates toward the total on screen; a screen reader
+          // gets the final amount once instead of every in-between value.
+          Semantics(
+            container: true,
+            excludeSemantics: true,
+            label: formatCurrency(amount),
+            child: TweenAnimationBuilder<double>(
+              key: ValueKey(amount),
+              tween: Tween(begin: amount * 0.8, end: amount),
+              duration: const Duration(milliseconds: 500),
+              curve: Curves.easeOutCubic,
+              builder: (context, val, _) => Text(
+                formatCurrency(val),
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.w800,
+                  height: 1.1,
+                ),
               ),
             ),
           ),

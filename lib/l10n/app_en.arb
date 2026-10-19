@@ -267,5 +267,38 @@
         "type": "String"
       }
     }
+  },
+  "propertyDetailCallHost": "Call host",
+  "@propertyDetailCallHost": {
+    "description": "Screen-reader label for the icon-only call button in the property detail bottom bar."
+  },
+  "propertyDetailChatWithHost": "Chat with host",
+  "@propertyDetailChatWithHost": {
+    "description": "Label of the chat button in the property detail bottom bar. Shown on screen and read by screen readers."
+  },
+  "propertyDetailStatusVerified": "Verified",
+  "@propertyDetailStatusVerified": {
+    "description": "Status read by screen readers for a verification checkpoint (phone, GPS, document) that has been confirmed."
+  },
+  "propertyDetailStatusPending": "Pending",
+  "@propertyDetailStatusPending": {
+    "description": "Status read by screen readers for a verification checkpoint (phone, GPS, document) that is not confirmed yet."
+  },
+  "propertyDetailMapPreviewLabel": "Map showing where this property is",
+  "@propertyDetailMapPreviewLabel": {
+    "description": "Screen-reader label for the map preview on the property detail page. The preview is a button that opens the full-screen map."
+  },
+  "propertyDetailMapPreviewHint": "Opens the full-screen map",
+  "@propertyDetailMapPreviewHint": {
+    "description": "Screen-reader hint for the map preview button on the property detail page."
+  },
+  "roostSheetSubmitting": "{label}, submitting",
+  "@roostSheetSubmitting": {
+    "description": "Screen-reader label for a bottom-sheet submit button while the request is in flight. label is the button's normal label, e.g. \"Submit Report\".",
+    "placeholders": {
+      "label": {
+        "type": "String"
+      }
+    }
   }
 }
