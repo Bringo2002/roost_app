@@ -192,6 +192,14 @@ class ApiService {
       AuthService.logout();
       throw ApiException('Session expired. Please sign in again.', statusCode: status);
     }
+    if (status == 429) {
+      final retryAfter = response.headers['retry-after'];
+      final seconds = retryAfter != null ? int.tryParse(retryAfter) : null;
+      final message = seconds != null && seconds > 0
+          ? 'Too many requests. Please wait $seconds seconds and try again.'
+          : 'Too many requests. Please wait a moment and try again.';
+      throw ApiException(message, statusCode: status);
+    }
     final fallback = status == 403
         ? 'You do not have permission to perform this action.'
         : 'Request failed with status: $status';
