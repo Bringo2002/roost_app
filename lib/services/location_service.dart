@@ -41,6 +41,59 @@ class LocationService {
 
   static String? cachedNeighborhood;
 
+  // ── Movement threshold ────────────────────────────────────────────
+
+  /// Minimum distance (in meters) a user must move before the feed
+  /// considers the location "meaningfully changed" and triggers a
+  /// re-fetch. Set to 500 m because:
+  ///
+  /// * Nairobi neighborhoods (Kilimani, Westlands, Ruaka) are typically
+  ///   1–3 km apart — 500 m likely means a cross-neighborhood move.
+  /// * Urban GPS jitter is typically 10–50 m with medium accuracy;
+  ///   500 m is well above that noise floor.
+  /// * Property listings are relevant at neighborhood scale, not
+  ///   building-by-building — a 500 m move doesn't change which
+  ///   listings are nearby in any meaningful way.
+  static const double defaultMovementThresholdMeters = 500.0;
+
+  /// Override for tests. Reset in `tearDown`.
+  @visibleForTesting
+  static double? movementThresholdOverride;
+
+  /// The active movement threshold in meters.
+  static double get _movementThreshold =>
+      movementThresholdOverride ?? defaultMovementThresholdMeters;
+
+  /// Returns `true` if [newPosition] is far enough from [oldPosition]
+  /// to count as a meaningful location change (exceeds the movement
+  /// threshold). Always returns `true` when [oldPosition] is null
+  /// (first fix).
+  static bool hasMovedSignificantly(
+    Position? oldPosition,
+    Position newPosition,
+  ) {
+    if (oldPosition == null) return true;
+    final meters = Geolocator.distanceBetween(
+      oldPosition.latitude,
+      oldPosition.longitude,
+      newPosition.latitude,
+      newPosition.longitude,
+    );
+    return meters >= _movementThreshold;
+  }
+
+  /// Whether [position] was obtained recently enough to skip a new GPS
+  /// fix. Default staleness window is 2 minutes — long enough that a
+  /// fresh fix from 30 seconds ago isn't wasted, short enough that a
+  /// user who put the phone down for 5 minutes gets a re-check.
+  static bool isPositionFresh(
+    Position position, {
+    Duration maxAge = const Duration(minutes: 2),
+  }) {
+    final age = DateTime.now().difference(position.timestamp);
+    return age <= maxAge;
+  }
+
   /// Attempts to reverse geocode [position] or current device location to get
   /// a human-readable neighborhood/locality name (e.g. "Kilimani", "Westlands", "Ruaka").
   static Future<String?> getNeighborhoodName([Position? position]) async {

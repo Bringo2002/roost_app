@@ -7,6 +7,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/search_intent_api_service.dart';
+import 'package:roost_app/utils/feed_diagnostics.dart';
 import 'package:roost_app/utils/property_sorter.dart';
 import 'package:roost_app/utils/search_sort_params.dart';
 import 'package:roost_app/utils/property_search.dart';
@@ -54,6 +55,17 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   double _lastScrollOffset = 0;
   final Set<int> _favoriteIds = {};
 
+  /// Incremented on every fresh (non-pagination) fetch. Responses whose
+  /// generation doesn't match the current value are discarded, preventing
+  /// stale results from a slower earlier request from overwriting newer
+  /// data. See Phase Five concurrency requirements.
+  int _fetchGeneration = 0;
+
+  /// True while a location-change or manual refresh is loading in the
+  /// background with previous results still visible. Drives the subtle
+  /// inline refresh indicator instead of a full-screen loading state.
+  bool _isRefreshing = false;
+
   // Active Filter state
   String _houseType = 'All';
   int _bedrooms = 0;
@@ -88,13 +100,36 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   }
 
   Future<void> _initData() async {
-    final favIds = await FavoritesService.getFavoriteIds();
-    if (mounted) setState(() => _favoriteIds.addAll(favIds));
-    await _loadUserLocation().timeout(
-      const Duration(seconds: 3),
-      onTimeout: () {},
+    // Fire favorites fetch concurrently with location — neither blocks
+    // the other, and whichever finishes first updates its own state.
+    unawaited(FavoritesService.getFavoriteIds().then((favIds) {
+      if (mounted) setState(() => _favoriteIds.addAll(favIds));
+    }));
+
+    // Try to get location first (with timeout) so we can send lat/lng
+    // in the very first fetch, avoiding the old pattern of fetching
+    // without location then immediately re-fetching with it.
+    final trace = FeedDiagnostics.startRefresh(
+      FeedRefreshType.coldStart,
+      feedName: 'search',
     );
-    _loadProperties();
+    final position = await LocationService.getCurrentPosition().timeout(
+      const Duration(seconds: 3),
+      onTimeout: () => null,
+    );
+    if (!mounted) return;
+
+    if (position != null) {
+      trace.markLocationAcquired();
+      setState(() => _userPosition = position);
+      // Kick off geocode in parallel — don't block the feed fetch.
+      unawaited(_resolveNeighborhood(position));
+    }
+
+    // Single fetch with whatever location is available (or none).
+    trace.markFeedTriggered();
+    await _fetchFiltered(trace: trace);
+    trace.finish();
   }
 
   // _favoriteIds was already being loaded but never actually wired to the
@@ -161,15 +196,32 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     _debounceTimer = Timer(const Duration(milliseconds: 300), _applyClientSideFilters);
   }
 
+  /// Checks for a new location and refreshes the feed only if the user
+  /// has moved significantly (past the movement threshold). Geocode runs
+  /// in parallel with the feed fetch rather than blocking it.
   Future<void> _loadUserLocation() async {
     final position = await LocationService.getCurrentPosition();
     if (!mounted || position == null) return;
-    final neighborhood = await LocationService.getNeighborhoodName(position);
-    if (!mounted) return;
-    setState(() {
-      _userPosition = position;
-      _userNeighborhood = neighborhood;
-    });
+
+    // Skip re-fetch if the user hasn't moved enough to matter.
+    if (!LocationService.hasMovedSignificantly(_userPosition, position)) {
+      return;
+    }
+
+    final trace = FeedDiagnostics.startRefresh(
+      FeedRefreshType.locationChange,
+      feedName: 'search',
+    );
+    trace.markLocationAcquired();
+
+    setState(() => _userPosition = position);
+
+    // Geocode in parallel — the feed only needs lat/lng, not the
+    // neighborhood name. The neighborhood updates the search hint
+    // asynchronously whenever it resolves.
+    unawaited(_resolveNeighborhood(position));
+
+    trace.markFeedTriggered();
     // Distance-sorted paging depends on the server having lat/lng, which
     // it didn't for whatever's already loaded -- refetch from page 0
     // rather than just re-sorting client-side, so page boundaries match
@@ -179,8 +231,17 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     if (_sortNewestFirst || _sortRecommended) {
       _applyClientSideFilters();
     } else {
-      _fetchFiltered();
+      await _fetchFiltered(trace: trace);
     }
+    trace.finish();
+  }
+
+  /// Resolves the neighborhood name in the background. Updates the search
+  /// hint placeholder when it finishes — never blocks the feed fetch.
+  Future<void> _resolveNeighborhood(Position position) async {
+    final neighborhood = await LocationService.getNeighborhoodName(position);
+    if (!mounted) return;
+    setState(() => _userNeighborhood = neighborhood);
   }
 
   /// Distance from the user to [p] in km, or null if either the user's
@@ -196,7 +257,13 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   }
 
   Future<void> _loadProperties() async {
-    await _fetchFiltered();
+    final trace = FeedDiagnostics.startRefresh(
+      FeedRefreshType.manualRefresh,
+      feedName: 'search',
+    );
+    trace.markFeedTriggered();
+    await _fetchFiltered(trace: trace);
+    trace.finish();
   }
 
   /// Builds the query string for GET /api/properties/filter from the
@@ -257,35 +324,68 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   /// [loadMore] fetches the next page and appends; otherwise this is a
   /// fresh search (filters changed, pull-to-refresh, retry, location
   /// resolved) that replaces page 0 outright.
-  Future<void> _fetchFiltered({bool loadMore = false}) async {
+  /// Fetches properties from the server with filter-sheet constraints.
+  ///
+  /// [loadMore] appends the next page; otherwise replaces from page 0.
+  /// [trace] is the optional diagnostic trace for timing instrumentation.
+  ///
+  /// Uses [_fetchGeneration] to prevent a stale response (from a slower
+  /// earlier request) from overwriting results triggered by a newer
+  /// location or filter change — the concurrency guard described in
+  /// Phase Five of the requirements.
+  Future<void> _fetchFiltered({bool loadMore = false, RefreshTrace? trace}) async {
     if (loadMore) {
       if (!_hasMore || _loadingMore) return;
       setState(() => _loadingMore = true);
     } else {
-      setState(() => _loadError = false);
+      // Fresh fetch: increment generation so in-flight older requests
+      // are ignored when they return.
+      _fetchGeneration++;
+      // Show previous results with a subtle refresh indicator instead
+      // of a full-screen loading state — unless this is the very first
+      // load (no results to show yet).
+      setState(() {
+        _loadError = false;
+        if (_allProperties.isNotEmpty) {
+          _isRefreshing = true;
+        }
+      });
     }
 
+    final generation = _fetchGeneration;
     final pageToFetch = loadMore ? _nextPage : 0;
 
     try {
+      trace?.markApiRequestSent();
       final query = _buildFilterQuery(pageToFetch);
       final jsonList = await ApiService.get('/api/properties/filter?$query');
       final props = (jsonList as List).map((j) => Property.fromJson(j)).toList();
+      trace?.markApiResponseReceived(itemCount: props.length);
 
       if (!mounted) return;
+
+      // Stale-response guard: if a newer fetch was started while this
+      // one was in flight, discard these results — they belong to an
+      // older location/filter state.
+      if (!loadMore && generation != _fetchGeneration) return;
+
       setState(() {
         _allProperties = loadMore ? [..._allProperties, ...props] : props;
         _hasMore = props.length == _pageSize;
         _nextPage = pageToFetch + 1;
         _loading = false;
         _loadingMore = false;
+        _isRefreshing = false;
       });
-      _applyClientSideFilters();
+      _applyClientSideFilters(trace: trace);
     } catch (_) {
       if (!mounted) return;
+      // Don't overwrite state if a newer generation is already active.
+      if (!loadMore && generation != _fetchGeneration) return;
       setState(() {
         _loading = false;
         _loadingMore = false;
+        _isRefreshing = false;
         // A failed "load more" leaves existing results on screen; only
         // a failed initial load shows the full-page error state.
         if (!loadMore) _loadError = true;
@@ -366,7 +466,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     _fetchFiltered();
   }
 
-  void _applyClientSideFilters() {
+  void _applyClientSideFilters({RefreshTrace? trace}) {
     final intent = PropertySearch.parse(_searchCtrl.text.trim());
 
     setState(() {
@@ -395,6 +495,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       _sortResults();
     });
 
+    trace?.markFilterSortComplete(resultCount: _results.length);
+    trace?.markStatePublished();
 
     // Balcony/petFriendly/free-text are client-only filters (the backend
     // doesn't know about them), so a narrow match can leave too little on
@@ -946,6 +1048,18 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                     : const SizedBox.shrink(),
               ),
             ),
+            // Subtle inline refresh indicator when previous results
+            // are still visible during a location-change or manual
+            // refresh — avoids the full-screen loading flash.
+            if (_isRefreshing)
+              const Padding(
+                padding: EdgeInsets.symmetric(horizontal: 16),
+                child: LinearProgressIndicator(
+                  minHeight: 2,
+                  backgroundColor: AppColors.divider,
+                  valueColor: AlwaysStoppedAnimation(AppColors.white),
+                ),
+              ),
             Expanded(
               child: RefreshIndicator(
                 onRefresh: _loadProperties,

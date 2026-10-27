@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/utils/feed_diagnostics.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/chat/active_chats_page.dart';
 import 'package:roost_app/pages/landlord/listing_intro_page.dart';
@@ -409,7 +410,8 @@ class _PropertyFeedPage extends StatefulWidget {
   State<_PropertyFeedPage> createState() => _PropertyFeedPageState();
 }
 
-class _PropertyFeedPageState extends State<_PropertyFeedPage> {
+class _PropertyFeedPageState extends State<_PropertyFeedPage>
+    with WidgetsBindingObserver {
   List<Property> properties = [];
   List<Property> filtered = [];
   Set<int> favoriteIds = {};
@@ -427,26 +429,15 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   double _lastScrollOffset = 0;
   Timer? _debounceTimer;
 
-  // Pagination -- this feed used to fetch every property in the catalog
-  // in one unbounded call. That's fine at a few hundred listings and a
-  // real scalability problem beyond that: payload size and load time
-  // grow forever as the catalog grows. This now windows through
-  // /api/properties (page/size params, opt-in on the backend) the same
-  // way the dedicated Search page's /api/properties/filter does --
-  // deliberately NOT /filter itself, since that endpoint hardcodes
-  // "available = true" and, once lat/lng are sent, "coordinates not
-  // null" -- both of which would silently drop listings this feed is
-  // supposed to still show (a "Taken" listing displays its own badge
-  // rather than disappearing; a listing without pinned coordinates yet
-  // still needs to appear, just without a distance label).
-  static const int _pageSize = 20;
-  int _nextPage = 0;
-  bool _hasMore = true;
-  bool _loadingMore = false;
+  /// Incremented on every fresh (non-pagination) fetch. Responses whose
+  /// generation doesn't match the current value are discarded, preventing
+  /// stale results from a slower earlier request from overwriting newer
+  /// data — the same concurrency guard as SearchPage.
+  int _fetchGeneration = 0;
 
-  String? _prefHouseType;
-  String? _prefBudget;
-  String? _prefTimeframe;
+  /// True while a location-change or app-resume refresh is loading in
+  /// the background with previous results still visible.
+  bool _isRefreshing = false;
 
   Position? _userPosition;
   String? _userNeighborhood;
@@ -454,8 +445,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
-    _loadUserPosition();
     searchController.addListener(_onSearchChanged);
     _scrollController.addListener(_onScroll);
     _searchFocus.addListener(_onFocusChanged);
@@ -463,6 +454,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     searchController.removeListener(_onSearchChanged);
     searchController.dispose();
     _searchFocus.removeListener(_onFocusChanged);
@@ -470,6 +462,41 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     _scrollController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  /// Re-checks location when the app resumes from background. Only
+  /// triggers a feed refresh if the user moved significantly (500m+)
+  /// and the last position is stale (>2 minutes old).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    _recheckLocationOnResume();
+  }
+
+  Future<void> _recheckLocationOnResume() async {
+    // Skip re-check if we have a fresh position (avoids hammering GPS
+    // on rapid app switches like coming back from a share sheet).
+    final old = _userPosition;
+    if (old != null && LocationService.isPositionFresh(old)) return;
+
+    final position = await LocationService.getCurrentPosition();
+    if (!mounted || position == null) return;
+    if (!LocationService.hasMovedSignificantly(old, position)) return;
+
+    final trace = FeedDiagnostics.startRefresh(
+      FeedRefreshType.appResume,
+      feedName: 'home',
+    );
+    trace.markLocationAcquired();
+    setState(() {
+      _userPosition = position;
+      _nextPage = 0;
+      _hasMore = true;
+    });
+    unawaited(_resolveNeighborhood(position));
+    trace.markFeedTriggered();
+    await _fetchProperties(trace: trace);
+    trace.finish();
   }
 
   void _onScroll() {
@@ -512,11 +539,32 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   }
 
   Future<void> _loadData() async {
-    await Future.wait([
-      _fetchProperties(),
-      _loadFavorites(),
-      _loadOnboardingPrefs(),
-    ]);
+    // Fire favorites + prefs concurrently with location — none block
+    // each other.
+    unawaited(_loadFavorites());
+    unawaited(_loadOnboardingPrefs());
+
+    // Try to get location first (with timeout) so we can send lat/lng
+    // in the very first fetch, avoiding the double-fetch pattern.
+    final trace = FeedDiagnostics.startRefresh(
+      FeedRefreshType.coldStart,
+      feedName: 'home',
+    );
+    final position = await LocationService.getCurrentPosition().timeout(
+      const Duration(seconds: 3),
+      onTimeout: () => null,
+    );
+    if (!mounted) return;
+
+    if (position != null) {
+      trace.markLocationAcquired();
+      setState(() => _userPosition = position);
+      unawaited(_resolveNeighborhood(position));
+    }
+
+    trace.markFeedTriggered();
+    await _fetchProperties(trace: trace);
+    trace.finish();
   }
 
   Future<void> _loadOnboardingPrefs() async {
@@ -534,27 +582,12 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     }
   }
 
-  /// Fetches the device location in the background and re-ranks the feed
-  /// once it resolves. Runs independently of _loadData so the feed never
-  /// waits on location permission before showing properties.
-  ///
-  /// Re-fetches from page 0 (not just a client re-sort) once location
-  /// resolves, since the server now orders by distance once lat/lng is
-  /// present -- re-sorting only the already-loaded pages client-side
-  /// would leave page boundaries inconsistent with the new server order,
-  /// the same page-boundary issue SearchPage's own fetch avoids.
-  Future<void> _loadUserPosition() async {
-    final position = await LocationService.getCurrentPosition();
-    if (!mounted || position == null) return;
+  /// Resolves the neighborhood name in the background. Updates the search
+  /// hint placeholder when it finishes — never blocks the feed fetch.
+  Future<void> _resolveNeighborhood(Position position) async {
     final neighborhood = await LocationService.getNeighborhoodName(position);
     if (!mounted) return;
-    setState(() {
-      _userPosition = position;
-      _userNeighborhood = neighborhood;
-      _nextPage = 0;
-      _hasMore = true;
-    });
-    await _fetchProperties();
+    setState(() => _userNeighborhood = neighborhood);
   }
 
   /// Distance from the user to [p] in km, or null if either the user's
@@ -583,19 +616,34 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
     return params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
   }
 
-  Future<void> _fetchProperties({bool loadMore = false}) async {
+  Future<void> _fetchProperties({bool loadMore = false, RefreshTrace? trace}) async {
     if (loadMore) {
       if (!_hasMore || _loadingMore) return;
       setState(() => _loadingMore = true);
+    } else {
+      _fetchGeneration++;
+      // Keep old results visible during background refresh.
+      setState(() {
+        if (properties.isNotEmpty) {
+          _isRefreshing = true;
+        }
+      });
     }
 
+    final generation = _fetchGeneration;
     final pageToFetch = loadMore ? _nextPage : 0;
 
     try {
+      trace?.markApiRequestSent();
       final query = _buildQuery(pageToFetch);
       final jsonList = await ApiService.get('/api/properties?$query');
       if (!mounted) return;
+
+      // Stale-response guard.
+      if (!loadMore && generation != _fetchGeneration) return;
+
       final props = (jsonList as List).map((json) => Property.fromJson(json)).toList();
+      trace?.markApiResponseReceived(itemCount: props.length);
       setState(() {
         properties = loadMore ? [...properties, ...props] : props;
         _hasMore = props.length == _pageSize;
@@ -603,13 +651,16 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
         _error = null;
         loading = false;
         _loadingMore = false;
+        _isRefreshing = false;
       });
-      _filterProperties();
+      _filterProperties(trace: trace);
     } catch (e) {
       if (!mounted) return;
+      if (!loadMore && generation != _fetchGeneration) return;
       setState(() {
         loading = false;
         _loadingMore = false;
+        _isRefreshing = false;
         // A failed "load more" leaves existing results on screen; only
         // a failed initial load shows the full-page error state.
         if (!loadMore) {
@@ -638,7 +689,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
   }
 
 
-  void _filterProperties() {
+  void _filterProperties({RefreshTrace? trace}) {
     final intent = PropertySearch.parse(searchController.text);
 
     setState(() {
@@ -658,6 +709,9 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
         prefTimeframe: _prefTimeframe,
       );
     });
+
+    trace?.markFilterSortComplete(resultCount: filtered.length);
+    trace?.markStatePublished();
 
     // A text search or type filter can leave too little on screen to
     // fill the viewport even though more pages exist server-side --
@@ -822,7 +876,19 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage> {
                   : RefreshIndicator(
                       color: Colors.white,
                       backgroundColor: Colors.grey[900],
-                      onRefresh: _loadData,
+                      onRefresh: () async {
+                        final trace = FeedDiagnostics.startRefresh(
+                          FeedRefreshType.manualRefresh,
+                          feedName: 'home',
+                        );
+                        trace.markFeedTriggered();
+                        await Future.wait([
+                          _fetchProperties(trace: trace),
+                          _loadFavorites(),
+                          _loadOnboardingPrefs(),
+                        ]);
+                        trace.finish();
+                      },
                       child: ListView.builder(
                         controller: _scrollController,
                         itemCount: filtered.length + (_hasMore ? 1 : 0),
