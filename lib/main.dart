@@ -429,6 +429,17 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
   double _lastScrollOffset = 0;
   Timer? _debounceTimer;
 
+  // Pagination state
+  int _nextPage = 0;
+  bool _hasMore = true;
+  bool _loadingMore = false;
+  static const int _pageSize = 20;
+
+  // Onboarding preference filters
+  String? _prefHouseType;
+  String? _prefBudget;
+  String? _prefTimeframe;
+
   /// Incremented on every fresh (non-pagination) fetch. Responses whose
   /// generation doesn't match the current value are discarded, preventing
   /// stale results from a slower earlier request from overwriting newer
