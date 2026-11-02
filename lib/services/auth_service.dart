@@ -218,6 +218,18 @@ class AuthService {
     }
   }
 
+  /// Whether an auth response marks a brand-new account.
+  ///
+  /// The backend returns this flag from `AuthResponse.isNewUser()`, which
+  /// Jackson serializes as `newUser` (JavaBeans naming strips the `is`), not
+  /// `isNewUser`. Accept both so the client works against the server as it is
+  /// today and after the server pins the documented key.
+  @visibleForTesting
+  static bool isNewUserFlag(dynamic data) {
+    if (data is! Map) return false;
+    return data['isNewUser'] == true || data['newUser'] == true;
+  }
+
   static Future<AuthResult> _exchangeGoogleToken(
     String firebaseIdToken,
   ) async {
@@ -235,7 +247,7 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _saveToken(data['token']);
-        return AuthResult(success: true, isNewUser: data['isNewUser'] == true);
+        return AuthResult(success: true, isNewUser: isNewUserFlag(data));
       }
 
       String errorMsg = 'Google sign-in failed (${response.statusCode})';
@@ -339,7 +351,7 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _saveToken(data['token']);
-        return AuthResult(success: true, isNewUser: data['isNewUser'] == true);
+        return AuthResult(success: true, isNewUser: isNewUserFlag(data));
       }
 
       String errorMsg = 'Apple sign-in failed (${response.statusCode})';
