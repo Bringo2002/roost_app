@@ -80,7 +80,13 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
   late final Animation<Offset> _entranceSlide;
   List<Property> _similarListings = [];
 
-  Property get _property => widget.property;
+  /// Copy of [widget.property] with facilities re-fetched on open. Nearby
+  /// facilities are filled in by the backend a few seconds after GPS
+  /// verification, so the object handed in from a list or dashboard fetched
+  /// earlier can legitimately be missing them.
+  Property? _refreshed;
+
+  Property get _property => _refreshed ?? widget.property;
 
   @override
   void initState() {
@@ -92,6 +98,7 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
         .animate(CurvedAnimation(parent: _entranceController, curve: Curves.easeOut));
     _entranceController.forward();
     _fetchSimilarListings();
+    _refreshNearbyFacilities();
     final propertyId = widget.property.id;
     if (propertyId != null) {
       ListingEventService.instance.track(propertyId, ListingEventType.click);
@@ -117,6 +124,25 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
       }
     } catch (e) {
       debugPrint('Failed to load similar listings for property ${_property.id}: $e');
+    }
+  }
+
+  /// Only runs when the listing arrived without facilities, so listings that
+  /// already have them cost no extra request. Best-effort: any failure just
+  /// leaves the section hidden, exactly as before.
+  Future<void> _refreshNearbyFacilities() async {
+    final id = widget.property.id;
+    if (id == null || widget.property.nearbyFacilities.isNotEmpty) return;
+    try {
+      final response = await ApiService.get('/api/properties/$id');
+      if (response is! Map) return;
+      final fresh = Property.fromJson(Map<String, dynamic>.from(response));
+      if (!mounted || fresh.nearbyFacilities.isEmpty) return;
+      setState(() {
+        _refreshed = widget.property.copyWith(nearbyFacilities: fresh.nearbyFacilities);
+      });
+    } catch (e) {
+      debugPrint('Failed to refresh nearby facilities for property $id: $e');
     }
   }
 

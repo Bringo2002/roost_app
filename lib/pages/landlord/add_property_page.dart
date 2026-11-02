@@ -463,6 +463,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         // interrupt the flow with a second error on top of the location
         // fetch above; the user can just retry the confirm action.
         debugPrint('AddPropertyPage: GPS verification failed: $e');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+                content: Text(
+                    "Couldn't verify your location. Make sure you're at the property, then tap \"Confirm your GPS location\" again.")),
+          );
+        }
       }
     } finally {
       if (mounted) setState(() => _checkingGps = false);
