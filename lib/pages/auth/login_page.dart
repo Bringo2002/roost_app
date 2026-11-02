@@ -5,6 +5,7 @@ import 'package:roost_app/pages/auth/signup_page.dart';
 import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/auth/apple_sign_in_button.dart';
+import 'package:roost_app/widgets/auth/google_sign_in_button.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 class LoginPage extends StatefulWidget {
@@ -227,23 +228,7 @@ class _LoginPageState extends State<LoginPage> {
 
               const SizedBox(height: 20),
 
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: OutlinedButton.icon(
-                  onPressed: _isLoading ? null : _signInWithGoogle,
-                  style: OutlinedButton.styleFrom(
-                    backgroundColor: AppColors.surfaceContainer,
-                    side: BorderSide(color: Colors.grey[850]!),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                  ),
-                  icon: const Icon(Icons.account_circle_outlined, color: Colors.white, size: 20),
-                  label: const Text(
-                    'Continue with Google',
-                    style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ),
+              GoogleSignInButton(onPressed: _isLoading ? null : _signInWithGoogle),
               if (AuthService.isAppleSignInAvailable) ...[
                 const SizedBox(height: 12),
                 AppleSignInButton(onPressed: _isLoading ? null : _signInWithApple),
