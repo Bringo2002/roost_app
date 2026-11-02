@@ -27,10 +27,14 @@ class SectionHeader extends StatelessWidget {
     if (trailing == null) {
       return title;
     }
+    // The title is Flexible so a long label (or a large accessibility text
+    // scale) wraps instead of overflowing the row; the trailing control keeps
+    // its natural size and stays pinned to the end.
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        title,
+        Flexible(child: title),
+        const SizedBox(width: 8),
         trailing!,
       ],
     );
