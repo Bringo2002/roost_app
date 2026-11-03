@@ -164,7 +164,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     // Polling every 60s is wasted battery/network while the app is
     // backgrounded -- nobody sees the badge update until they reopen it
     // anyway, at which point resuming fetches immediately.
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.detached) {
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached) {
       _unreadTimer?.cancel();
     } else if (state == AppLifecycleState.resumed) {
       _startUnreadPolling();
@@ -347,7 +348,8 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
                   curve: Curves.easeOut,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 150),
-                    transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+                    transitionBuilder: (child, animation) =>
+                        FadeTransition(opacity: animation, child: child),
                     child: Icon(
                       selected ? activeIcon : icon,
                       key: ValueKey(selected),
@@ -533,7 +535,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
       _lastScrollOffset = currentOffset;
 
       if (!_hasMore || _loadingMore || loading) return;
-      if (_scrollController.position.pixels >= _scrollController.position.maxScrollExtent - 400) {
+      if (_scrollController.position.pixels >=
+          _scrollController.position.maxScrollExtent - 400) {
         _fetchProperties(loadMore: true);
       }
     }
@@ -624,10 +627,13 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
       params['lat'] = '${pos.latitude}';
       params['lng'] = '${pos.longitude}';
     }
-    return params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+    return params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
   }
 
-  Future<void> _fetchProperties({bool loadMore = false, RefreshTrace? trace}) async {
+  Future<void> _fetchProperties(
+      {bool loadMore = false, RefreshTrace? trace}) async {
     if (loadMore) {
       if (!_hasMore || _loadingMore) return;
       setState(() => _loadingMore = true);
@@ -653,7 +659,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
       // Stale-response guard.
       if (!loadMore && generation != _fetchGeneration) return;
 
-      final props = (jsonList as List).map((json) => Property.fromJson(json)).toList();
+      final props =
+          (jsonList as List).map((json) => Property.fromJson(json)).toList();
       trace?.markApiResponseReceived(itemCount: props.length);
       setState(() {
         properties = loadMore ? [...properties, ...props] : props;
@@ -675,15 +682,16 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
         // A failed "load more" leaves existing results on screen; only
         // a failed initial load shows the full-page error state.
         if (!loadMore) {
-          _error = e.toUserMessage('Failed to load properties. Please try again.');
+          _error =
+              e.toUserMessage('Failed to load properties. Please try again.');
         }
       });
       if (!loadMore) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(
-            content: Text(e
-                .toUserMessage('Failed to load properties. Please try again.'))));
+            content: Text(e.toUserMessage(
+                'Failed to load properties. Please try again.'))));
       }
     }
   }
@@ -698,7 +706,6 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
     await FavoritesService.toggle(id);
     await _loadFavorites();
   }
-
 
   void _filterProperties({RefreshTrace? trace}) {
     final intent = PropertySearch.parse(searchController.text);
@@ -848,7 +855,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
                         child: RoostSearchBar(
                           controller: searchController,
                           focusNode: _searchFocus,
-                          hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
+                          hintText: CountryService.config
+                              .getDynamicSearchHint(_userNeighborhood),
                         ),
                       ),
                     ],
@@ -858,6 +866,17 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
         ),
 
         // Property list with pull-to-refresh
+        // Subtle inline refresh indicator when previous results are
+        // still visible during a location-change or app-resume refresh.
+        if (_isRefreshing)
+          const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16),
+            child: LinearProgressIndicator(
+              minHeight: 2,
+              backgroundColor: AppColors.divider,
+              valueColor: AlwaysStoppedAnimation(AppColors.white),
+            ),
+          ),
         Expanded(
           child: Stack(
             children: [
@@ -913,7 +932,9 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
                                     ? const SizedBox(
                                         width: 24,
                                         height: 24,
-                                        child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                        child: CircularProgressIndicator(
+                                            color: Colors.white,
+                                            strokeWidth: 2),
                                       )
                                     : const SizedBox.shrink(),
                               ),
@@ -926,7 +947,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
                             child: ImpressionTracker(
                               propertyId: property.id,
                               child: PropertyCard(
-                                key: ValueKey(property.id ?? identityHashCode(property)),
+                                key: ValueKey(
+                                    property.id ?? identityHashCode(property)),
                                 property: property,
                                 heroTag: 'property-image-${property.id}',
                                 distanceLabel: km != null
@@ -941,8 +963,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
                                   await Navigator.push(
                                     context,
                                     MaterialPageRoute(
-                                      builder: (context) =>
-                                          PropertyDetailPage(property: property),
+                                      builder: (context) => PropertyDetailPage(
+                                          property: property),
                                     ),
                                   );
                                   _loadFavorites();

@@ -37,7 +37,8 @@ class SearchPage extends StatefulWidget {
   State<SearchPage> createState() => _SearchPageState();
 }
 
-class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
+class _SearchPageState extends State<SearchPage>
+    with TickerProviderStateMixin, WidgetsBindingObserver {
   List<Property> _allProperties = [];
   List<Property> _results = [];
   bool _loading = true;
@@ -91,6 +92,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final config = CountryService.config;
     _priceRange = RangeValues(config.priceMin, config.priceMax);
     _initData();
@@ -148,6 +150,7 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchCtrl.removeListener(_onSearchChanged);
     _searchCtrl.dispose();
     _searchFocusNode.removeListener(_onSearchFocusChanged);
@@ -156,6 +159,17 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     _scrollController.dispose();
     _debounceTimer?.cancel();
     super.dispose();
+  }
+
+  /// Re-checks location when the app resumes from background. Only
+  /// triggers a feed refresh if the user moved significantly (500m+)
+  /// and the last position is stale (>2 minutes old).
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    final old = _userPosition;
+    if (old != null && LocationService.isPositionFresh(old)) return;
+    _loadUserLocation();
   }
 
   void _onSearchFocusChanged() {
@@ -193,7 +207,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
 
   void _onSearchChanged() {
     _debounceTimer?.cancel();
-    _debounceTimer = Timer(const Duration(milliseconds: 300), _applyClientSideFilters);
+    _debounceTimer =
+        Timer(const Duration(milliseconds: 300), _applyClientSideFilters);
   }
 
   /// Checks for a new location and refreshes the feed only if the user
@@ -289,8 +304,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     }
 
     final config = CountryService.config;
-    if (_priceRange.start > config.priceMin) params['minPrice'] = '${_priceRange.start}';
-    if (_priceRange.end < config.priceMax) params['maxPrice'] = '${_priceRange.end}';
+    if (_priceRange.start > config.priceMin)
+      params['minPrice'] = '${_priceRange.start}';
+    if (_priceRange.end < config.priceMax)
+      params['maxPrice'] = '${_priceRange.end}';
 
     if (_furnished) params['furnished'] = 'true';
     if (_parking) params['parking'] = 'true';
@@ -314,7 +331,9 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       lng: pos?.longitude,
     ));
 
-    return params.entries.map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}').join('&');
+    return params.entries
+        .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+        .join('&');
   }
 
   /// Fetches from the server with the filter sheet's constraints already
@@ -333,7 +352,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   /// earlier request) from overwriting results triggered by a newer
   /// location or filter change — the concurrency guard described in
   /// Phase Five of the requirements.
-  Future<void> _fetchFiltered({bool loadMore = false, RefreshTrace? trace}) async {
+  Future<void> _fetchFiltered(
+      {bool loadMore = false, RefreshTrace? trace}) async {
     if (loadMore) {
       if (!_hasMore || _loadingMore) return;
       setState(() => _loadingMore = true);
@@ -359,7 +379,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
       trace?.markApiRequestSent();
       final query = _buildFilterQuery(pageToFetch);
       final jsonList = await ApiService.get('/api/properties/filter?$query');
-      final props = (jsonList as List).map((j) => Property.fromJson(j)).toList();
+      final props =
+          (jsonList as List).map((j) => Property.fromJson(j)).toList();
       trace?.markApiResponseReceived(itemCount: props.length);
 
       if (!mounted) return;
@@ -528,7 +549,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     setState(() {
       _houseType = 'All';
       _bedrooms = 0;
-      _priceRange = RangeValues(CountryService.config.priceMin, CountryService.config.priceMax);
+      _priceRange = RangeValues(
+          CountryService.config.priceMin, CountryService.config.priceMax);
       _furnished = false;
       _parking = false;
       _wifi = false;
@@ -553,7 +575,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     int count = 0;
     if (_houseType != 'All') count++;
     if (_bedrooms != 0) count++;
-    if (_priceRange.start != config.priceMin || _priceRange.end != config.priceMax) count++;
+    if (_priceRange.start != config.priceMin ||
+        _priceRange.end != config.priceMax) count++;
     if (_furnished) count++;
     if (_parking) count++;
     if (_wifi) count++;
@@ -580,7 +603,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
           children: [
             _buildQuickFilterChip(
               label: 'All Rentals',
-              selected: !_verifiedOnly && !_docVerifiedOnly && !_gpsVerifiedOnly,
+              selected:
+                  !_verifiedOnly && !_docVerifiedOnly && !_gpsVerifiedOnly,
               onTap: () {
                 setState(() {
                   _verifiedOnly = false;
@@ -623,7 +647,10 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     );
   }
 
-  Widget _buildQuickFilterChip({required String label, required bool selected, required VoidCallback onTap}) {
+  Widget _buildQuickFilterChip(
+      {required String label,
+      required bool selected,
+      required VoidCallback onTap}) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -662,44 +689,96 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
             return SafeArea(
               top: false,
               child: Padding(
-                padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
-              child: SingleChildScrollView(
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text(
-                          'Filter Rentals',
-                          style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
-                        ),
-                        TextButton(
-                          onPressed: () {
-                            _resetFilters();
-                            setSheetState(() {});
-                          },
-                          child: const Text('Reset', style: TextStyle(color: Colors.grey)),
-                        ),
-                      ],
-                    ),
-                    const Divider(color: AppColors.surfaceContainerHigh),
-                    const SizedBox(height: 12),
+                padding: EdgeInsets.fromLTRB(
+                    20, 20, 20, MediaQuery.of(context).viewInsets.bottom + 20),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Filter Rentals',
+                            style: TextStyle(
+                                color: Colors.white,
+                                fontSize: 20,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          TextButton(
+                            onPressed: () {
+                              _resetFilters();
+                              setSheetState(() {});
+                            },
+                            child: const Text('Reset',
+                                style: TextStyle(color: Colors.grey)),
+                          ),
+                        ],
+                      ),
+                      const Divider(color: AppColors.surfaceContainerHigh),
+                      const SizedBox(height: 12),
 
-                    // House Type
-                    const Text('House Type', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    SingleChildScrollView(
-                      scrollDirection: Axis.horizontal,
-                      child: Row(
-                        children: ['All', 'BEDSITTER', 'STUDIO', '1BR', '2BR', '3BR+'].map((type) {
-                          final selected = _houseType == type;
+                      // House Type
+                      const Text('House Type',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            'All',
+                            'BEDSITTER',
+                            'STUDIO',
+                            '1BR',
+                            '2BR',
+                            '3BR+'
+                          ].map((type) {
+                            final selected = _houseType == type;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text(
+                                  _houseTypeLabels[type] ?? type,
+                                  style: TextStyle(
+                                    color:
+                                        selected ? Colors.black : Colors.white,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                                selected: selected,
+                                selectedColor: Colors.white,
+                                backgroundColor: Colors.black,
+                                onSelected: (_) =>
+                                    setSheetState(() => _houseType = type),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // Bedrooms
+                      const Text('Bedrooms',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [0, 1, 2, 3, 4].map((count) {
+                          final selected = _bedrooms == count;
+                          final label = count == 0 ? 'Any' : '$count+';
                           return Padding(
                             padding: const EdgeInsets.only(right: 8),
                             child: ChoiceChip(
                               label: Text(
-                                _houseTypeLabels[type] ?? type,
+                                label,
                                 style: TextStyle(
                                   color: selected ? Colors.black : Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -709,219 +788,276 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               selected: selected,
                               selectedColor: Colors.white,
                               backgroundColor: Colors.black,
-                              onSelected: (_) => setSheetState(() => _houseType = type),
+                              onSelected: (_) =>
+                                  setSheetState(() => _bedrooms = count),
                             ),
                           );
                         }).toList(),
                       ),
-                    ),
 
-                    const SizedBox(height: 20),
+                      const SizedBox(height: 20),
 
-                    // Bedrooms
-                    const Text('Bedrooms', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Row(
-                      children: [0, 1, 2, 3, 4].map((count) {
-                        final selected = _bedrooms == count;
-                        final label = count == 0 ? 'Any' : '$count+';
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(
-                              label,
-                              style: TextStyle(
-                                color: selected ? Colors.black : Colors.white,
-                                fontWeight: FontWeight.bold,
-                                fontSize: 12,
-                              ),
-                            ),
-                            selected: selected,
-                            selectedColor: Colors.white,
-                            backgroundColor: Colors.black,
-                            onSelected: (_) => setSheetState(() => _bedrooms = count),
-                          ),
-                        );
-                      }).toList(),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    // Price Range
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        const Text('Price Range', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-                        Text(
-                          '${CountryService.price(_priceRange.start)} - ${CountryService.price(_priceRange.end)}',
-                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                    RangeSlider(
-                      values: _priceRange,
-                      min: CountryService.config.priceMin,
-                      max: CountryService.config.priceMax,
-                      divisions: CountryService.config.priceDivisions,
-                      activeColor: Colors.white,
-                      inactiveColor: Colors.grey[800],
-                      onChanged: (vals) => setSheetState(() => _priceRange = vals),
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Amenities
-                    const Text('Amenities', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 10),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        FilterChip(
-                          label: const Text('Furnished'),
-                          selected: _furnished,
-                          selectedColor: Colors.white,
-                          onSelected: (val) => setSheetState(() => _furnished = val),
-                        ),
-                        FilterChip(
-                          label: const Text('Parking'),
-                          selected: _parking,
-                          selectedColor: Colors.white,
-                          onSelected: (val) => setSheetState(() => _parking = val),
-                        ),
-                        FilterChip(
-                          label: const Text('WiFi'),
-                          selected: _wifi,
-                          selectedColor: Colors.white,
-                          onSelected: (val) => setSheetState(() => _wifi = val),
-                        ),
-                        FilterChip(
-                          label: const Text('Water 24/7'),
-                          selected: _water,
-                          selectedColor: Colors.white,
-                          onSelected: (val) => setSheetState(() => _water = val),
-                        ),
-                        FilterChip(
-                          label: const Text('Security'),
-                          selected: _security,
-                          selectedColor: Colors.white,
-                          onSelected: (val) => setSheetState(() => _security = val),
-                        ),
-                        FilterChip(
-                          label: const Text('Balcony'),
-                          selected: _balcony,
-                          selectedColor: Colors.white,
-                          onSelected: (val) => setSheetState(() => _balcony = val),
-                        ),
-                        FilterChip(
-                          label: const Text('Pet Friendly'),
-                          selected: _petFriendly,
-                          selectedColor: Colors.white,
-                          onSelected: (val) => setSheetState(() => _petFriendly = val),
-                        ),
-                      ],
-                    ),
-
-                    const SizedBox(height: 16),
-
-                    // Verification Level Section
-                    const Text('Landlord Verification Level', style: TextStyle(color: Colors.grey, fontSize: 13, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 8),
-                    // Tier legend context
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                      margin: const EdgeInsets.only(bottom: 10),
-                      decoration: BoxDecoration(
-                        color: AppColors.verified.withAlpha(18),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.verified.withAlpha(50)),
-                      ),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                      // Price Range
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Text('TRUST & VERIFICATION TIERS', style: TextStyle(color: AppColors.verifiedLight, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                          SizedBox(height: 6),
-                          Row(children: [Text('Tier 1 (🛡️ Phone): ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)), Expanded(child: Text('SMS identity confirmed by Roost', style: TextStyle(color: Colors.white70, fontSize: 11)))]),
-                          SizedBox(height: 4),
-                          Row(children: [Text('Tier 2 (📍 GPS): ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)), Expanded(child: Text('Landlord physically verified at property', style: TextStyle(color: Colors.white70, fontSize: 11)))]),
-                          SizedBox(height: 4),
-                          Row(children: [Text('Tier 3 (📄 Title Deed): ', style: TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)), Expanded(child: Text('Ownership deed uploaded & admin audited', style: TextStyle(color: Colors.white70, fontSize: 11)))]),
+                          const Text('Price Range',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.bold)),
+                          Text(
+                            '${CountryService.price(_priceRange.start)} - ${CountryService.price(_priceRange.end)}',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13),
+                          ),
                         ],
                       ),
-                    ),
-                    SwitchListTile(
-                      title: const Text('🛡️ Verified Landlords Only', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      subtitle: const Text('Phone identity confirmed', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                      value: _verifiedOnly,
-                      activeThumbColor: AppColors.verified,
-                      onChanged: (val) => setSheetState(() => _verifiedOnly = val),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    SwitchListTile(
-                      title: const Text('📄 Title Deed / Utility Verified', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      subtitle: const Text('Ownership document uploaded & admin-approved', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                      value: _docVerifiedOnly,
-                      activeThumbColor: AppColors.verified,
-                      onChanged: (val) => setSheetState(() => _docVerifiedOnly = val),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-                    SwitchListTile(
-                      title: const Text('📍 On-Site GPS Confirmed', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      subtitle: const Text('Landlord physically verified at property location', style: TextStyle(color: Colors.white38, fontSize: 11)),
-                      value: _gpsVerifiedOnly,
-                      activeThumbColor: AppColors.verified,
-                      onChanged: (val) => setSheetState(() => _gpsVerifiedOnly = val),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-
-                    // Recommended order: the server's ranking (quality, freshness,
-                    // engagement). Mutually exclusive with newest-first, and
-                    // replaces the nearest-first order while active.
-                    SwitchListTile(
-                      title: const Text('Recommended Order', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      value: _sortRecommended,
-                      activeThumbColor: Colors.white,
-                      onChanged: (val) => setSheetState(() {
-                        _sortRecommended = val;
-                        if (val) _sortNewestFirst = false;
-                      }),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-
-                    // Newest first (overrides distance sort while active)
-                    SwitchListTile(
-                      title: const Text('Newest Listings First', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      value: _sortNewestFirst,
-                      activeThumbColor: Colors.white,
-                      onChanged: (val) => setSheetState(() {
-                        _sortNewestFirst = val;
-                        if (val) _sortRecommended = false;
-                      }),
-                      contentPadding: EdgeInsets.zero,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _fetchFiltered();
-                        },
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: Colors.white,
-                          foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        child: const Text('Apply Filters', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                      RangeSlider(
+                        values: _priceRange,
+                        min: CountryService.config.priceMin,
+                        max: CountryService.config.priceMax,
+                        divisions: CountryService.config.priceDivisions,
+                        activeColor: Colors.white,
+                        inactiveColor: Colors.grey[800],
+                        onChanged: (vals) =>
+                            setSheetState(() => _priceRange = vals),
                       ),
-                    ),
-                  ],
+
+                      const SizedBox(height: 16),
+
+                      // Amenities
+                      const Text('Amenities',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 10),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 8,
+                        children: [
+                          FilterChip(
+                            label: const Text('Furnished'),
+                            selected: _furnished,
+                            selectedColor: Colors.white,
+                            onSelected: (val) =>
+                                setSheetState(() => _furnished = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Parking'),
+                            selected: _parking,
+                            selectedColor: Colors.white,
+                            onSelected: (val) =>
+                                setSheetState(() => _parking = val),
+                          ),
+                          FilterChip(
+                            label: const Text('WiFi'),
+                            selected: _wifi,
+                            selectedColor: Colors.white,
+                            onSelected: (val) =>
+                                setSheetState(() => _wifi = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Water 24/7'),
+                            selected: _water,
+                            selectedColor: Colors.white,
+                            onSelected: (val) =>
+                                setSheetState(() => _water = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Security'),
+                            selected: _security,
+                            selectedColor: Colors.white,
+                            onSelected: (val) =>
+                                setSheetState(() => _security = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Balcony'),
+                            selected: _balcony,
+                            selectedColor: Colors.white,
+                            onSelected: (val) =>
+                                setSheetState(() => _balcony = val),
+                          ),
+                          FilterChip(
+                            label: const Text('Pet Friendly'),
+                            selected: _petFriendly,
+                            selectedColor: Colors.white,
+                            onSelected: (val) =>
+                                setSheetState(() => _petFriendly = val),
+                          ),
+                        ],
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Verification Level Section
+                      const Text('Landlord Verification Level',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 13,
+                              fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 8),
+                      // Tier legend context
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 12, vertical: 10),
+                        margin: const EdgeInsets.only(bottom: 10),
+                        decoration: BoxDecoration(
+                          color: AppColors.verified.withAlpha(18),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppColors.verified.withAlpha(50)),
+                        ),
+                        child: const Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('TRUST & VERIFICATION TIERS',
+                                style: TextStyle(
+                                    color: AppColors.verifiedLight,
+                                    fontSize: 10,
+                                    fontWeight: FontWeight.bold,
+                                    letterSpacing: 1)),
+                            SizedBox(height: 6),
+                            Row(children: [
+                              Text('Tier 1 (🛡️ Phone): ',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                              Expanded(
+                                  child: Text('SMS identity confirmed by Roost',
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 11)))
+                            ]),
+                            SizedBox(height: 4),
+                            Row(children: [
+                              Text('Tier 2 (📍 GPS): ',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                              Expanded(
+                                  child: Text(
+                                      'Landlord physically verified at property',
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 11)))
+                            ]),
+                            SizedBox(height: 4),
+                            Row(children: [
+                              Text('Tier 3 (📄 Title Deed): ',
+                                  style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.bold)),
+                              Expanded(
+                                  child: Text(
+                                      'Ownership deed uploaded & admin audited',
+                                      style: TextStyle(
+                                          color: Colors.white70, fontSize: 11)))
+                            ]),
+                          ],
+                        ),
+                      ),
+                      SwitchListTile(
+                        title: const Text('🛡️ Verified Landlords Only',
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 14)),
+                        subtitle: const Text('Phone identity confirmed',
+                            style:
+                                TextStyle(color: Colors.white38, fontSize: 11)),
+                        value: _verifiedOnly,
+                        activeThumbColor: AppColors.verified,
+                        onChanged: (val) =>
+                            setSheetState(() => _verifiedOnly = val),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      SwitchListTile(
+                        title: const Text('📄 Title Deed / Utility Verified',
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 14)),
+                        subtitle: const Text(
+                            'Ownership document uploaded & admin-approved',
+                            style:
+                                TextStyle(color: Colors.white38, fontSize: 11)),
+                        value: _docVerifiedOnly,
+                        activeThumbColor: AppColors.verified,
+                        onChanged: (val) =>
+                            setSheetState(() => _docVerifiedOnly = val),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+                      SwitchListTile(
+                        title: const Text('📍 On-Site GPS Confirmed',
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 14)),
+                        subtitle: const Text(
+                            'Landlord physically verified at property location',
+                            style:
+                                TextStyle(color: Colors.white38, fontSize: 11)),
+                        value: _gpsVerifiedOnly,
+                        activeThumbColor: AppColors.verified,
+                        onChanged: (val) =>
+                            setSheetState(() => _gpsVerifiedOnly = val),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+
+                      // Recommended order: the server's ranking (quality, freshness,
+                      // engagement). Mutually exclusive with newest-first, and
+                      // replaces the nearest-first order while active.
+                      SwitchListTile(
+                        title: const Text('Recommended Order',
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 14)),
+                        value: _sortRecommended,
+                        activeThumbColor: Colors.white,
+                        onChanged: (val) => setSheetState(() {
+                          _sortRecommended = val;
+                          if (val) _sortNewestFirst = false;
+                        }),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+
+                      // Newest first (overrides distance sort while active)
+                      SwitchListTile(
+                        title: const Text('Newest Listings First',
+                            style:
+                                TextStyle(color: Colors.white, fontSize: 14)),
+                        value: _sortNewestFirst,
+                        activeThumbColor: Colors.white,
+                        onChanged: (val) => setSheetState(() {
+                          _sortNewestFirst = val;
+                          if (val) _sortRecommended = false;
+                        }),
+                        contentPadding: EdgeInsets.zero,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton(
+                          onPressed: () {
+                            Navigator.pop(context);
+                            _fetchFiltered();
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            foregroundColor: Colors.black,
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(14)),
+                          ),
+                          child: const Text('Apply Filters',
+                              style: TextStyle(
+                                  fontSize: 16, fontWeight: FontWeight.bold)),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
             );
           },
         );
@@ -967,10 +1103,14 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                         width: 16,
                         height: 16,
                         alignment: Alignment.center,
-                        decoration: const BoxDecoration(color: AppColors.white, shape: BoxShape.circle),
+                        decoration: const BoxDecoration(
+                            color: AppColors.white, shape: BoxShape.circle),
                         child: Text(
                           '$_activeFilterCount',
-                          style: const TextStyle(color: AppColors.black, fontSize: 10, fontWeight: FontWeight.bold),
+                          style: const TextStyle(
+                              color: AppColors.black,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold),
                         ),
                       ),
                     ),
@@ -986,7 +1126,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     if (_loading) {
-      return const Center(child: CircularProgressIndicator(color: Colors.white));
+      return const Center(
+          child: CircularProgressIndicator(color: Colors.white));
     }
 
     return Scaffold(
@@ -1009,7 +1150,8 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                             child: RoostSearchBar(
                               controller: _searchCtrl,
                               focusNode: _searchFocusNode,
-                              hintText: CountryService.config.getDynamicSearchHint(_userNeighborhood),
+                              hintText: CountryService.config
+                                  .getDynamicSearchHint(_userNeighborhood),
                               onSubmitted: (_) => _onSearchSubmitted(),
                               onClear: () {
                                 _debounceTimer?.cancel();
@@ -1024,12 +1166,14 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               child: LinearProgressIndicator(
                                 minHeight: 2,
                                 backgroundColor: AppColors.divider,
-                                valueColor: AlwaysStoppedAnimation(AppColors.white),
+                                valueColor:
+                                    AlwaysStoppedAnimation(AppColors.white),
                               ),
                             ),
                           _buildVerificationQuickFiltersRow(),
                           Padding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 16, vertical: 4),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.end,
                               children: [
@@ -1038,7 +1182,9 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                                     _searchCtrl.clear();
                                     _resetFilters();
                                   },
-                                  child: const Text('Reset', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                                  child: const Text('Reset',
+                                      style: TextStyle(
+                                          color: Colors.grey, fontSize: 12)),
                                 ),
                               ],
                             ),
@@ -1075,18 +1221,30 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               child: Column(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.cloud_off, color: Colors.grey[700], size: 64),
+                                  Icon(Icons.cloud_off,
+                                      color: Colors.grey[700], size: 64),
                                   const SizedBox(height: 16),
-                                  const Text("Couldn't load listings", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                  const Text("Couldn't load listings",
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold)),
                                   const SizedBox(height: 8),
-                                  Text('Check your connection and try again', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                                  Text('Check your connection and try again',
+                                      style: TextStyle(
+                                          color: Colors.grey[500],
+                                          fontSize: 14)),
                                   const SizedBox(height: 20),
                                   OutlinedButton(
                                     onPressed: _loadProperties,
                                     style: OutlinedButton.styleFrom(
                                       foregroundColor: Colors.white,
-                                      side: const BorderSide(color: AppColors.surfaceContainerHighest),
-                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                      side: const BorderSide(
+                                          color: AppColors
+                                              .surfaceContainerHighest),
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(12)),
                                     ),
                                     child: const Text('Retry'),
                                   ),
@@ -1101,16 +1259,26 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                             physics: const AlwaysScrollableScrollPhysics(),
                             children: [
                               SizedBox(
-                                height: MediaQuery.of(context).size.height * 0.6,
+                                height:
+                                    MediaQuery.of(context).size.height * 0.6,
                                 child: Center(
                                   child: Column(
                                     mainAxisAlignment: MainAxisAlignment.center,
                                     children: [
-                                      Icon(Icons.search_off, color: Colors.grey[700], size: 64),
+                                      Icon(Icons.search_off,
+                                          color: Colors.grey[700], size: 64),
                                       const SizedBox(height: 16),
-                                      const Text('No properties found', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                      const Text('No properties found',
+                                          style: TextStyle(
+                                              color: Colors.white,
+                                              fontSize: 18,
+                                              fontWeight: FontWeight.bold)),
                                       const SizedBox(height: 8),
-                                      Text('Try expanding your price range or clearing filters', style: TextStyle(color: Colors.grey[500], fontSize: 14)),
+                                      Text(
+                                          'Try expanding your price range or clearing filters',
+                                          style: TextStyle(
+                                              color: Colors.grey[500],
+                                              fontSize: 14)),
                                     ],
                                   ),
                                 ),
@@ -1124,13 +1292,16 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                             itemBuilder: (context, index) {
                               if (index >= _results.length) {
                                 return Padding(
-                                  padding: const EdgeInsets.symmetric(vertical: 24),
+                                  padding:
+                                      const EdgeInsets.symmetric(vertical: 24),
                                   child: Center(
                                     child: _loadingMore
                                         ? const SizedBox(
                                             width: 24,
                                             height: 24,
-                                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                            child: CircularProgressIndicator(
+                                                color: Colors.white,
+                                                strokeWidth: 2),
                                           )
                                         : const SizedBox.shrink(),
                                   ),
@@ -1141,11 +1312,17 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
                               return ImpressionTracker(
                                 propertyId: property.id,
                                 child: PropertyCard(
-                                  key: ValueKey(property.id ?? identityHashCode(property)),
+                                  key: ValueKey(property.id ??
+                                      identityHashCode(property)),
                                   property: property,
-                                  heroTag: property.id != null ? 'property-image-${property.id}' : null,
-                                  distanceLabel: km != null ? LocationService.formatDistance(km) : null,
-                                  isFavorite: property.id != null && _favoriteIds.contains(property.id),
+                                  heroTag: property.id != null
+                                      ? 'property-image-${property.id}'
+                                      : null,
+                                  distanceLabel: km != null
+                                      ? LocationService.formatDistance(km)
+                                      : null,
+                                  isFavorite: property.id != null &&
+                                      _favoriteIds.contains(property.id),
                                   onFavoriteTap: property.id == null
                                       ? null
                                       : () => _toggleFavorite(property.id!),
@@ -1161,4 +1338,3 @@ class _SearchPageState extends State<SearchPage> with TickerProviderStateMixin {
     );
   }
 }
-
