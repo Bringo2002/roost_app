@@ -2,13 +2,14 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// FAANG-grade celebration overlay shown when a user becomes a host.
 ///
 /// Features:
 /// - Full-screen confetti particle system (custom painter, no packages)
 /// - Staggered entrance animations for every element
-/// - Glassmorphic card with gradient accents
+/// - On-brand monochrome + landlord-accent colours from [AppColors]
 /// - Personalized greeting and clear next-step CTA
 class HostCelebrationOverlay extends StatefulWidget {
   const HostCelebrationOverlay({
@@ -33,7 +34,7 @@ class HostCelebrationOverlay extends StatefulWidget {
     return showGeneralDialog(
       context: context,
       barrierDismissible: false,
-      barrierColor: Colors.black87,
+      barrierColor: AppColors.black.withValues(alpha: 0.92),
       transitionDuration: const Duration(milliseconds: 400),
       pageBuilder: (_, __, ___) => HostCelebrationOverlay(
         userName: userName,
@@ -170,7 +171,7 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                   builder: (context, _) => Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      // Celebration icon
+                      // Celebration icon — white circle, monochrome brand
                       Opacity(
                         opacity: _iconOpacity.value,
                         child: Transform.scale(
@@ -180,20 +181,16 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                             height: 96,
                             decoration: BoxDecoration(
                               shape: BoxShape.circle,
-                              gradient: const LinearGradient(
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
-                                colors: [Color(0xFF6366F1), Color(0xFF8B5CF6), Color(0xFFA78BFA)],
-                              ),
+                              color: AppColors.white,
                               boxShadow: [
                                 BoxShadow(
-                                  color: const Color(0xFF6366F1).withValues(alpha: 0.4),
+                                  color: AppColors.white.withValues(alpha: 0.25),
                                   blurRadius: 32,
                                   spreadRadius: 4,
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.home_work_rounded, color: Colors.white, size: 44),
+                            child: const Icon(Icons.home_work_rounded, color: AppColors.black, size: 44),
                           ),
                         ),
                       ),
@@ -211,7 +208,7 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                                 'Welcome, $firstName! 🎉',
                                 textAlign: TextAlign.center,
                                 style: const TextStyle(
-                                  color: Colors.white,
+                                  color: AppColors.textPrimary,
                                   fontSize: 28,
                                   fontWeight: FontWeight.w800,
                                   letterSpacing: -0.5,
@@ -219,9 +216,14 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                                 ),
                               ),
                               const SizedBox(height: 6),
+                              // Shimmer sweep using the landlord mint accent
                               ShaderMask(
                                 shaderCallback: (bounds) => LinearGradient(
-                                  colors: const [Color(0xFF818CF8), Color(0xFFC084FC), Color(0xFF818CF8)],
+                                  colors: const [
+                                    AppColors.landlordAccent,
+                                    AppColors.white,
+                                    AppColors.landlordAccent,
+                                  ],
                                   stops: [
                                     (_shimmer.value - 0.3).clamp(0.0, 1.0),
                                     _shimmer.value.clamp(0.0, 1.0),
@@ -232,7 +234,7 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                                   'You\'re officially a Roost Host',
                                   textAlign: TextAlign.center,
                                   style: TextStyle(
-                                    color: Colors.white,
+                                    color: AppColors.white,
                                     fontSize: 16,
                                     fontWeight: FontWeight.w600,
                                     letterSpacing: 0.3,
@@ -255,7 +257,7 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                             'Your hosting dashboard is ready. List your first property and start connecting with verified tenants.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
-                              color: Color(0xFFA1A1AA),
+                              color: AppColors.grey400,
                               fontSize: 14,
                               height: 1.5,
                             ),
@@ -265,7 +267,7 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
 
                       const SizedBox(height: 32),
 
-                      // Feature pills
+                      // Feature pills — uses app surface tokens
                       SlideTransition(
                         position: _featureSlide,
                         child: Opacity(
@@ -273,11 +275,9 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                           child: Container(
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: Colors.white.withValues(alpha: 0.06),
+                              color: AppColors.surfaceRaised,
                               borderRadius: BorderRadius.circular(20),
-                              border: Border.all(
-                                color: Colors.white.withValues(alpha: 0.08),
-                              ),
+                              border: Border.all(color: AppColors.border),
                             ),
                             child: Column(
                               children: [
@@ -296,7 +296,8 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
 
                       const SizedBox(height: 36),
 
-                      // CTA button
+                      // CTA button — white on black, matching the app's
+                      // primary elevated button style (white bg, black text)
                       Opacity(
                         opacity: _buttonOpacity.value,
                         child: Transform.scale(
@@ -304,47 +305,34 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
                           child: SizedBox(
                             width: double.infinity,
                             height: 56,
-                            child: DecoratedBox(
-                              decoration: BoxDecoration(
-                                gradient: const LinearGradient(
-                                  colors: [Color(0xFF6366F1), Color(0xFF8B5CF6)],
+                            child: ElevatedButton(
+                              onPressed: () {
+                                HapticFeedback.mediumImpact();
+                                Navigator.of(context).pop();
+                                widget.onContinue();
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: AppColors.white,
+                                foregroundColor: AppColors.black,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(16),
                                 ),
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: const Color(0xFF6366F1).withValues(alpha: 0.35),
-                                    blurRadius: 20,
-                                    offset: const Offset(0, 8),
-                                  ),
-                                ],
                               ),
-                              child: ElevatedButton(
-                                onPressed: () {
-                                  HapticFeedback.mediumImpact();
-                                  Navigator.of(context).pop();
-                                  widget.onContinue();
-                                },
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.transparent,
-                                  shadowColor: Colors.transparent,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                ),
-                                child: const Row(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Text(
-                                      'Go to Host Dashboard',
-                                      style: TextStyle(
-                                        color: Colors.white,
-                                        fontSize: 16,
-                                        fontWeight: FontWeight.w700,
-                                        letterSpacing: 0.3,
-                                      ),
+                              child: const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(
+                                    'Go to Host Dashboard',
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.w700,
+                                      letterSpacing: 0.3,
                                     ),
-                                    SizedBox(width: 8),
-                                    Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 20),
-                                  ],
-                                ),
+                                  ),
+                                  SizedBox(width: 8),
+                                  Icon(Icons.arrow_forward_rounded, size: 20),
+                                ],
                               ),
                             ),
                           ),
@@ -368,23 +356,23 @@ class _HostCelebrationOverlayState extends State<HostCelebrationOverlay>
           width: 36,
           height: 36,
           decoration: BoxDecoration(
-            color: const Color(0xFF6366F1).withValues(alpha: 0.15),
+            color: AppColors.grey800,
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: const Color(0xFF818CF8), size: 18),
+          child: Icon(icon, color: AppColors.white, size: 18),
         ),
         const SizedBox(width: 14),
         Expanded(
           child: Text(
             text,
             style: const TextStyle(
-              color: Color(0xFFE4E4E7),
+              color: AppColors.textSecondary,
               fontSize: 14,
               fontWeight: FontWeight.w500,
             ),
           ),
         ),
-        const Icon(Icons.check_circle_rounded, color: Color(0xFF6366F1), size: 18),
+        const Icon(Icons.check_circle_rounded, color: AppColors.landlordAccent, size: 18),
       ],
     );
   }
@@ -414,16 +402,17 @@ class _ConfettiParticle {
   final Color color;
   final bool isCircle;
 
+  // On-brand confetti: white-dominant with the named app accents
   static const _confettiColors = [
-    Color(0xFF6366F1), // Indigo
-    Color(0xFF8B5CF6), // Purple
-    Color(0xFFA78BFA), // Light purple
-    Color(0xFFC084FC), // Pink-purple
-    Color(0xFFF472B6), // Pink
-    Color(0xFF38BDF8), // Sky blue
-    Color(0xFF34D399), // Emerald
-    Color(0xFFFBBF24), // Amber
-    Color(0xFFFFFFFF), // White
+    AppColors.white,
+    AppColors.white,        // weighted — most particles are white
+    AppColors.grey300,
+    AppColors.landlordAccent,  // mint
+    AppColors.verified,        // emerald
+    AppColors.gold,            // gold
+    AppColors.coral,           // coral
+    AppColors.skyBlue,         // sky blue
+    AppColors.cyan,            // cyan
   ];
 }
 
