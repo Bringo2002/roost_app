@@ -402,17 +402,18 @@ class _ConfettiParticle {
   final Color color;
   final bool isCircle;
 
-  // On-brand confetti: white-dominant with the named app accents
+  // On-brand confetti: white-and-silver dominant, with a single
+  // landlord-mint accent — matches the premium monochrome theme.
   static const _confettiColors = [
     AppColors.white,
-    AppColors.white,        // weighted — most particles are white
+    AppColors.white,
+    AppColors.white,          // heavy white weighting
+    AppColors.grey100,
+    AppColors.grey200,
     AppColors.grey300,
-    AppColors.landlordAccent,  // mint
-    AppColors.verified,        // emerald
-    AppColors.gold,            // gold
-    AppColors.coral,           // coral
-    AppColors.skyBlue,         // sky blue
-    AppColors.cyan,            // cyan
+    AppColors.grey400,
+    AppColors.landlordAccent,  // single accent pop (mint)
+    AppColors.landlordAccent,
   ];
 }
 
