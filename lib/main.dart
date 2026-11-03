@@ -119,6 +119,12 @@ class _AuthCheckState extends State<AuthCheck> {
 
 final ValueNotifier<int> mainTabNotifier = ValueNotifier<int>(0);
 
+/// Notifies [_HomePageState] (and any other listener) when the logged-in
+/// user's role changes -- e.g. TENANT → LANDLORD after "Become a Host".
+/// This lets the bottom-nav "+" button appear immediately without an app
+/// restart.
+final ValueNotifier<String> userRoleNotifier = ValueNotifier<String>('TENANT');
+
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
 
@@ -145,6 +151,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
       const ProfilePage(),
     ];
     mainTabNotifier.addListener(_onMainTabChanged);
+    userRoleNotifier.addListener(_onUserRoleChanged);
     WidgetsBinding.instance.addObserver(this);
     _loadUserRole();
     _startUnreadPolling();
@@ -154,6 +161,7 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
   @override
   void dispose() {
     mainTabNotifier.removeListener(_onMainTabChanged);
+    userRoleNotifier.removeListener(_onUserRoleChanged);
     WidgetsBinding.instance.removeObserver(this);
     _unreadTimer?.cancel();
     super.dispose();
@@ -204,11 +212,21 @@ class _HomePageState extends State<HomePage> with WidgetsBindingObserver {
     try {
       final user = await ApiService.get('/api/users/me');
       if (!mounted) return;
+      final role = user['role'] ?? 'TENANT';
+      userRoleNotifier.value = role;
       setState(() {
-        _userRole = user['role'] ?? 'TENANT';
+        _userRole = role;
       });
     } catch (e) {
       debugPrint('Failed to load user role: $e');
+    }
+  }
+
+  void _onUserRoleChanged() {
+    if (mounted) {
+      setState(() {
+        _userRole = userRoleNotifier.value;
+      });
     }
   }
 
