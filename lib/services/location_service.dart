@@ -112,11 +112,12 @@ class LocationService {
       if (placemarks.isEmpty) return null;
 
       final place = placemarks.first;
-      final name = (place.subLocality != null && place.subLocality!.trim().isNotEmpty)
-          ? place.subLocality!.trim()
-          : ((place.locality != null && place.locality!.trim().isNotEmpty)
-              ? place.locality!.trim()
-              : place.subAdministrativeArea?.trim());
+      final name =
+          (place.subLocality != null && place.subLocality!.trim().isNotEmpty)
+              ? place.subLocality!.trim()
+              : ((place.locality != null && place.locality!.trim().isNotEmpty)
+                  ? place.locality!.trim()
+                  : place.subAdministrativeArea?.trim());
 
       if (name != null && name.isNotEmpty) {
         cachedNeighborhood = name;
@@ -158,7 +159,8 @@ class LocationService {
       }
 
       return await Geolocator.getCurrentPosition(
-        locationSettings: const LocationSettings(accuracy: LocationAccuracy.medium),
+        locationSettings:
+            const LocationSettings(accuracy: LocationAccuracy.medium),
       );
     } catch (_) {
       return null;
@@ -195,7 +197,8 @@ class LocationService {
 
   /// Opens the device's location-services toggle (not the app's own
   /// settings page) -- for [LocationPermissionStatus.serviceDisabled].
-  static Future<void> openLocationSettings() => Geolocator.openLocationSettings();
+  static Future<void> openLocationSettings() =>
+      Geolocator.openLocationSettings();
 
   /// Opens this app's OS settings page -- for
   /// [LocationPermissionStatus.deniedForever], where re-requesting
