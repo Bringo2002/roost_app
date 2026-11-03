@@ -68,15 +68,12 @@ class _SplashPageState extends State<SplashPage> {
       _prepareRouting(),
     ]);
 
-    try {
-      FlutterNativeSplash.remove();
-    } catch (_) {
-      // No-op in environments without a real native splash view (e.g.
-      // widget tests) -- never let this block navigation.
-    }
-
     if (!mounted) return;
 
+    // Push the replacement route FIRST while the native splash still
+    // covers the screen, then remove the native splash.  The old order
+    // (remove → push) left a 1–2 frame gap where the Flutter-rendered
+    // SplashPage scaffold was briefly visible, causing a micro-flash.
     if (!_isLoggedIn) {
       if (!_onboardingCompleted) {
         Navigator.of(context).pushReplacement(
@@ -91,6 +88,13 @@ class _SplashPageState extends State<SplashPage> {
       Navigator.of(context).pushReplacement(
         MaterialPageRoute(builder: (_) => const HomePage()),
       );
+    }
+
+    try {
+      FlutterNativeSplash.remove();
+    } catch (_) {
+      // No-op in environments without a real native splash view (e.g.
+      // widget tests) -- never let this block navigation.
     }
   }
 
