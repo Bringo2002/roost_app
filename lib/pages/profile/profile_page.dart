@@ -9,6 +9,7 @@ import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/pages/auth/welcome_page.dart';
 import 'package:roost_app/pages/landlord/landlord_dashboard_page.dart';
 import 'package:roost_app/main.dart' show userRoleNotifier;
+import 'package:roost_app/widgets/common/host_celebration_overlay.dart';
 import 'package:roost_app/pages/landlord/landlord_verification_hub_page.dart';
 import 'package:roost_app/pages/landlord/endorsement_page.dart';
 import 'package:roost_app/pages/admin/admin_flagged_listings_page.dart';
@@ -237,10 +238,16 @@ class _ProfilePageState extends State<ProfilePage> {
       // Tell the bottom-nav shell that the user is now a LANDLORD so the
       // "+" create-listing button appears immediately.
       userRoleNotifier.value = 'LANDLORD';
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Host mode enabled! Welcome to hosting on Roost.')),
+      // Show premium celebration overlay instead of a plain SnackBar.
+      final userName = _user?['name']?.toString() ?? 'Host';
+      if (!mounted) return;
+      HostCelebrationOverlay.show(
+        context,
+        userName: userName,
+        onContinue: () {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordDashboardPage()));
+        },
       );
-      Navigator.push(context, MaterialPageRoute(builder: (_) => const LandlordDashboardPage()));
     } catch (e) {
       messenger.showSnackBar(
         SnackBar(content: Text('Could not enable hosting: $e')),
