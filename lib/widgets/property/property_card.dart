@@ -212,6 +212,8 @@ class _PropertyCardState extends State<PropertyCard> {
     final bedroomText = property.bedroomLabel(l10n);
     final cardSemanticsLabel = [
       property.title,
+      if (property.buildingName != null && property.buildingName!.trim().isNotEmpty)
+        'at ${property.buildingName}',
       formattedPrice,
       '$bedroomText, $bathText',
       property.location,
@@ -438,6 +440,31 @@ class _PropertyCardState extends State<PropertyCard> {
                       ],
                     ],
                   ),
+
+                  // Building / apartment name
+                  if (property.buildingName != null && property.buildingName!.trim().isNotEmpty)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.apartment_rounded, color: AppColors.grey600, size: 13),
+                          const SizedBox(width: 4),
+                          Expanded(
+                            child: Text(
+                              property.buildingName!,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: const TextStyle(
+                                color: AppColors.grey400,
+                                fontSize: 12.5,
+                                fontWeight: FontWeight.w500,
+                                fontStyle: FontStyle.italic,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
 
                   const SizedBox(height: 6),
 
