@@ -2,6 +2,7 @@ import 'package:intl/intl.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:geocoding/geocoding.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:roost_app/models/country_config.dart';
 
 /// Singleton service that manages the user's selected country and provides
@@ -33,8 +34,9 @@ class CountryService {
   }
 
   /// Auto-detect the user's country from GPS location.
-  /// Returns the detected [CountryConfig], or `null` if detection fails
-  /// (permissions denied, location off, unsupported country, etc.).
+  /// Returns the detected [CountryConfig] — either a hand-tuned config for
+  /// supported countries, or a localized generic config for any other country
+  /// in the currency lookup. Returns `null` only if location access fails.
   Future<CountryConfig?> autoDetectCountry() async {
     try {
       // Check / request location permission
@@ -63,17 +65,17 @@ class CountryService {
 
       if (placemarks.isEmpty) return null;
 
-      final isoCode = placemarks.first.isoCountryCode; // e.g. 'KE', 'IN'
+      final placemark = placemarks.first;
+      final isoCode = placemark.isoCountryCode;
       if (isoCode == null || isoCode.isEmpty) return null;
 
-      // Match against supported countries
-      final match = CountryConfig.all.where(
-        (c) => c.code.toUpperCase() == isoCode.toUpperCase(),
+      // Returns a hand-tuned config if the country is in CountryConfig.all,
+      // otherwise generates a localized generic config with correct currency
+      // and budget tiers for the detected country.
+      return CountryConfig.fromCode(
+        isoCode,
+        position: LatLng(position.latitude, position.longitude),
       );
-
-      if (match.isEmpty) return null;
-
-      return match.first;
     } catch (_) {
       return null;
     }
