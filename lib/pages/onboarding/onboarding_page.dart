@@ -25,7 +25,8 @@ class OnboardingPage extends StatefulWidget {
   State<OnboardingPage> createState() => _OnboardingPageState();
 }
 
-class _OnboardingPageState extends State<OnboardingPage> {
+class _OnboardingPageState extends State<OnboardingPage>
+    with TickerProviderStateMixin {
   int _step = 0;
   CountryConfig _selectedCountry = CountryService.config;
   String _houseType = 'ANY';
@@ -50,16 +51,113 @@ class _OnboardingPageState extends State<OnboardingPage> {
   bool _previewFetched = false;
   String? _previewError;
 
+  // Welcome entrance animation
+  late final AnimationController _welcomeAnimCtrl;
+  late final Animation<double> _logoScale;
+  late final Animation<double> _logoGlow;
+  late final Animation<double> _titleOpacity;
+  late final Animation<Offset> _titleSlide;
+  late final Animation<double> _subtitleOpacity;
+  late final List<Animation<double>> _featureOpacities;
+  late final List<Animation<Offset>> _featureSlides;
+
+  // Progress bar celebration glow
+  late final AnimationController _progressGlowCtrl;
+  int _lastGlowStep = -1;
+
   @override
   void initState() {
     super.initState();
     _step = widget.initialStep;
     _selectedCountry = CountryService.config;
     _selectedBudgetIndex = 0;
+
+    // Welcome entrance: 1200ms staggered animation
+    _welcomeAnimCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    );
+
+    _logoScale = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _welcomeAnimCtrl,
+        curve: const Interval(0.0, 0.35, curve: Curves.elasticOut),
+      ),
+    );
+
+    _logoGlow = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _welcomeAnimCtrl,
+        curve: const Interval(0.15, 0.55, curve: Curves.easeOut),
+      ),
+    );
+
+    _titleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _welcomeAnimCtrl,
+        curve: const Interval(0.25, 0.50, curve: Curves.easeOut),
+      ),
+    );
+
+    _titleSlide = Tween<Offset>(
+      begin: const Offset(0, 0.15),
+      end: Offset.zero,
+    ).animate(
+      CurvedAnimation(
+        parent: _welcomeAnimCtrl,
+        curve: const Interval(0.25, 0.50, curve: Curves.easeOut),
+      ),
+    );
+
+    _subtitleOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(
+        parent: _welcomeAnimCtrl,
+        curve: const Interval(0.35, 0.60, curve: Curves.easeOut),
+      ),
+    );
+
+    // Staggered feature items (3 items, each 120ms apart)
+    _featureOpacities = List.generate(3, (i) {
+      final start = 0.45 + i * 0.12;
+      return Tween<double>(begin: 0.0, end: 1.0).animate(
+        CurvedAnimation(
+          parent: _welcomeAnimCtrl,
+          curve: Interval(start, (start + 0.20).clamp(0, 1), curve: Curves.easeOut),
+        ),
+      );
+    });
+
+    _featureSlides = List.generate(3, (i) {
+      final start = 0.45 + i * 0.12;
+      return Tween<Offset>(
+        begin: const Offset(0, 0.3),
+        end: Offset.zero,
+      ).animate(
+        CurvedAnimation(
+          parent: _welcomeAnimCtrl,
+          curve: Interval(start, (start + 0.20).clamp(0, 1), curve: Curves.easeOut),
+        ),
+      );
+    });
+
+    // Progress glow: quick 500ms pulse
+    _progressGlowCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 500),
+    );
+
+    // Start welcome animation if on step 0
+    if (_step == 0) {
+      _welcomeAnimCtrl.forward();
+    } else {
+      _welcomeAnimCtrl.value = 1.0;
+    }
   }
 
   @override
   void dispose() {
+    _welcomeAnimCtrl.dispose();
+    _progressGlowCtrl.dispose();
     _nameCtrl.dispose();
     _emailCtrl.dispose();
     _passwordCtrl.dispose();
@@ -112,10 +210,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
         _previousStep = _step;
         _step = nextStep;
       });
+      // Trigger progress bar celebration glow
+      if (nextStep >= 1 && nextStep <= 5) {
+        _triggerProgressGlow(nextStep);
+      }
       if (nextStep == 5 && !_previewFetched) {
         _fetchPreviewProperties();
       }
     }
+  }
+
+  /// Fires a quick shimmer pulse on the progress bar segment that just filled.
+  void _triggerProgressGlow(int step) {
+    _lastGlowStep = step;
+    _progressGlowCtrl.forward(from: 0.0);
   }
 
   Future<void> _handleLocationStep() async {
@@ -334,14 +442,36 @@ class _OnboardingPageState extends State<OnboardingPage> {
                   children: List.generate(
                     5,
                     (index) => Expanded(
-                      child: AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        height: 4,
-                        margin: const EdgeInsets.symmetric(horizontal: 3),
-                        decoration: BoxDecoration(
-                          color: index < _step ? goldAccent : AppColors.surfaceContainer,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
+                      child: AnimatedBuilder(
+                        animation: _progressGlowCtrl,
+                        builder: (context, child) {
+                          final isFilled = index < _step;
+                          final isGlowing = isFilled && index == (_lastGlowStep - 1);
+                          final glowValue = isGlowing ? _progressGlowCtrl.value : 0.0;
+                          // Pulse: 0→1→0 via sin curve
+                          final glowIntensity = isGlowing
+                              ? (1.0 - (2.0 * glowValue - 1.0).abs())
+                              : 0.0;
+                          return AnimatedContainer(
+                            duration: const Duration(milliseconds: 300),
+                            height: 4,
+                            margin: const EdgeInsets.symmetric(horizontal: 3),
+                            decoration: BoxDecoration(
+                              color: isFilled ? goldAccent : AppColors.surfaceContainer,
+                              borderRadius: BorderRadius.circular(2),
+                              boxShadow: glowIntensity > 0
+                                  ? [
+                                      BoxShadow(
+                                        color: AppColors.gold
+                                            .withValues(alpha: 0.8 * glowIntensity),
+                                        blurRadius: 12 * glowIntensity,
+                                        spreadRadius: 2 * glowIntensity,
+                                      ),
+                                    ]
+                                  : null,
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
@@ -444,29 +574,82 @@ class _OnboardingPageState extends State<OnboardingPage> {
   }
 
   Widget _buildWelcomeStep(Color goldAccent) {
-    return Column(
-      key: const ValueKey(0),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 10),
-        const RoostLogoIcon(size: 64),
-        const SizedBox(height: 20),
-        const Text(
-          'Find a place that\nfeels like yours.',
-          style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Verified rentals near you — browse, chat with landlords, and move in faster.',
-          style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
-        ),
-        const SizedBox(height: 32),
-        _buildFeatureItem(Icons.shield_outlined, 'Verified by Roost', 'No fake listings. Every home is reviewed before it goes live.', goldAccent),
-        const SizedBox(height: 16),
-        _buildFeatureItem(Icons.chat_bubble_outline, 'Chat with Landlords', 'Reach property owners directly and get answers fast.', goldAccent),
-        const SizedBox(height: 16),
-        _buildFeatureItem(Icons.map_outlined, 'See Exactly Where It Is', 'Find the exact spot — not just the area.', goldAccent),
-      ],
+    final features = [
+      (Icons.shield_outlined, 'Verified by Roost', 'No fake listings. Every home is reviewed before it goes live.'),
+      (Icons.chat_bubble_outline, 'Chat with Landlords', 'Reach property owners directly and get answers fast.'),
+      (Icons.map_outlined, 'See Exactly Where It Is', 'Find the exact spot — not just the area.'),
+    ];
+
+    return AnimatedBuilder(
+      animation: _welcomeAnimCtrl,
+      builder: (context, _) => Column(
+        key: const ValueKey(0),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          // Logo: scale-in with elastic bounce + subtle glow
+          Transform.scale(
+            scale: _logoScale.value,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                boxShadow: _logoGlow.value > 0
+                    ? [
+                        BoxShadow(
+                          color: AppColors.gold
+                              .withValues(alpha: 0.4 * _logoGlow.value),
+                          blurRadius: 24 * _logoGlow.value,
+                          spreadRadius: 4 * _logoGlow.value,
+                        ),
+                      ]
+                    : null,
+              ),
+              child: const RoostLogoIcon(size: 64),
+            ),
+          ),
+          const SizedBox(height: 20),
+          // Title: fade + slide up
+          SlideTransition(
+            position: _titleSlide,
+            child: Opacity(
+              opacity: _titleOpacity.value,
+              child: const Text(
+                'Find a place that\nfeels like yours.',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                  height: 1.2,
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          // Subtitle: fade in
+          Opacity(
+            opacity: _subtitleOpacity.value,
+            child: Text(
+              'Verified rentals near you — browse, chat with landlords, and move in faster.',
+              style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
+            ),
+          ),
+          const SizedBox(height: 32),
+          // Feature items: staggered cascade
+          ...List.generate(features.length, (i) {
+            final (icon, title, subtitle) = features[i];
+            return Padding(
+              padding: EdgeInsets.only(bottom: i < features.length - 1 ? 16 : 0),
+              child: SlideTransition(
+                position: _featureSlides[i],
+                child: Opacity(
+                  opacity: _featureOpacities[i].value,
+                  child: _buildFeatureItem(icon, title, subtitle, goldAccent),
+                ),
+              ),
+            );
+          }),
+        ],
+      ),
     );
   }
 
