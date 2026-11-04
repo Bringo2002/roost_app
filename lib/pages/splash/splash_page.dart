@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_native_splash/flutter_native_splash.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:roost_app/main.dart';
-import 'package:roost_app/pages/auth/welcome_page.dart';
-import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/services/auth_service.dart';
-import 'package:roost_app/widgets/common/roost_logo_icon.dart';
+import 'package:roost_app/services/onboarding_service.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 /// The ONLY splash impression a user should see is the native Android
 /// launch screen (android/app/src/main/res/drawable*/splash.png,
@@ -38,7 +35,6 @@ class _SplashPageState extends State<SplashPage> {
   static const _minimumDisplay = Duration(milliseconds: 2800);
 
   bool _isLoggedIn = false;
-  bool _onboardingCompleted = false;
 
   @override
   void initState() {
@@ -50,10 +46,8 @@ class _SplashPageState extends State<SplashPage> {
     try {
       await CountryService.instance.init();
       _isLoggedIn = await AuthService.isLoggedIn();
-      final prefs = await SharedPreferences.getInstance();
-      _onboardingCompleted = prefs.getBool('onboarding_completed') ?? false;
     } catch (_) {
-      // Fields already default to false/false -- worst case on an
+      // Fields already default to false -- worst case on an
       // unexpected failure here is routing to Onboarding, which is
       // always safe, rather than leaving the user stuck.
     }
@@ -74,21 +68,14 @@ class _SplashPageState extends State<SplashPage> {
     // covers the screen, then remove the native splash.  The old order
     // (remove → push) left a 1–2 frame gap where the Flutter-rendered
     // SplashPage scaffold was briefly visible, causing a micro-flash.
-    if (!_isLoggedIn) {
-      if (!_onboardingCompleted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const OnboardingPage()),
-        );
-      } else {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (_) => const WelcomePage()),
-        );
-      }
-    } else {
-      Navigator.of(context).pushReplacement(
-        MaterialPageRoute(builder: (_) => const HomePage()),
-      );
-    }
+    final dest = await OnboardingService.resolveStartup(
+      isLoggedIn: _isLoggedIn,
+    );
+    if (!mounted) return;
+
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => dest.widget),
+    );
 
     try {
       FlutterNativeSplash.remove();

@@ -88,7 +88,8 @@ void main() {
         userLat: userLat,
         userLng: userLng,
         prefHouseType: '1BR', // Matches propFar and propClose
-        prefBudget: 'Under 15k', // Matches propFar
+        prefBudgetMin: 0,
+        prefBudgetMax: 15000,
       );
 
       // Closest property (0.2km) MUST come first, even if propFar matches preferences!

@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:roost_app/main.dart';
-import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/pages/auth/login_page.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/services/onboarding_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/auth/apple_sign_in_button.dart';
 import 'package:roost_app/widgets/auth/google_sign_in_button.dart';
@@ -51,14 +49,11 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+      final dest = await OnboardingService.getPostAuthDestination(result);
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => onboardingDone ? const HomePage() : const OnboardingPage(),
-        ),
+        MaterialPageRoute(builder: (_) => dest.widget),
         (route) => false,
       );
     } else {
@@ -78,14 +73,11 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+      final dest = await OnboardingService.getPostAuthDestination(result);
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => (result.isNewUser && !onboardingDone) ? const OnboardingPage() : const HomePage(),
-        ),
+        MaterialPageRoute(builder: (_) => dest.widget),
         (route) => false,
       );
     } else if (result.error != null) {
@@ -104,14 +96,11 @@ class _SignupPageState extends State<SignupPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
-      final prefs = await SharedPreferences.getInstance();
-      final onboardingDone = prefs.getBool('onboarding_completed') ?? false;
+      final dest = await OnboardingService.getPostAuthDestination(result);
       if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(
-          builder: (_) => (result.isNewUser && !onboardingDone) ? const OnboardingPage() : const HomePage(),
-        ),
+        MaterialPageRoute(builder: (_) => dest.widget),
         (route) => false,
       );
     } else if (result.error != null) {

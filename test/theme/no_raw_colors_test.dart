@@ -11,6 +11,8 @@ import 'package:flutter_test/flutter_test.dart';
 const _allowedFiles = <String>{
   'lib/theme/app_colors.dart',
   'lib/theme/amenity_colors.dart',
+  'lib/widgets/auth/google_logo.dart',
+  'lib/widgets/auth/google_sign_in_button.dart',
 };
 
 /// Generated sources are not hand-written, so they are not checked.

@@ -5,11 +5,15 @@ class BudgetOption {
   final String title;
   final String badge;
   final String desc;
+  final double minPrice;
+  final double maxPrice;
 
   const BudgetOption({
     required this.title,
     required this.badge,
     required this.desc,
+    required this.minPrice,
+    required this.maxPrice,
   });
 }
 
@@ -73,10 +77,10 @@ class CountryConfig {
     browsingDesc: 'Checking Nairobi market prices',
     mapCenter: LatLng(-1.2921, 36.8219), // Nairobi
     budgets: [
-      BudgetOption(title: 'Under KES 15,000', badge: 'Budget Friendly', desc: 'Affordable studio & bedsitter listings'),
-      BudgetOption(title: 'KES 15k – 30k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
-      BudgetOption(title: 'KES 30k – 60k', badge: 'Premium', desc: 'Modern 2BR & 3BR in prime areas'),
-      BudgetOption(title: 'KES 60,000+', badge: 'Luxury', desc: 'High-end penthouses & serviced units'),
+      BudgetOption(title: 'Under KES 15,000', badge: 'Budget Friendly', desc: 'Affordable studio & bedsitter listings', minPrice: 0, maxPrice: 15000),
+      BudgetOption(title: 'KES 15k – 30k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments', minPrice: 15000, maxPrice: 30000),
+      BudgetOption(title: 'KES 30k – 60k', badge: 'Premium', desc: 'Modern 2BR & 3BR in prime areas', minPrice: 30000, maxPrice: 60000),
+      BudgetOption(title: 'KES 60,000+', badge: 'Luxury', desc: 'High-end penthouses & serviced units', minPrice: 60000, maxPrice: double.infinity),
     ],
   );
 
@@ -95,10 +99,10 @@ class CountryConfig {
     browsingDesc: 'Checking Indian rental market prices',
     mapCenter: LatLng(19.0760, 72.8777), // Mumbai
     budgets: [
-      BudgetOption(title: 'Under ₹10,000', badge: 'Budget Friendly', desc: 'Affordable PG & 1RK listings'),
-      BudgetOption(title: '₹10k – ₹25k', badge: 'Popular', desc: 'Standard 1BHK & 2BHK flats'),
-      BudgetOption(title: '₹25k – ₹50k', badge: 'Premium', desc: 'Modern 2BHK & 3BHK in prime areas'),
-      BudgetOption(title: '₹50,000+', badge: 'Luxury', desc: 'High-end apartments & villas'),
+      BudgetOption(title: 'Under ₹10,000', badge: 'Budget Friendly', desc: 'Affordable PG & 1RK listings', minPrice: 0, maxPrice: 10000),
+      BudgetOption(title: '₹10k – ₹25k', badge: 'Popular', desc: 'Standard 1BHK & 2BHK flats', minPrice: 10000, maxPrice: 25000),
+      BudgetOption(title: '₹25k – ₹50k', badge: 'Premium', desc: 'Modern 2BHK & 3BHK in prime areas', minPrice: 25000, maxPrice: 50000),
+      BudgetOption(title: '₹50,000+', badge: 'Luxury', desc: 'High-end apartments & villas', minPrice: 50000, maxPrice: double.infinity),
     ],
   );
 
@@ -117,10 +121,10 @@ class CountryConfig {
     browsingDesc: 'Checking Nigerian rental market prices',
     mapCenter: LatLng(6.5244, 3.3792), // Lagos
     budgets: [
-      BudgetOption(title: 'Under ₦150,000', badge: 'Budget Friendly', desc: 'Affordable self-contain & mini flats'),
-      BudgetOption(title: '₦150k – ₦500k', badge: 'Popular', desc: 'Standard 2 & 3 bedroom flats'),
-      BudgetOption(title: '₦500k – ₦1M', badge: 'Premium', desc: 'Modern apartments in prime areas'),
-      BudgetOption(title: '₦1,000,000+', badge: 'Luxury', desc: 'High-end duplexes & serviced apartments'),
+      BudgetOption(title: 'Under ₦150,000', badge: 'Budget Friendly', desc: 'Affordable self-contain & mini flats', minPrice: 0, maxPrice: 150000),
+      BudgetOption(title: '₦150k – ₦500k', badge: 'Popular', desc: 'Standard 2 & 3 bedroom flats', minPrice: 150000, maxPrice: 500000),
+      BudgetOption(title: '₦500k – ₦1M', badge: 'Premium', desc: 'Modern apartments in prime areas', minPrice: 500000, maxPrice: 1000000),
+      BudgetOption(title: '₦1,000,000+', badge: 'Luxury', desc: 'High-end duplexes & serviced apartments', minPrice: 1000000, maxPrice: double.infinity),
     ],
   );
 
@@ -139,10 +143,10 @@ class CountryConfig {
     browsingDesc: 'Checking US rental market prices',
     mapCenter: LatLng(40.7128, -74.0060), // New York City
     budgets: [
-      BudgetOption(title: 'Under \$1,000', badge: 'Budget Friendly', desc: 'Affordable studio & shared apartments'),
-      BudgetOption(title: '\$1,000 – \$2,000', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
-      BudgetOption(title: '\$2,000 – \$3,500', badge: 'Premium', desc: 'Modern apartments in prime locations'),
-      BudgetOption(title: '\$3,500+', badge: 'Luxury', desc: 'High-end penthouses & luxury rentals'),
+      BudgetOption(title: 'Under \$1,000', badge: 'Budget Friendly', desc: 'Affordable studio & shared apartments', minPrice: 0, maxPrice: 1000),
+      BudgetOption(title: '\$1,000 – \$2,000', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments', minPrice: 1000, maxPrice: 2000),
+      BudgetOption(title: '\$2,000 – \$3,500', badge: 'Premium', desc: 'Modern apartments in prime locations', minPrice: 2000, maxPrice: 3500),
+      BudgetOption(title: '\$3,500+', badge: 'Luxury', desc: 'High-end penthouses & luxury rentals', minPrice: 3500, maxPrice: double.infinity),
     ],
   );
 
@@ -161,10 +165,10 @@ class CountryConfig {
     browsingDesc: 'Checking UK rental market prices',
     mapCenter: LatLng(51.5074, -0.1278), // London
     budgets: [
-      BudgetOption(title: 'Under £800', badge: 'Budget Friendly', desc: 'Affordable studio & shared flats'),
-      BudgetOption(title: '£800 – £1,500', badge: 'Popular', desc: 'Standard 1 & 2 bed flats'),
-      BudgetOption(title: '£1,500 – £2,500', badge: 'Premium', desc: 'Modern flats in prime areas'),
-      BudgetOption(title: '£2,500+', badge: 'Luxury', desc: 'High-end apartments & townhouses'),
+      BudgetOption(title: 'Under £800', badge: 'Budget Friendly', desc: 'Affordable studio & shared flats', minPrice: 0, maxPrice: 800),
+      BudgetOption(title: '£800 – £1,500', badge: 'Popular', desc: 'Standard 1 & 2 bed flats', minPrice: 800, maxPrice: 1500),
+      BudgetOption(title: '£1,500 – £2,500', badge: 'Premium', desc: 'Modern flats in prime areas', minPrice: 1500, maxPrice: 2500),
+      BudgetOption(title: '£2,500+', badge: 'Luxury', desc: 'High-end apartments & townhouses', minPrice: 2500, maxPrice: double.infinity),
     ],
   );
 
@@ -183,10 +187,10 @@ class CountryConfig {
     browsingDesc: 'Checking UAE rental market prices',
     mapCenter: LatLng(25.2048, 55.2708), // Dubai
     budgets: [
-      BudgetOption(title: 'Under AED 3,000', badge: 'Budget Friendly', desc: 'Affordable studio & sharing options'),
-      BudgetOption(title: 'AED 3k – 6k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments'),
-      BudgetOption(title: 'AED 6k – 12k', badge: 'Premium', desc: 'Modern apartments in prime locations'),
-      BudgetOption(title: 'AED 12,000+', badge: 'Luxury', desc: 'High-end villas & penthouses'),
+      BudgetOption(title: 'Under AED 3,000', badge: 'Budget Friendly', desc: 'Affordable studio & sharing options', minPrice: 0, maxPrice: 3000),
+      BudgetOption(title: 'AED 3k – 6k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments', minPrice: 3000, maxPrice: 6000),
+      BudgetOption(title: 'AED 6k – 12k', badge: 'Premium', desc: 'Modern apartments in prime locations', minPrice: 6000, maxPrice: 12000),
+      BudgetOption(title: 'AED 12,000+', badge: 'Luxury', desc: 'High-end villas & penthouses', minPrice: 12000, maxPrice: double.infinity),
     ],
   );
 

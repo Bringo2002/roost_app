@@ -11,7 +11,8 @@ class PropertySorter {
   static int calculatePreferenceScore(
     Property p, {
     String? prefHouseType,
-    String? prefBudget,
+    double? prefBudgetMin,
+    double? prefBudgetMax,
     String? prefTimeframe,
   }) {
     int score = 0;
@@ -22,15 +23,10 @@ class PropertySorter {
       }
     }
 
-    if (prefBudget != null) {
-      if (prefBudget.contains('Under 15') && p.price < 15000) score += 10;
-      if (prefBudget.contains('15k – 30k') && p.price >= 15000 && p.price <= 30000) {
+    if (prefBudgetMin != null && prefBudgetMax != null) {
+      if (p.price >= prefBudgetMin && p.price <= prefBudgetMax) {
         score += 10;
       }
-      if (prefBudget.contains('30k – 60k') && p.price >= 30000 && p.price <= 60000) {
-        score += 10;
-      }
-      if (prefBudget.contains('60,000+') && p.price >= 60000) score += 10;
     }
 
     if (prefTimeframe == 'Immediately' && p.available) {
@@ -60,7 +56,8 @@ class PropertySorter {
     double? userLat,
     double? userLng,
     String? prefHouseType,
-    String? prefBudget,
+    double? prefBudgetMin,
+    double? prefBudgetMax,
     String? prefTimeframe,
     bool sortNewestFirst = false,
     bool keepGivenOrder = false,
@@ -103,13 +100,15 @@ class PropertySorter {
         final scoreA = calculatePreferenceScore(
           a,
           prefHouseType: prefHouseType,
-          prefBudget: prefBudget,
+          prefBudgetMin: prefBudgetMin,
+          prefBudgetMax: prefBudgetMax,
           prefTimeframe: prefTimeframe,
         );
         final scoreB = calculatePreferenceScore(
           b,
           prefHouseType: prefHouseType,
-          prefBudget: prefBudget,
+          prefBudgetMin: prefBudgetMin,
+          prefBudgetMax: prefBudgetMax,
           prefTimeframe: prefTimeframe,
         );
         if (scoreA != scoreB) return scoreB.compareTo(scoreA);
@@ -134,13 +133,15 @@ class PropertySorter {
       final scoreA = calculatePreferenceScore(
         a,
         prefHouseType: prefHouseType,
-        prefBudget: prefBudget,
+        prefBudgetMin: prefBudgetMin,
+        prefBudgetMax: prefBudgetMax,
         prefTimeframe: prefTimeframe,
       );
       final scoreB = calculatePreferenceScore(
         b,
         prefHouseType: prefHouseType,
-        prefBudget: prefBudget,
+        prefBudgetMin: prefBudgetMin,
+        prefBudgetMax: prefBudgetMax,
         prefTimeframe: prefTimeframe,
       );
       if (scoreA != scoreB) return scoreB.compareTo(scoreA);

@@ -1,16 +1,25 @@
+import 'dart:ui';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'package:roost_app/main.dart';
-import 'package:roost_app/services/location_service.dart';
-import 'package:roost_app/theme/app_colors.dart';
-import 'package:roost_app/widgets/common/roost_logo_icon.dart';
+import 'package:flutter/services.dart';
 import 'package:roost_app/models/country_config.dart';
-import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/models/property.dart';
+import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
-import 'package:roost_app/pages/auth/welcome_page.dart';
+import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/services/onboarding_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/auth/apple_sign_in_button.dart';
+import 'package:roost_app/widgets/auth/google_sign_in_button.dart';
+import 'package:roost_app/widgets/common/roost_logo_icon.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shimmer/shimmer.dart';
 
 class OnboardingPage extends StatefulWidget {
-  const OnboardingPage({super.key});
+  final int initialStep;
+
+  const OnboardingPage({super.key, this.initialStep = 0});
 
   @override
   State<OnboardingPage> createState() => _OnboardingPageState();
@@ -18,51 +27,43 @@ class OnboardingPage extends StatefulWidget {
 
 class _OnboardingPageState extends State<OnboardingPage> {
   int _step = 0;
-
   CountryConfig _selectedCountry = CountryService.config;
   String _houseType = 'ANY';
-  String _budget = '';
+  int _previousStep = 0;
+  int _selectedBudgetIndex = 0;
   String _moveInTimeframe = 'This Month';
 
-  // Auto-detection state
-  bool _isDetecting = true;
-  bool _detectionFailed = false;
-  bool _showCountryList = false;
   bool _requestingLocation = false;
-  bool _isCompleting = false;
+  bool _showCountryList = false;
+
+  bool _isLoginMode = false;
+  bool _isAuthLoading = false;
+  final _nameCtrl = TextEditingController();
+  final _emailCtrl = TextEditingController();
+  final _passwordCtrl = TextEditingController();
+  bool _obscurePassword = true;
+
+  // Preview step state
+  List<Property> _previewProperties = [];
+  int _previewTotalCount = 0;
+  bool _previewLoading = false;
+  bool _previewFetched = false;
+  String? _previewError;
 
   @override
   void initState() {
     super.initState();
+    _step = widget.initialStep;
     _selectedCountry = CountryService.config;
-    _budget = _selectedCountry.budgets.isNotEmpty ? _selectedCountry.budgets[0].title : '';
-    _autoDetectCountry();
+    _selectedBudgetIndex = 0;
   }
 
-  Future<void> _autoDetectCountry() async {
-    setState(() {
-      _isDetecting = true;
-      _detectionFailed = false;
-    });
-
-    final detected = await CountryService.instance.autoDetectCountry();
-
-    if (!mounted) return;
-
-    if (detected != null) {
-      setState(() {
-        _selectedCountry = detected;
-        _budget = detected.budgets.isNotEmpty ? detected.budgets[0].title : '';
-        _isDetecting = false;
-        _detectionFailed = false;
-      });
-    } else {
-      setState(() {
-        _isDetecting = false;
-        _detectionFailed = true;
-        _showCountryList = true; // Show manual picker on failure
-      });
-    }
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    _emailCtrl.dispose();
+    _passwordCtrl.dispose();
+    super.dispose();
   }
 
   final List<Map<String, dynamic>> _houseTypes = [
@@ -74,13 +75,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
     {'title': 'Any', 'value': 'ANY', 'icon': Icons.grid_view_rounded, 'desc': 'Show all property types'},
   ];
 
-  List<Map<String, dynamic>> get _budgets {
-    return _selectedCountry.budgets.map((b) => {
-      'title': b.title,
-      'badge': b.badge,
-      'desc': b.desc,
-    }).toList();
-  }
+  List<BudgetOption> get _budgets => _selectedCountry.budgets;
 
   List<Map<String, dynamic>> get _timeframes {
     return [
@@ -91,71 +86,224 @@ class _OnboardingPageState extends State<OnboardingPage> {
     ];
   }
 
-  Future<void> _completeOnboarding() async {
-    if (_isCompleting) return;
-    setState(() => _isCompleting = true);
-
-    try {
-      await CountryService.instance.setCountry(_selectedCountry);
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('pref_house_type', _houseType);
-      await prefs.setString('pref_budget', _budget);
-      await prefs.setString('pref_timeframe', _moveInTimeframe);
-      await prefs.setBool('onboarding_completed', true);
-
-      if (!mounted) return;
-      final isLoggedIn = await AuthService.isLoggedIn().catchError((_) => false);
-      if (!mounted) return;
-
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => isLoggedIn ? const HomePage() : const WelcomePage(),
-        ),
-        (route) => false,
-      );
-    } catch (_) {
-      if (!mounted) return;
-      final isLoggedIn = await AuthService.isLoggedIn().catchError((_) => false);
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(
-          builder: (_) => isLoggedIn ? const HomePage() : const WelcomePage(),
-        ),
-        (route) => false,
-      );
+  Future<void> _nextStep() async {
+    switch (_step) {
+      case 2:
+        await OnboardingService.markStepComplete(_step, data: {
+          OnboardingService.houseTypeKey: _houseType,
+        });
+      case 3:
+        final budget = _selectedCountry.budgets[_selectedBudgetIndex];
+        await OnboardingService.markStepComplete(_step, data: {
+          OnboardingService.budgetKey: budget.title,
+          OnboardingService.budgetMinKey: budget.minPrice,
+          OnboardingService.budgetMaxKey: budget.maxPrice,
+        });
+      case 4:
+        await OnboardingService.markStepComplete(_step, data: {
+          OnboardingService.timeframeKey: _moveInTimeframe,
+        });
+      default:
+        await OnboardingService.markStepComplete(_step);
+    }
+    if (_step < 6) {
+      final nextStep = _step + 1;
+      setState(() {
+        _previousStep = _step;
+        _step = nextStep;
+      });
+      if (nextStep == 5 && !_previewFetched) {
+        _fetchPreviewProperties();
+      }
     }
   }
 
-  void _nextStep() {
-    if (_step < 5) {
-      setState(() => _step++);
-    } else {
-      _completeOnboarding();
-    }
-  }
-
-  /// Requests device location, then advances -- granted or denied, the
-  /// onboarding flow never blocks on this, since location is an
-  /// enhancement to the feed, not a requirement to use the app.
   Future<void> _handleLocationStep() async {
     setState(() => _requestingLocation = true);
-    await LocationService.getCurrentPosition();
+    try {
+      final position = await LocationService.getCurrentPosition();
+      if (position != null) {
+        await OnboardingService.markStepComplete(1, data: {
+          OnboardingService.locationLatKey: position.latitude,
+          OnboardingService.locationLngKey: position.longitude,
+        });
+        final detected = await CountryService.instance.autoDetectCountry();
+        if (detected != null && mounted) {
+          _selectedCountry = detected;
+          _selectedBudgetIndex = 0;
+          await CountryService.instance.setCountry(detected);
+        }
+      } else {
+        await OnboardingService.markStepComplete(1);
+      }
+    } catch (_) {
+      await OnboardingService.markStepComplete(1);
+    }
     if (!mounted) return;
-    setState(() => _requestingLocation = false);
-    _nextStep();
+    setState(() {
+      _requestingLocation = false;
+      _previousStep = _step;
+      _step = 2;
+    });
+  }
+
+  Future<void> _skipLocation() async {
+    await OnboardingService.markStepComplete(1);
+    if (!mounted) return;
+    setState(() {
+      _previousStep = _step;
+      _step = 2;
+    });
+  }
+
+  /// Fetches a small page of properties matching the user's onboarding
+  /// preferences to display as blurred preview cards.
+  Future<void> _fetchPreviewProperties() async {
+    if (_previewLoading) return;
+    setState(() {
+      _previewLoading = true;
+      _previewError = null;
+    });
+
+    try {
+      // Build a lightweight query from the user's saved preferences.
+      final prefs = await SharedPreferences.getInstance();
+      final lat = prefs.getDouble(OnboardingService.locationLatKey)
+          ?? _selectedCountry.mapCenter.latitude;
+      final lng = prefs.getDouble(OnboardingService.locationLngKey)
+          ?? _selectedCountry.mapCenter.longitude;
+
+      final params = <String, String>{
+        'page': '0',
+        'size': '10', // Fetch a few extra so we can filter client-side
+        'lat': '$lat',
+        'lng': '$lng',
+      };
+
+      final query = params.entries
+          .map((e) => '${e.key}=${Uri.encodeQueryComponent(e.value)}')
+          .join('&');
+
+      final jsonList = await ApiService.get('/api/properties?$query');
+      if (!mounted) return;
+
+      final allProps = (jsonList as List)
+          .map((json) => Property.fromJson(json))
+          .toList();
+
+      // Client-side filter by the user's house type and budget preferences.
+      final houseType = _houseType;
+      final budget = _selectedCountry.budgets[_selectedBudgetIndex];
+      final filtered = allProps.where((p) {
+        final typeMatch = houseType == 'ANY' || p.houseType == houseType;
+        final budgetMatch = p.price >= budget.minPrice
+            && (budget.maxPrice == double.infinity || p.price <= budget.maxPrice);
+        return typeMatch && budgetMatch;
+      }).toList();
+
+      setState(() {
+        // Show filtered results if we have any, otherwise show all (still
+        // valuable — real photos behind blur are compelling regardless).
+        _previewProperties = filtered.isNotEmpty
+            ? filtered.take(3).toList()
+            : allProps.take(3).toList();
+        _previewTotalCount = filtered.isNotEmpty
+            ? filtered.length
+            : allProps.length;
+        _previewLoading = false;
+        _previewFetched = true;
+      });
+    } catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _previewLoading = false;
+        _previewFetched = true;
+        _previewError = e.toString();
+      });
+    }
   }
 
   void _prevStep() {
     if (_step > 0) {
-      setState(() => _step--);
+      setState(() {
+        _previousStep = _step;
+        _step--;
+      });
+    }
+  }
+
+  Future<void> _handleEmailAuth() async {
+    final email = _emailCtrl.text.trim();
+    final password = _passwordCtrl.text;
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please fill in all fields')),
+      );
+      return;
+    }
+    setState(() => _isAuthLoading = true);
+    final AuthResult result;
+    if (_isLoginMode) {
+      result = await AuthService.login(email, password);
+    } else {
+      final name = _nameCtrl.text.trim();
+      if (name.isEmpty) {
+        setState(() => _isAuthLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter your name')),
+        );
+        return;
+      }
+      result = await AuthService.signup(name, email, password);
+    }
+    if (!mounted) return;
+    setState(() => _isAuthLoading = false);
+    await _handleAuthResult(result);
+  }
+
+  Future<void> _handleGoogleAuth() async {
+    setState(() => _isAuthLoading = true);
+    final result = await AuthService.signInWithGoogle();
+    if (!mounted) return;
+    setState(() => _isAuthLoading = false);
+    await _handleAuthResult(result);
+  }
+
+  Future<void> _handleAppleAuth() async {
+    setState(() => _isAuthLoading = true);
+    final result = await AuthService.signInWithApple();
+    if (!mounted) return;
+    setState(() => _isAuthLoading = false);
+    if (result.success || result.error != null) {
+      await _handleAuthResult(result);
+    }
+  }
+
+  Future<void> _handleAuthResult(AuthResult result) async {
+    if (result.success) {
+      await CountryService.instance.setCountry(_selectedCountry);
+      final dest = await OnboardingService.getPostAuthDestination(
+        result,
+        isInOnboardingFlow: true,
+      );
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(builder: (_) => dest.widget),
+        (route) => false,
+      );
+    } else if (result.error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(result.error!), duration: const Duration(seconds: 4)),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
     const goldAccent = Colors.white;
+    final showProgress = _step >= 1 && _step <= 5;
+    final showBottomButton = _step <= 5;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -170,20 +318,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
             : null,
         title: const Text(
           'ROOST',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 18,
-            fontWeight: FontWeight.w900,
-            letterSpacing: 4,
-          ),
+          style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w900, letterSpacing: 4),
         ),
         centerTitle: true,
-        actions: [
-          TextButton(
-            onPressed: _completeOnboarding,
-            child: const Text('Skip', style: TextStyle(color: Colors.grey, fontSize: 14, fontWeight: FontWeight.w600)),
-          ),
-        ],
       ),
       body: SafeArea(
         child: Padding(
@@ -191,81 +328,93 @@ class _OnboardingPageState extends State<OnboardingPage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Progress Bar (6 steps total)
-              Row(
-                children: List.generate(
-                  6,
-                  (index) => Expanded(
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 300),
-                      height: 4,
-                      margin: const EdgeInsets.symmetric(horizontal: 3),
-                      decoration: BoxDecoration(
-                        color: index <= _step ? goldAccent : AppColors.surfaceContainer,
-                        borderRadius: BorderRadius.circular(2),
+              // Progress Bar (steps 1-5 only)
+              if (showProgress) ...[
+                Row(
+                  children: List.generate(
+                    5,
+                    (index) => Expanded(
+                      child: AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
+                        height: 4,
+                        margin: const EdgeInsets.symmetric(horizontal: 3),
+                        decoration: BoxDecoration(
+                          color: index < _step ? goldAccent : AppColors.surfaceContainer,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
+                const SizedBox(height: 28),
+              ],
 
-              const SizedBox(height: 28),
-
-              // Step Content Switcher
+              // Step Content
               Expanded(
                 child: AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
+                  duration: const Duration(milliseconds: 300),
+                  switchInCurve: Curves.easeOut,
+                  switchOutCurve: Curves.easeIn,
+                  transitionBuilder: (child, animation) {
+                    final isForward = _step >= _previousStep;
+                    final slideIn = Tween<Offset>(
+                      begin: Offset(isForward ? 0.15 : -0.15, 0),
+                      end: Offset.zero,
+                    ).animate(animation);
+                    return FadeTransition(
+                      opacity: animation,
+                      child: SlideTransition(position: slideIn, child: child),
+                    );
+                  },
                   child: _buildCurrentStep(goldAccent),
                 ),
               ),
 
-              const SizedBox(height: 16),
-
-              // Bottom Action Button
-              SizedBox(
-                width: double.infinity,
-                height: 54,
-                child: ElevatedButton(
-                  onPressed: (_step == 0 && _isDetecting) || _requestingLocation || _isCompleting
-                      ? null
-                      : (_step == 2 ? _handleLocationStep : _nextStep),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: goldAccent,
-                    foregroundColor: Colors.black,
-                    disabledBackgroundColor: Colors.grey[800],
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              if (showBottomButton) ...[
+                const SizedBox(height: 16),
+                // Main action button
+                SizedBox(
+                  width: double.infinity,
+                  height: 54,
+                  child: ElevatedButton(
+                    onPressed: _requestingLocation
+                        ? null
+                        : _step == 1
+                            ? _handleLocationStep
+                            : _nextStep,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: goldAccent,
+                      foregroundColor: Colors.black,
+                      disabledBackgroundColor: Colors.grey[800],
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    child: Text(
+                      _step == 0
+                          ? 'Get Started'
+                          : _step == 1
+                              ? (_requestingLocation ? 'Requesting Access...' : 'Allow Location Access')
+                              : _step == 5
+                                  ? 'Show My Homes'
+                                  : 'Continue',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
                   ),
-                  child: _isCompleting
-                      ? const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            SizedBox(
-                              width: 18,
-                              height: 18,
-                              child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5),
-                            ),
-                            SizedBox(width: 10),
-                            Text(
-                              'Curating Your Feed...',
-                              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                            ),
-                          ],
-                        )
-                      : Text(
-                          _step == 0
-                              ? (_isDetecting ? 'Detecting Location...' : 'Continue')
-                              : _step == 1
-                                  ? 'Get Started'
-                                  : _step == 2
-                                      ? (_requestingLocation ? 'Requesting Access...' : 'Allow Location Access')
-                                      : _step == 5
-                                          ? 'Curate My Feed'
-                                          : 'Continue',
-                          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                        ),
                 ),
-              ),
+                // Skip button for location step only
+                if (_step == 1 && !_requestingLocation) ...[
+                  const SizedBox(height: 8),
+                  Center(
+                    child: TextButton(
+                      onPressed: _skipLocation,
+                      child: Text(
+                        'Skip for now',
+                        style: TextStyle(color: Colors.grey[500], fontSize: 14, fontWeight: FontWeight.w500),
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ],
           ),
         ),
@@ -276,25 +425,25 @@ class _OnboardingPageState extends State<OnboardingPage> {
   Widget _buildCurrentStep(Color goldAccent) {
     switch (_step) {
       case 0:
-        return _buildCountryDetectionStep(goldAccent);
-      case 1:
         return _buildWelcomeStep(goldAccent);
+      case 1:
+        return _buildLocationStep(goldAccent);
       case 2:
-        return _buildLocationPermissionStep(goldAccent);
-      case 3:
         return _buildHouseTypeStep(goldAccent);
-      case 4:
+      case 3:
         return _buildBudgetStep(goldAccent);
-      case 5:
+      case 4:
         return _buildTimelineStep(goldAccent);
+      case 5:
+        return _buildPreviewStep(goldAccent);
+      case 6:
+        return _buildAuthStep(goldAccent);
       default:
         return const SizedBox.shrink();
     }
   }
 
-  // ── Step 0: Auto-Detect Country ────────────────────────────────────
-
-  Widget _buildCountryDetectionStep(Color goldAccent) {
+  Widget _buildWelcomeStep(Color goldAccent) {
     return Column(
       key: const ValueKey(0),
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -303,55 +452,41 @@ class _OnboardingPageState extends State<OnboardingPage> {
         const RoostLogoIcon(size: 64),
         const SizedBox(height: 20),
         const Text(
-          'Where are you\nlooking to rent?',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            height: 1.2,
-          ),
+          'Find a place that\nfeels like yours.',
+          style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Text(
-          'We auto-detect your location to personalize pricing, currency, and listings.',
-          style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          'Verified rentals near you — browse, chat with landlords, and move in faster.',
+          style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
         ),
-        const SizedBox(height: 28),
+        const SizedBox(height: 32),
+        _buildFeatureItem(Icons.shield_outlined, 'Verified by Roost', 'No fake listings. Every home is reviewed before it goes live.', goldAccent),
+        const SizedBox(height: 16),
+        _buildFeatureItem(Icons.chat_bubble_outline, 'Chat with Landlords', 'Reach property owners directly and get answers fast.', goldAccent),
+        const SizedBox(height: 16),
+        _buildFeatureItem(Icons.map_outlined, 'See Exactly Where It Is', 'Find the exact spot — not just the area.', goldAccent),
+      ],
+    );
+  }
 
-        // Detection result / loading
-        if (_isDetecting) ...[
-          _buildDetectingCard(),
-        ] else if (!_showCountryList) ...[
-          _buildDetectedCountryCard(goldAccent),
-          const SizedBox(height: 16),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => setState(() => _showCountryList = true),
-              icon: const Icon(Icons.edit_location_alt_outlined, color: Colors.grey, size: 18),
-              label: Text(
-                'Not your location? Change country',
-                style: TextStyle(color: Colors.grey[400], fontSize: 13),
-              ),
-            ),
+  Widget _buildLocationStep(Color goldAccent) {
+    if (_showCountryList) {
+      return Column(
+        key: const ValueKey('country_select'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          const Text(
+            'Where are you\nlooking?',
+            style: TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
           ),
-        ],
-
-        // Country list (shown on failure or if user taps "Change")
-        if (_showCountryList) ...[
-          if (_detectionFailed)
-            Padding(
-              padding: const EdgeInsets.only(bottom: 12),
-              child: Row(
-                children: [
-                  const Icon(Icons.info_outline, color: AppColors.grey400, size: 16),
-                  const SizedBox(width: 8),
-                  Text(
-                    'Could not detect location. Please select manually.',
-                    style: TextStyle(color: Colors.grey[400], fontSize: 12),
-                  ),
-                ],
-              ),
-            ),
+          const SizedBox(height: 8),
+          Text(
+            'Select your country so we can show the right listings.',
+            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          ),
+          const SizedBox(height: 20),
           Expanded(
             child: GridView.count(
               crossAxisCount: 2,
@@ -362,11 +497,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 final isSelected = _selectedCountry.code == c.code;
                 return GestureDetector(
                   onTap: () {
+                    HapticFeedback.selectionClick();
                     setState(() {
                       _selectedCountry = c;
-                      if (c.budgets.isNotEmpty) {
-                        _budget = c.budgets[0].title;
-                      }
+                      _selectedBudgetIndex = 0;
                       _showCountryList = false;
                     });
                   },
@@ -420,199 +554,11 @@ class _OnboardingPageState extends State<OnboardingPage> {
             ),
           ),
         ],
-      ],
-    );
-  }
+      );
+    }
 
-  Widget _buildDetectingCard() {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey[850]!),
-      ),
-      child: Row(
-        children: [
-          const SizedBox(
-            width: 28,
-            height: 28,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.5,
-              color: Colors.white,
-            ),
-          ),
-          const SizedBox(width: 20),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Detecting your location...',
-                  style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'Using GPS to find your country automatically',
-                  style: TextStyle(color: Colors.grey[500], fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDetectedCountryCard(Color goldAccent) {
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        color: AppColors.surfaceContainer,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white, width: 2),
-      ),
-      child: Row(
-        children: [
-          Container(
-            width: 56,
-            height: 56,
-            decoration: BoxDecoration(
-              color: Colors.grey[900],
-              borderRadius: BorderRadius.circular(14),
-            ),
-            child: Center(
-              child: Text(_selectedCountry.flag, style: const TextStyle(fontSize: 32)),
-            ),
-          ),
-          const SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const Icon(Icons.location_on, color: Colors.white, size: 16),
-                    const SizedBox(width: 4),
-                    const Text(
-                      'Detected Location',
-                      style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.5),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  _selectedCountry.name,
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 22,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  '${_selectedCountry.currencyCode} • ${_selectedCountry.currencySymbol}',
-                  style: TextStyle(color: Colors.grey[400], fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          const Icon(Icons.check_circle, color: Colors.white, size: 24),
-        ],
-      ),
-    );
-  }
-
-  // ── Step 1: Welcome & Value Proposition ─────────────────────────
-
-  Widget _buildWelcomeStep(Color goldAccent) {
     return Column(
       key: const ValueKey(1),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SizedBox(height: 10),
-        const RoostLogoIcon(size: 64),
-        const SizedBox(height: 20),
-        const Text(
-          'Find Verified Homes.\nZero Brokers.',
-          style: TextStyle(
-            color: Colors.white,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            height: 1.2,
-          ),
-        ),
-        const SizedBox(height: 12),
-        Text(
-          'Roost connects you directly with verified landlords with transparent pricing and real-time availability.',
-          style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
-        ),
-        const SizedBox(height: 32),
-
-        // Value Cards
-        _buildFeatureItem(
-          Icons.shield_outlined,
-          '100% Verified Listings',
-          'Every listing is checked for accuracy and authenticity.',
-          goldAccent,
-        ),
-        const SizedBox(height: 16),
-        _buildFeatureItem(
-          Icons.chat_bubble_outline,
-          'Direct Landlord Chat',
-          'Cut out middleman fees and connect directly in seconds.',
-          goldAccent,
-        ),
-        const SizedBox(height: 16),
-        _buildFeatureItem(
-          Icons.map_outlined,
-          'Precise Location Mapping',
-          'Navigate to exact property coordinates on the map.',
-          goldAccent,
-        ),
-      ],
-    );
-  }
-
-  Widget _buildFeatureItem(IconData icon, String title, String subtitle, Color goldAccent) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
-            color: AppColors.surfaceContainer,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.grey[850]!),
-          ),
-          child: Icon(icon, color: goldAccent, size: 20),
-        ),
-        const SizedBox(width: 14),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(color: Colors.grey[500], fontSize: 12),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  // ── Step 2: Location Permission ──────────────────────────────────
-
-  Widget _buildLocationPermissionStep(Color goldAccent) {
-    return Column(
-      key: const ValueKey(2),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SizedBox(height: 10),
@@ -633,32 +579,20 @@ class _OnboardingPageState extends State<OnboardingPage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'Roost shows you verified rentals closest to you first, with real distance to every listing.',
+          'We\'ll sort by what\'s closest, so your next home is never far away.',
           style: TextStyle(color: Colors.grey[400], fontSize: 14, height: 1.5),
         ),
         const SizedBox(height: 32),
-        _buildFeatureItem(
-          Icons.sort,
-          'Sorted by distance',
-          'Nearby homes always appear first in your feed.',
-          goldAccent,
-        ),
+        _buildFeatureItem(Icons.sort, 'Closest first', 'Homes near you are always at the top.', goldAccent),
         const SizedBox(height: 16),
-        _buildFeatureItem(
-          Icons.lock_outline,
-          'Only used for search',
-          'Your location is never shared with landlords or other users.',
-          goldAccent,
-        ),
+        _buildFeatureItem(Icons.lock_outline, 'Only used for search', 'Your location is never shared with landlords or other users.', goldAccent),
       ],
     );
   }
 
-  // ── Step 3: House Type Selection ─────────────────────────────────
-
   Widget _buildHouseTypeStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(3),
+      key: const ValueKey(2),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
@@ -666,7 +600,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.2),
         ),
         const SizedBox(height: 8),
-        Text('We will customize your feed accordingly', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        Text('Pick one — we\'ll show you more of what you want.', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
         const SizedBox(height: 24),
         Expanded(
           child: GridView.builder(
@@ -686,7 +620,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
               final selected = _houseType == value;
 
               return GestureDetector(
-                onTap: () => setState(() => _houseType = value),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _houseType = value);
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   padding: const EdgeInsets.all(14),
@@ -741,32 +678,34 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // ── Step 4: Budget Curation ──────────────────────────────────────
-
   Widget _buildBudgetStep(Color goldAccent) {
+    final budgets = _budgets;
     return Column(
-      key: const ValueKey(4),
+      key: const ValueKey(3),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          "What is your target\nmonthly budget?",
+          "What's your\nmonthly budget?",
           style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.2),
         ),
         const SizedBox(height: 8),
-        Text('We show you verified listings matching your price point', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        Text('We\'ll highlight homes in your range.', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
         const SizedBox(height: 24),
         Expanded(
           child: ListView.builder(
-            itemCount: _budgets.length,
+            itemCount: budgets.length,
             itemBuilder: (context, index) {
-              final item = _budgets[index];
-              final title = item['title'] as String;
-              final badge = item['badge'] as String;
-              final desc = item['desc'] as String;
-              final selected = _budget == title;
+              final item = budgets[index];
+              final title = item.title;
+              final badge = item.badge;
+              final desc = item.desc;
+              final selected = _selectedBudgetIndex == index;
 
               return GestureDetector(
-                onTap: () => setState(() => _budget = title),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _selectedBudgetIndex = index);
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.only(bottom: 12),
@@ -828,11 +767,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
     );
   }
 
-  // ── Step 5: Move-in Timeline ────────────────────────────────────
-
   Widget _buildTimelineStep(Color goldAccent) {
     return Column(
-      key: const ValueKey(5),
+      key: const ValueKey(4),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
@@ -840,7 +777,7 @@ class _OnboardingPageState extends State<OnboardingPage> {
           style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold, height: 1.2),
         ),
         const SizedBox(height: 8),
-        Text('We will prioritize listings available immediately', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
+        Text('This helps us show what\'s available when you need it.', style: TextStyle(color: Colors.grey[500], fontSize: 13)),
         const SizedBox(height: 24),
         Expanded(
           child: ListView.builder(
@@ -853,7 +790,10 @@ class _OnboardingPageState extends State<OnboardingPage> {
               final selected = _moveInTimeframe == title;
 
               return GestureDetector(
-                onTap: () => setState(() => _moveInTimeframe = title),
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  setState(() => _moveInTimeframe = title);
+                },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
                   margin: const EdgeInsets.only(bottom: 12),
@@ -901,6 +841,487 @@ class _OnboardingPageState extends State<OnboardingPage> {
                 ),
               );
             },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPreviewStep(Color goldAccent) {
+    // Dynamic header based on fetched results.
+    final hasResults = _previewProperties.isNotEmpty;
+    final countText = _previewTotalCount > 0
+        ? '$_previewTotalCount verified rental${_previewTotalCount == 1 ? '' : 's'}'
+        : 'homes';
+
+    return Column(
+      key: const ValueKey(5),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          hasResults
+              ? 'We found $countText\nfor you'
+              : 'We found your\nhomes',
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 26,
+            fontWeight: FontWeight.bold,
+            height: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text(
+          hasResults
+              ? 'Matching your budget and style — sign up to explore them all.'
+              : 'Homes that fit your budget and style are ready to explore.',
+          style: TextStyle(color: Colors.grey[500], fontSize: 13),
+        ),
+        const SizedBox(height: 24),
+        Expanded(
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: _previewLoading
+                ? _buildPreviewShimmer()
+                : _previewError != null && _previewProperties.isEmpty
+                    ? _buildPreviewFallback(goldAccent)
+                    : ImageFiltered(
+                        imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        child: ListView(
+                          physics: const NeverScrollableScrollPhysics(),
+                          children: _previewProperties.isNotEmpty
+                              ? _previewProperties
+                                  .map((p) => _buildRealPreviewCard(p))
+                                  .toList()
+                              : List.generate(
+                                  3, (index) => _buildPlaceholderCard()),
+                        ),
+                      ),
+          ),
+        ),
+        const SizedBox(height: 16),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(Icons.lock_outline, color: Colors.grey[500], size: 16),
+            const SizedBox(width: 6),
+            Text(
+              'Create a free account to see them all',
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  /// Shimmer loading state for the preview cards.
+  Widget _buildPreviewShimmer() {
+    return Shimmer.fromColors(
+      baseColor: Colors.grey[850]!,
+      highlightColor: Colors.grey[700]!,
+      child: ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        children: List.generate(3, (_) => _buildPlaceholderCard()),
+      ),
+    );
+  }
+
+  /// Fallback when the API fails or returns 0 results.
+  Widget _buildPreviewFallback(Color goldAccent) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.surfaceContainer,
+                borderRadius: BorderRadius.circular(24),
+                border: Border.all(color: Colors.grey[850]!),
+              ),
+              child: Icon(
+                Icons.home_work_outlined,
+                color: goldAccent,
+                size: 48,
+              ),
+            ),
+            const SizedBox(height: 20),
+            const Text(
+              'Properties are being added\nin your area',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                height: 1.3,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Create your account to be the first\nto know when new homes go live.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: Colors.grey[500],
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// Builds a preview card with real property data behind the blur.
+  Widget _buildRealPreviewCard(Property property) {
+    final imageUrl = property.imageUrls.isNotEmpty
+        ? property.imageUrls.first
+        : property.imageUrl;
+    final formattedPrice = CountryService.pricePerMonth(property.price);
+
+    return Container(
+      height: 120,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[850]!),
+      ),
+      child: Row(
+        children: [
+          // Real property image
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: SizedBox(
+              width: 96,
+              height: 96,
+              child: imageUrl != null && imageUrl.isNotEmpty
+                  ? CachedNetworkImage(
+                      imageUrl: imageUrl,
+                      fit: BoxFit.cover,
+                      placeholder: (_, __) => Container(
+                        color: Colors.grey[800],
+                      ),
+                      errorWidget: (_, __, ___) => Container(
+                        color: Colors.grey[800],
+                        child: Icon(
+                          Icons.home_outlined,
+                          color: Colors.grey[600],
+                          size: 32,
+                        ),
+                      ),
+                    )
+                  : Container(
+                      color: Colors.grey[800],
+                      child: Icon(
+                        Icons.home_outlined,
+                        color: Colors.grey[600],
+                        size: 32,
+                      ),
+                    ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                // Property title / building name
+                Text(
+                  property.buildingName ?? property.title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // Location
+                Row(
+                  children: [
+                    Icon(Icons.location_on_outlined,
+                        color: Colors.grey[500], size: 12),
+                    const SizedBox(width: 3),
+                    Expanded(
+                      child: Text(
+                        property.location,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.grey[500],
+                          fontSize: 11,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                // House type badge
+                Text(
+                  property.houseType.replaceAll('_', ' '),
+                  style: TextStyle(
+                    color: Colors.grey[600],
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 6),
+                // Price
+                Text(
+                  formattedPrice,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Skeleton placeholder card (used as fallback when no real data is available).
+  Widget _buildPlaceholderCard() {
+    return Container(
+      height: 120,
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceContainer,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey[850]!),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 96,
+            height: 96,
+            decoration: BoxDecoration(
+              color: Colors.grey[800],
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  height: 14,
+                  width: 140,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[700],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 10,
+                  width: 100,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Container(
+                  height: 10,
+                  width: 60,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[800],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Container(
+                  height: 16,
+                  width: 80,
+                  decoration: BoxDecoration(
+                    color: Colors.grey[700],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildAuthStep(Color goldAccent) {
+    return SingleChildScrollView(
+      key: const ValueKey(6),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SizedBox(height: 10),
+          const RoostLogoIcon(size: 48),
+          const SizedBox(height: 20),
+          Text(
+            _isLoginMode ? 'Welcome\nback' : 'Almost there',
+            style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold, height: 1.2),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            _isLoginMode
+                ? 'Your feed is just as you left it.'
+                : 'Create your account to start browsing.',
+            style: TextStyle(color: Colors.grey[400], fontSize: 14),
+          ),
+          const SizedBox(height: 28),
+
+          GoogleSignInButton(onPressed: _isAuthLoading ? null : _handleGoogleAuth),
+          if (AuthService.isAppleSignInAvailable) ...[
+            const SizedBox(height: 12),
+            AppleSignInButton(onPressed: _isAuthLoading ? null : _handleAppleAuth),
+          ],
+
+          const SizedBox(height: 20),
+          Row(
+            children: [
+              Expanded(child: Divider(color: Colors.grey[900])),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 12),
+                child: Text('OR', style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold)),
+              ),
+              Expanded(child: Divider(color: Colors.grey[900])),
+            ],
+          ),
+          const SizedBox(height: 20),
+
+          if (!_isLoginMode) ...[
+            TextField(
+              controller: _nameCtrl,
+              style: const TextStyle(color: Colors.white),
+              decoration: _authInputDecoration('Full Name', Icons.person_outline),
+            ),
+            const SizedBox(height: 16),
+          ],
+          TextField(
+            controller: _emailCtrl,
+            style: const TextStyle(color: Colors.white),
+            keyboardType: TextInputType.emailAddress,
+            decoration: _authInputDecoration('Email Address', Icons.email_outlined),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: _passwordCtrl,
+            style: const TextStyle(color: Colors.white),
+            obscureText: _obscurePassword,
+            decoration: _authInputDecoration(
+              'Password',
+              Icons.lock_outline,
+              suffixIcon: IconButton(
+                icon: Icon(
+                  _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+                  color: Colors.grey[500],
+                  size: 20,
+                ),
+                onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
+            ),
+          ),
+          const SizedBox(height: 28),
+
+          SizedBox(
+            width: double.infinity,
+            height: 54,
+            child: ElevatedButton(
+              onPressed: _isAuthLoading ? null : _handleEmailAuth,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: goldAccent,
+                foregroundColor: Colors.black,
+                disabledBackgroundColor: Colors.grey[800],
+                elevation: 0,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
+              child: _isAuthLoading
+                  ? const SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.black))
+                  : Text(
+                      _isLoginMode ? 'Log In' : 'Create Account',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                _isLoginMode ? "Don't have an account? " : 'Already have an account? ',
+                style: TextStyle(color: Colors.grey[500], fontSize: 14),
+              ),
+              GestureDetector(
+                onTap: () => setState(() => _isLoginMode = !_isLoginMode),
+                child: Text(
+                  _isLoginMode ? 'Sign Up' : 'Log In',
+                  style: TextStyle(color: goldAccent, fontWeight: FontWeight.bold, fontSize: 14),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 36),
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _authInputDecoration(String label, IconData icon, {Widget? suffixIcon}) {
+    return InputDecoration(
+      labelText: label,
+      labelStyle: TextStyle(color: Colors.grey[500], fontWeight: FontWeight.w400),
+      prefixIcon: Icon(icon, color: Colors.grey[400], size: 20),
+      suffixIcon: suffixIcon,
+      filled: true,
+      fillColor: AppColors.surfaceContainer,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: BorderSide.none,
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(14),
+        borderSide: const BorderSide(color: Colors.white, width: 1.5),
+      ),
+    );
+  }
+
+  Widget _buildFeatureItem(IconData icon, String title, String subtitle, Color goldAccent) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.surfaceContainer,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.grey[850]!),
+          ),
+          child: Icon(icon, color: goldAccent, size: 20),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title, style: const TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: TextStyle(color: Colors.grey[500], fontSize: 12)),
+            ],
           ),
         ),
       ],

@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/services/auth_service.dart';
-import 'package:roost_app/main.dart';
+import 'package:roost_app/services/onboarding_service.dart';
 import 'package:roost_app/pages/auth/signup_page.dart';
-import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/auth/apple_sign_in_button.dart';
 import 'package:roost_app/widgets/auth/google_sign_in_button.dart';
@@ -37,9 +36,11 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
+      final dest = await OnboardingService.getPostAuthDestination(result);
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => result.isNewUser ? const OnboardingPage() : const HomePage()),
+        MaterialPageRoute(builder: (_) => dest.widget),
         (route) => false,
       );
     } else if (result.error != null) {
@@ -56,9 +57,11 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
+      final dest = await OnboardingService.getPostAuthDestination(result);
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => result.isNewUser ? const OnboardingPage() : const HomePage()),
+        MaterialPageRoute(builder: (_) => dest.widget),
         (route) => false,
       );
     } else if (result.error != null) {
@@ -83,9 +86,11 @@ class _LoginPageState extends State<LoginPage> {
     setState(() => _isLoading = false);
 
     if (result.success) {
+      final dest = await OnboardingService.getPostAuthDestination(result);
+      if (!mounted) return;
       Navigator.pushAndRemoveUntil(
         context,
-        MaterialPageRoute(builder: (_) => const HomePage()),
+        MaterialPageRoute(builder: (_) => dest.widget),
         (route) => false,
       );
     } else {

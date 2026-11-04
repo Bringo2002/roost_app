@@ -457,7 +457,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
 
   // Onboarding preference filters
   String? _prefHouseType;
-  String? _prefBudget;
+  double? _prefBudgetMin;
+  double? _prefBudgetMax;
   String? _prefTimeframe;
 
   /// Incremented on every fresh (non-pagination) fetch. Responses whose
@@ -571,10 +572,10 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
   }
 
   Future<void> _loadData() async {
-    // Fire favorites + prefs concurrently with location — none block
-    // each other.
+    // Fire favorites concurrently — it doesn't affect the query or sort.
+    // Preferences MUST load before the first fetch so the sort uses them.
     unawaited(_loadFavorites());
-    unawaited(_loadOnboardingPrefs());
+    await _loadOnboardingPrefs();
 
     // Try to get location first (with timeout) so we can send lat/lng
     // in the very first fetch, avoiding the double-fetch pattern.
@@ -605,7 +606,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
       if (!mounted) return;
       setState(() {
         _prefHouseType = prefs.getString('pref_house_type');
-        _prefBudget = prefs.getString('pref_budget');
+        _prefBudgetMin = prefs.getDouble('pref_budget_min');
+        _prefBudgetMax = prefs.getDouble('pref_budget_max');
         _prefTimeframe = prefs.getString('pref_timeframe');
       });
       _filterProperties();
@@ -741,7 +743,8 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
         userLat: _userPosition?.latitude,
         userLng: _userPosition?.longitude,
         prefHouseType: _prefHouseType,
-        prefBudget: _prefBudget,
+        prefBudgetMin: _prefBudgetMin,
+        prefBudgetMax: _prefBudgetMax,
         prefTimeframe: _prefTimeframe,
       );
     });
