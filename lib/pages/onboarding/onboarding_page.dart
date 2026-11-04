@@ -70,7 +70,8 @@ class _OnboardingPageState extends State<OnboardingPage>
     super.initState();
     _step = widget.initialStep;
     _selectedCountry = CountryService.config;
-    _selectedBudgetIndex = 0;
+    _selectedBudgetIndex = _selectedCountry.defaultBudgetIndex;
+    _houseType = _selectedCountry.defaultHouseType;
 
     // Welcome entrance: 1200ms staggered animation
     _welcomeAnimCtrl = AnimationController(
@@ -238,7 +239,9 @@ class _OnboardingPageState extends State<OnboardingPage>
         final detected = await CountryService.instance.autoDetectCountry();
         if (detected != null && mounted) {
           _selectedCountry = detected;
-          _selectedBudgetIndex = 0;
+          // Apply smart defaults for the detected country
+          _selectedBudgetIndex = detected.defaultBudgetIndex;
+          _houseType = detected.defaultHouseType;
           await CountryService.instance.setCountry(detected);
         }
       } else {
@@ -683,7 +686,9 @@ class _OnboardingPageState extends State<OnboardingPage>
                     HapticFeedback.selectionClick();
                     setState(() {
                       _selectedCountry = c;
-                      _selectedBudgetIndex = 0;
+                      // Apply smart defaults for the selected country
+                      _selectedBudgetIndex = c.defaultBudgetIndex;
+                      _houseType = c.defaultHouseType;
                       _showCountryList = false;
                     });
                   },

@@ -34,6 +34,14 @@ class CountryConfig {
   final String browsingDesc;   // "Just Browsing" description text
   final LatLng mapCenter;      // Fallback map center when a listing has no pinned lat/lng
 
+  /// Index into [budgets] that should be pre-selected during onboarding.
+  /// Based on the most common rental tier in each market.
+  final int defaultBudgetIndex;
+
+  /// House type value (e.g. '1BR', 'STUDIO') to pre-select during onboarding.
+  /// Based on the most searched property type in each market.
+  final String defaultHouseType;
+
   const CountryConfig({
     required this.code,
     required this.name,
@@ -49,6 +57,8 @@ class CountryConfig {
     required this.budgets,
     required this.browsingDesc,
     required this.mapCenter,
+    this.defaultBudgetIndex = 1,
+    this.defaultHouseType = '1BR',
   });
 
   /// Returns a location-aware search placeholder (e.g. "Search rentals in Westlands, 2BR..."
@@ -62,6 +72,7 @@ class CountryConfig {
 
   // ── Supported Countries ───────────────────────────────────────────
 
+  // Kenya: Most renters search 1BR in the 15k-30k tier
   static const kenya = CountryConfig(
     code: 'KE',
     name: 'Kenya',
@@ -76,6 +87,8 @@ class CountryConfig {
     searchHint: 'Search rentals by location, e.g. 2BR...',
     browsingDesc: 'Checking Nairobi market prices',
     mapCenter: LatLng(-1.2921, 36.8219), // Nairobi
+    defaultBudgetIndex: 1,  // KES 15k – 30k (Popular)
+    defaultHouseType: '1BR',
     budgets: [
       BudgetOption(title: 'Under KES 15,000', badge: 'Budget Friendly', desc: 'Affordable studio & bedsitter listings', minPrice: 0, maxPrice: 15000),
       BudgetOption(title: 'KES 15k – 30k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments', minPrice: 15000, maxPrice: 30000),
@@ -84,6 +97,7 @@ class CountryConfig {
     ],
   );
 
+  // India: Most renters search 1BHK (mapped to 1BR) in the ₹10k-25k tier
   static const india = CountryConfig(
     code: 'IN',
     name: 'India',
@@ -98,6 +112,8 @@ class CountryConfig {
     searchHint: 'Search Mumbai, Bangalore, Delhi rentals...',
     browsingDesc: 'Checking Indian rental market prices',
     mapCenter: LatLng(19.0760, 72.8777), // Mumbai
+    defaultBudgetIndex: 1,  // ₹10k – ₹25k (Popular)
+    defaultHouseType: '1BR',
     budgets: [
       BudgetOption(title: 'Under ₹10,000', badge: 'Budget Friendly', desc: 'Affordable PG & 1RK listings', minPrice: 0, maxPrice: 10000),
       BudgetOption(title: '₹10k – ₹25k', badge: 'Popular', desc: 'Standard 1BHK & 2BHK flats', minPrice: 10000, maxPrice: 25000),
@@ -106,6 +122,7 @@ class CountryConfig {
     ],
   );
 
+  // Nigeria: Most renters search 2BR self-contain in the ₦150k-500k tier
   static const nigeria = CountryConfig(
     code: 'NG',
     name: 'Nigeria',
@@ -120,6 +137,8 @@ class CountryConfig {
     searchHint: 'Search Lagos, Abuja, Port Harcourt rentals...',
     browsingDesc: 'Checking Nigerian rental market prices',
     mapCenter: LatLng(6.5244, 3.3792), // Lagos
+    defaultBudgetIndex: 1,  // ₦150k – ₦500k (Popular)
+    defaultHouseType: '2BR',
     budgets: [
       BudgetOption(title: 'Under ₦150,000', badge: 'Budget Friendly', desc: 'Affordable self-contain & mini flats', minPrice: 0, maxPrice: 150000),
       BudgetOption(title: '₦150k – ₦500k', badge: 'Popular', desc: 'Standard 2 & 3 bedroom flats', minPrice: 150000, maxPrice: 500000),
@@ -128,6 +147,7 @@ class CountryConfig {
     ],
   );
 
+  // US: Most renters search 1BR in the $1k-2k tier
   static const unitedStates = CountryConfig(
     code: 'US',
     name: 'United States',
@@ -142,6 +162,8 @@ class CountryConfig {
     searchHint: 'Search NYC, LA, Chicago rentals...',
     browsingDesc: 'Checking US rental market prices',
     mapCenter: LatLng(40.7128, -74.0060), // New York City
+    defaultBudgetIndex: 1,  // $1,000 – $2,000 (Popular)
+    defaultHouseType: '1BR',
     budgets: [
       BudgetOption(title: 'Under \$1,000', badge: 'Budget Friendly', desc: 'Affordable studio & shared apartments', minPrice: 0, maxPrice: 1000),
       BudgetOption(title: '\$1,000 – \$2,000', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments', minPrice: 1000, maxPrice: 2000),
@@ -150,6 +172,7 @@ class CountryConfig {
     ],
   );
 
+  // UK: Most renters search 1-bed flats in the £800-1500 tier
   static const unitedKingdom = CountryConfig(
     code: 'GB',
     name: 'United Kingdom',
@@ -164,6 +187,8 @@ class CountryConfig {
     searchHint: 'Search London, Manchester, Birmingham rentals...',
     browsingDesc: 'Checking UK rental market prices',
     mapCenter: LatLng(51.5074, -0.1278), // London
+    defaultBudgetIndex: 1,  // £800 – £1,500 (Popular)
+    defaultHouseType: '1BR',
     budgets: [
       BudgetOption(title: 'Under £800', badge: 'Budget Friendly', desc: 'Affordable studio & shared flats', minPrice: 0, maxPrice: 800),
       BudgetOption(title: '£800 – £1,500', badge: 'Popular', desc: 'Standard 1 & 2 bed flats', minPrice: 800, maxPrice: 1500),
@@ -172,6 +197,7 @@ class CountryConfig {
     ],
   );
 
+  // UAE: Most renters search studio/1BR in the AED 3k-6k tier
   static const uae = CountryConfig(
     code: 'AE',
     name: 'UAE',
@@ -186,6 +212,8 @@ class CountryConfig {
     searchHint: 'Search Dubai, Abu Dhabi, Sharjah rentals...',
     browsingDesc: 'Checking UAE rental market prices',
     mapCenter: LatLng(25.2048, 55.2708), // Dubai
+    defaultBudgetIndex: 1,  // AED 3k – 6k (Popular)
+    defaultHouseType: 'STUDIO',
     budgets: [
       BudgetOption(title: 'Under AED 3,000', badge: 'Budget Friendly', desc: 'Affordable studio & sharing options', minPrice: 0, maxPrice: 3000),
       BudgetOption(title: 'AED 3k – 6k', badge: 'Popular', desc: 'Standard 1BR & 2BR apartments', minPrice: 3000, maxPrice: 6000),
