@@ -462,7 +462,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                               boxShadow: glowIntensity > 0
                                   ? [
                                       BoxShadow(
-                                        color: AppColors.gold
+                                        color: AppColors.goldMuted
                                             .withValues(alpha: 0.8 * glowIntensity),
                                         blurRadius: 12 * glowIntensity,
                                         spreadRadius: 2 * glowIntensity,
@@ -596,7 +596,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                 boxShadow: _logoGlow.value > 0
                     ? [
                         BoxShadow(
-                          color: AppColors.gold
+                          color: AppColors.goldMuted
                               .withValues(alpha: 0.4 * _logoGlow.value),
                           blurRadius: 24 * _logoGlow.value,
                           spreadRadius: 4 * _logoGlow.value,

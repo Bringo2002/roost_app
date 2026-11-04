@@ -160,6 +160,10 @@ class AppColors {
   static const Color blue = Color(0xFF3B82F6);
   static const Color gold = Color(0xFFFFD700);
 
+  /// Muted gold for subtle glow / shadow effects (onboarding auras,
+  /// progress bar celebration pulses). Less saturated than [gold].
+  static const Color goldMuted = Color(0xFFD4AF37);
+
   // --- Deep dark surfaces (zinc / slate) --------------------------------
   // A separate near-black family used by the admin and landlord
   // verification screens for scaffolds, cards and header gradients. Kept
