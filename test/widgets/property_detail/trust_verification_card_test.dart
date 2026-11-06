@@ -104,7 +104,7 @@ void main() {
       ]) {
         expect(
           tester.getSemantics(find.bySemanticsLabel(label)),
-          containsSemantics(label: label, isButton: true, hasTapAction: true),
+          isSemantics(label: label, isButton: true, hasTapAction: true),
         );
       }
       handle.dispose();

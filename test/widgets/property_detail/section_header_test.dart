@@ -15,7 +15,7 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Amenities')),
-        containsSemantics(label: 'Amenities', isHeader: true),
+        isSemantics(label: 'Amenities', isHeader: true),
       );
       expect(find.text('Amenities'), findsOneWidget);
       handle.dispose();
@@ -39,11 +39,11 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Location & Surroundings')),
-        containsSemantics(isHeader: true),
+        isSemantics(isHeader: true),
       );
       expect(
         tester.getSemantics(find.bySemanticsLabel('Fullscreen')),
-        containsSemantics(isButton: true, isHeader: false),
+        isSemantics(isButton: true, isHeader: false),
       );
       handle.dispose();
     });

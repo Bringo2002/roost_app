@@ -41,7 +41,7 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Call host')),
-        containsSemantics(label: 'Call host', isButton: true, hasTapAction: true),
+        isSemantics(label: 'Call host', isButton: true, hasTapAction: true),
       );
 
       tester.semantics.tap(find.semantics.byLabel('Call host'));
@@ -59,7 +59,7 @@ void main() {
       expect(find.text('Chat with host'), findsOneWidget);
       expect(
         tester.getSemantics(find.bySemanticsLabel('Chat with host')),
-        containsSemantics(label: 'Chat with host', isButton: true, hasTapAction: true),
+        isSemantics(label: 'Chat with host', isButton: true, hasTapAction: true),
       );
 
       tester.semantics.tap(find.semantics.byLabel('Chat with host'));
