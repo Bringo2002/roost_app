@@ -24,7 +24,7 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Map showing where this property is')),
-        containsSemantics(
+        isSemantics(
           label: 'Map showing where this property is',
           hint: 'Opens the full-screen map',
           isButton: true,
@@ -53,7 +53,7 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Ramani inayoonyesha mali hii ilipo')),
-        containsSemantics(hint: 'Hufungua ramani kwenye skrini nzima', isButton: true),
+        isSemantics(hint: 'Hufungua ramani kwenye skrini nzima', isButton: true),
       );
       handle.dispose();
     });

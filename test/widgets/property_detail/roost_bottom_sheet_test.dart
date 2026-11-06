@@ -42,7 +42,7 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Fake listing')),
-        containsSemantics(
+        isSemantics(
           label: 'Fake listing',
           isInMutuallyExclusiveGroup: true,
           hasCheckedState: true,
@@ -52,7 +52,7 @@ void main() {
       );
       expect(
         tester.getSemantics(find.bySemanticsLabel('Other')),
-        containsSemantics(
+        isSemantics(
           label: 'Other',
           isInMutuallyExclusiveGroup: true,
           hasCheckedState: true,
@@ -89,7 +89,7 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Other')),
-        containsSemantics(hasEnabledState: true, isEnabled: false, hasTapAction: false),
+        isSemantics(hasEnabledState: true, isEnabled: false, hasTapAction: false),
       );
       handle.dispose();
     });
@@ -160,7 +160,7 @@ void main() {
 
       expect(
         tester.getSemantics(find.bySemanticsLabel('Report Listing')),
-        containsSemantics(label: 'Report Listing', isHeader: true),
+        isSemantics(label: 'Report Listing', isHeader: true),
       );
       handle.dispose();
     });
