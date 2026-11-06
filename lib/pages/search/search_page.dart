@@ -304,10 +304,12 @@ class _SearchPageState extends State<SearchPage>
     }
 
     final config = CountryService.config;
-    if (_priceRange.start > config.priceMin)
+    if (_priceRange.start > config.priceMin) {
       params['minPrice'] = '${_priceRange.start}';
-    if (_priceRange.end < config.priceMax)
+    }
+    if (_priceRange.end < config.priceMax) {
       params['maxPrice'] = '${_priceRange.end}';
+    }
 
     if (_furnished) params['furnished'] = 'true';
     if (_parking) params['parking'] = 'true';
@@ -576,7 +578,9 @@ class _SearchPageState extends State<SearchPage>
     if (_houseType != 'All') count++;
     if (_bedrooms != 0) count++;
     if (_priceRange.start != config.priceMin ||
-        _priceRange.end != config.priceMax) count++;
+        _priceRange.end != config.priceMax) {
+      count++;
+    }
     if (_furnished) count++;
     if (_parking) count++;
     if (_wifi) count++;
