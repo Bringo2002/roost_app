@@ -121,4 +121,16 @@ void main() {
       expect(await PropertyDraftService.save(null, {'title': 'Loft'}), isNull);
     });
   });
+
+  group('PropertyDraftService.statusForProgressSave', () {
+    test('saves a new listing as a draft', () {
+      expect(PropertyDraftService.statusForProgressSave(null), 'DRAFT');
+    });
+
+    test('keeps the status of a listing that is being edited', () {
+      for (final status in ['DRAFT', 'PUBLISHED', 'RENTED']) {
+        expect(PropertyDraftService.statusForProgressSave(status), status);
+      }
+    });
+  });
 }

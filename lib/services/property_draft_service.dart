@@ -6,6 +6,17 @@ import 'package:roost_app/services/api_service.dart';
 /// Lives outside AddPropertyPage so the create-or-update decision can be
 /// tested without building the whole page.
 class PropertyDraftService {
+  /// The `status` to send when saving progress (autosave, "Save Draft",
+  /// location capture) rather than publishing.
+  ///
+  /// A new listing is saved as a `DRAFT`. A listing that is being edited keeps
+  /// the status it already has: the backend overwrites the whole listing on
+  /// every save, so sending `DRAFT` for a live listing would silently take it
+  /// off the market. The status must be sent explicitly rather than omitted,
+  /// because the backend treats a missing status as `PUBLISHED`.
+  static String statusForProgressSave(String? editingStatus) =>
+      editingStatus ?? 'DRAFT';
+
   /// Persists [payload] and returns the id of the saved property, or null if
   /// the server did not return one.
   ///

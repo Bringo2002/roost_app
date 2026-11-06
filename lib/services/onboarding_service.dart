@@ -69,8 +69,16 @@ class OnboardingService {
     }
 
     if (!isLoggedIn && completed) {
-      // Completed onboarding but logged out → auth gate.
-      return OnboardingDestination.welcomePage;
+      // Completed onboarding but not logged in.
+      if (version != null && version >= currentVersion) {
+        // Already did v2 onboarding — just needs auth.
+        return OnboardingDestination.welcomePage;
+      }
+      // Old v1 user who logged out, or no version tag → reset and
+      // re-onboard with the v2 flow so they get the full experience.
+      await prefs.remove(completedKey);
+      await prefs.remove(stepKey);
+      return OnboardingDestination.onboarding;
     }
 
     // Never completed or partial → start / resume onboarding.
