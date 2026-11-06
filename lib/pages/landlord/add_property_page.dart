@@ -173,6 +173,12 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
 
   bool get _isEditing => widget.editingProperty != null;
 
+  /// Status for non-publishing saves; keeps a live listing live while editing.
+  String get _progressStatus {
+    final editing = widget.editingProperty;
+    return PropertyDraftService.statusForProgressSave(editing?.status);
+  }
+
   // ── Lifecycle ──────────────────────────────────────────────────────────
 
   @override
@@ -448,8 +454,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _gpsVerified = false;
       });
       try {
-        final status = _isEditing ? widget.editingProperty!.status : 'DRAFT';
-        final id = await _persist(_buildPayload(status: status));
+        final id = await _persist(_buildPayload(status: _progressStatus));
         if (id != null) {
           await ApiService.post('/api/properties/$id/verify-gps', {
             'latitude': position.latitude,
@@ -969,7 +974,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (_autosaving) return;
     if (mounted) setState(() => _autosaving = true);
     try {
-      await _persist(_buildPayload(status: 'DRAFT'));
+      await _persist(_buildPayload(status: _progressStatus));
     } catch (e) {
       debugPrint('AddPropertyPage: autosave failed: $e');
     } finally {
@@ -1113,7 +1118,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   Future<void> _saveDraft() async {
     setState(() => _isLoading = true);
     try {
-      await _persist(_buildPayload(status: 'DRAFT'));
+      await _persist(_buildPayload(status: _progressStatus));
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
