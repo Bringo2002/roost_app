@@ -81,4 +81,20 @@ void main() {
       expect(result.unplacedMessages, isEmpty);
     });
   });
+
+  group('publicationBulletList', () {
+    test('puts each message on its own bulleted line', () {
+      expect(
+        publicationBulletList([
+          violation('title', 'Give your listing a title.'),
+          violation('imageUrls', 'Add at least 3 photos.'),
+        ]),
+        '• Give your listing a title.\n• Add at least 3 photos.',
+      );
+    });
+
+    test('is empty for no violations', () {
+      expect(publicationBulletList(const []), '');
+    });
+  });
 }

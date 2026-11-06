@@ -69,3 +69,7 @@ class WizardPublicationErrors {
   /// Messages for violations that have no input in the wizard.
   final List<String> unplacedMessages;
 }
+
+/// One "• message" line per violation, to list every fix in a dialog.
+String publicationBulletList(List<PublicationViolation> violations) =>
+    violations.map((v) => '• ${v.message}').join('\n');
