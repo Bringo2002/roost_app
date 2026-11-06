@@ -15,9 +15,9 @@ class AuthResult {
   final bool success;
   final String? error;
 
-  /// True only when this call created a brand-new account (Google
-  /// sign-in on a first-time user). Lets the caller route to onboarding
-  /// instead of home, matching what plain signup already does.
+  /// True only when this call created a brand-new account (email signup,
+  /// or Google/Apple sign-in on a first-time user). Lets the caller route
+  /// to onboarding instead of home.
   final bool isNewUser;
 
   AuthResult({required this.success, this.error, this.isNewUser = false});
@@ -51,7 +51,9 @@ class AuthService {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _saveToken(data['token']);
-        return AuthResult(success: true);
+        // The signup endpoint only ever creates an account, so a 200 here
+        // is always a new user (the response carries no isNewUser flag).
+        return AuthResult(success: true, isNewUser: true);
       }
 
       // Try to extract error message from response
@@ -438,7 +440,20 @@ class AuthService {
     }
   }
 
-  static Future<void> _saveToken(String token) async {
+  /// Test seam for persisting the token after a successful auth call, same
+  /// rationale as [getTokenOverride]: the real path touches secure storage
+  /// and the push-notification platform channel, neither of which exists in
+  /// the unit-test environment. Reset to `null` in `tearDown`.
+  @visibleForTesting
+  static Future<void> Function(String token)? saveTokenOverride;
+
+  static Future<void> _saveToken(String token) {
+    final override = saveTokenOverride;
+    if (override != null) return override(token);
+    return _saveTokenToStorage(token);
+  }
+
+  static Future<void> _saveTokenToStorage(String token) async {
     await _storage.write(key: _tokenKey, value: token);
     await PushNotificationService.reloadForUser();
   }
