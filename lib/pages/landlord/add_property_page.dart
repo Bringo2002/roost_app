@@ -14,6 +14,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/utils/publication_errors.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/cloudinary_service.dart';
@@ -1015,13 +1016,37 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       await _showSuccessDialog(savedId: savedId);
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to publish listing: $e')),
-        );
+        if (e is ApiException && e.violations.isNotEmpty) {
+          _showPublicationErrors(WizardPublicationErrors.from(e.violations));
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Failed to publish listing: $e')),
+          );
+        }
       }
     } finally {
       if (mounted && _isLoading) setState(() => _isLoading = false);
     }
+  }
+
+  /// Shows what the backend says is missing on the inputs it belongs to and
+  /// jumps to the earliest step with something to fix.
+  void _showPublicationErrors(WizardPublicationErrors result) {
+    setState(() {
+      _errors
+        ..clear()
+        ..addAll(result.errors);
+      final step = result.firstStep;
+      if (step != null) {
+        _step = step;
+      }
+    });
+    final message = result.unplacedMessages.isEmpty
+        ? 'Fix the highlighted fields to publish.'
+        : result.unplacedMessages.join(' ');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message)),
+    );
   }
 
   Future<void> _showSuccessDialog({int? savedId}) async {

@@ -382,4 +382,83 @@ void main() {
       expect(''.toUserMessage('Try later'), 'Try later');
     });
   });
+
+  group('publication violations', () {
+    test('exposes the structured violations on the exception', () async {
+      respondWith(
+        400,
+        jsonEncode({
+          'error': 'Give your listing a title. Enter a valid monthly rent.',
+          'violations': [
+            {
+              'field': 'title',
+              'code': 'TITLE_REQUIRED',
+              'message': 'Give your listing a title.',
+            },
+            {
+              'field': 'price',
+              'code': 'PRICE_INVALID',
+              'message': 'Enter a valid monthly rent.',
+            },
+          ],
+        }),
+      );
+
+      await expectLater(
+        ApiService.patch('/api/properties/1/publish', {}),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having(
+                (e) => e.message,
+                'message',
+                'Give your listing a title. Enter a valid monthly rent.',
+              )
+              .having(
+                (e) => e.violations.map((v) => v.code).toList(),
+                'codes',
+                ['TITLE_REQUIRED', 'PRICE_INVALID'],
+              )
+              .having((e) => e.violations.first.field, 'first field', 'title'),
+        ),
+      );
+    });
+
+    test('is empty for an error that carries no violations', () async {
+      respondWith(400, '{"error": "Nope"}');
+
+      await expectLater(
+        ApiService.get('/api/ping'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.violations, 'violations', isEmpty)),
+      );
+    });
+
+    test('is empty for a non-JSON error body', () async {
+      respondWith(502, '<html>Bad gateway</html>');
+
+      await expectLater(
+        ApiService.get('/api/ping'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.violations, 'violations', isEmpty)),
+      );
+    });
+
+    test('a malformed violation is a contract break, not defaulted', () async {
+      respondWith(
+        400,
+        jsonEncode({
+          'error': 'Give your listing a title.',
+          'violations': [
+            {'field': 'title'},
+          ],
+        }),
+      );
+
+      await expectLater(
+        ApiService.get('/api/ping'),
+        apiError('Something went wrong. Please try again.'),
+      );
+    });
+  });
 }

@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/models/publication_violation.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
@@ -12,6 +13,7 @@ import 'package:roost_app/pages/landlord/endorsement_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 import 'package:roost_app/utils/landlord_listing_organizer.dart';
+import 'package:roost_app/utils/publication_errors.dart';
 import 'package:roost_app/widgets/landlord/landlord_property_card.dart';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -435,13 +437,17 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
       );
     } catch (e) {
       if (!mounted) return;
+      final violations =
+          e is ApiException ? e.violations : const <PublicationViolation>[];
       final proceedToWizard = await showDialog<bool>(
         context: context,
         builder: (ctx) => AlertDialog(
           backgroundColor: AppColors.surfaceRaised,
           title: const Text('Could not publish', style: TextStyle(color: Colors.white)),
           content: Text(
-            'This usually means your phone isn\'t verified yet. Open the listing to verify and publish?',
+            violations.isEmpty
+                ? 'This usually means your phone isn\'t verified yet. Open the listing to verify and publish?'
+                : 'Fix these before publishing:\n${publicationBulletList(violations)}',
             style: TextStyle(color: AppColors.textSecondary),
           ),
           actions: [
