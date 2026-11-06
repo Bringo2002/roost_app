@@ -10,9 +10,14 @@
          everything else (FCM, backend triggers) is wired up. -->
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <uses-feature android:name="android.hardware.camera" android:required="false"/>
+    <!-- Auto Backup is off on purpose: restoring SharedPreferences after a
+         reinstall brings back the onboarding-completed flag, but the
+         Keystore-backed auth token cannot be restored, so new users would
+         skip onboarding and hit the Welcome page. -->
     <application
         android:label="Roost"
         android:name="${applicationName}"
+        android:allowBackup="false"
         android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher">
         <!-- Populated from android/local.properties (MAPS_API_KEY), never
