@@ -260,7 +260,7 @@ class _ChangePasswordPageState extends State<ChangePasswordPage> {
                 ),
                 validator: (val) {
                   if (val == null || val.isEmpty) return 'Please enter a new password';
-                  if (val.length < 6) return 'Password must be at least 6 characters long';
+                  if (val.length < 8) return 'Password must be at least 8 characters long';
                   if (val == _currentPasswordCtrl.text) {
                     return 'New password must be different from current password';
                   }
