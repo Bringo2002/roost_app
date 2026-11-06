@@ -438,7 +438,20 @@ class AuthService {
     }
   }
 
-  static Future<void> _saveToken(String token) async {
+  /// Test seam for persisting the token after a successful auth call, same
+  /// rationale as [getTokenOverride]: the real path touches secure storage
+  /// and the push-notification platform channel, neither of which exists in
+  /// the unit-test environment. Reset to `null` in `tearDown`.
+  @visibleForTesting
+  static Future<void> Function(String token)? saveTokenOverride;
+
+  static Future<void> _saveToken(String token) {
+    final override = saveTokenOverride;
+    if (override != null) return override(token);
+    return _saveTokenToStorage(token);
+  }
+
+  static Future<void> _saveTokenToStorage(String token) async {
     await _storage.write(key: _tokenKey, value: token);
     await PushNotificationService.reloadForUser();
   }
