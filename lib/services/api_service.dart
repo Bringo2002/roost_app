@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:roost_app/config.dart';
+import 'package:roost_app/models/publication_violation.dart';
 import 'package:roost_app/models/presigned_upload.dart';
 import 'package:roost_app/services/auth_service.dart';
 
@@ -15,7 +16,11 @@ class ApiException implements Exception {
   /// Branch on this rather than searching [message] for text.
   final int? statusCode;
 
-  ApiException(this.message, {this.statusCode});
+  /// What the backend says must be fixed before a listing can be published.
+  /// Empty for every other error.
+  final List<PublicationViolation> violations;
+
+  ApiException(this.message, {this.statusCode, this.violations = const []});
   @override
   String toString() => message;
 }
@@ -203,7 +208,31 @@ class ApiService {
     final fallback = status == 403
         ? 'You do not have permission to perform this action.'
         : 'Request failed with status: $status';
-    throw ApiException(_errorMessage(response.body, fallback), statusCode: status);
+    throw ApiException(
+      _errorMessage(response.body, fallback),
+      statusCode: status,
+      violations: _publicationViolations(response.body),
+    );
+  }
+
+  /// Reads the structured `violations` list the backend adds when a listing
+  /// fails its publication rules. It is absent on every other error, so those
+  /// yield an empty list. A malformed entry is a contract break and is
+  /// deliberately not defaulted away.
+  static List<PublicationViolation> _publicationViolations(String body) {
+    Object? decoded;
+    try {
+      decoded = jsonDecode(body);
+    } on FormatException {
+      return const [];
+    }
+    if (decoded is! Map) return const [];
+    final raw = decoded['violations'];
+    if (raw is! List) return const [];
+    return raw
+        .map((v) => PublicationViolation.fromJson(
+            Map<String, dynamic>.from(v as Map)))
+        .toList(growable: false);
   }
 
   /// Extracts the user-facing message from an error response body.
