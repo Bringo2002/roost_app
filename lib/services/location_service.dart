@@ -144,7 +144,36 @@ class LocationService {
     return _getCurrentPositionFromDevice();
   }
 
-  static Future<Position?> _getCurrentPositionFromDevice() async {
+  /// How long to wait for a high-accuracy fix before giving up.
+  static const Duration _verificationFixTimeout = Duration(seconds: 20);
+
+  /// Like [getCurrentPosition], but asks for the most precise fix the phone
+  /// can give. Proving someone is at a property needs far better than the
+  /// coarse fix that is fine for sorting listings by distance, and the backend
+  /// rejects readings that report a poor accuracy. Returns null on timeout.
+  static Future<Position?> getVerificationPosition() {
+    final override = getCurrentPositionOverride;
+    if (override != null) return override();
+    return _getCurrentPositionFromDevice(
+      accuracy: LocationAccuracy.best,
+      timeLimit: _verificationFixTimeout,
+    );
+  }
+
+  /// The body of `POST /api/properties/{id}/verify-gps`: the fix together
+  /// with its own accuracy estimate and capture time, which the backend needs
+  /// to reject stale or imprecise readings.
+  static Map<String, dynamic> verificationPayload(Position position) => {
+        'latitude': position.latitude,
+        'longitude': position.longitude,
+        'accuracyMeters': position.accuracy,
+        'capturedAtEpochMs': position.timestamp.millisecondsSinceEpoch,
+      };
+
+  static Future<Position?> _getCurrentPositionFromDevice({
+    LocationAccuracy accuracy = LocationAccuracy.medium,
+    Duration? timeLimit,
+  }) async {
     try {
       final serviceEnabled = await Geolocator.isLocationServiceEnabled();
       if (!serviceEnabled) return null;
@@ -160,7 +189,7 @@ class LocationService {
 
       return await Geolocator.getCurrentPosition(
         locationSettings:
-            const LocationSettings(accuracy: LocationAccuracy.medium),
+            LocationSettings(accuracy: accuracy, timeLimit: timeLimit),
       );
     } catch (_) {
       return null;

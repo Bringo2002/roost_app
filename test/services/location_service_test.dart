@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:roost_app/services/location_service.dart';
 
 void main() {
@@ -80,6 +81,43 @@ void main() {
       // "can't even check" the same as "granted" -- not claiming a
       // settings prompt would help when it has no idea whether one would.
       expect(await LocationService.checkPermissionStatus(), LocationPermissionStatus.granted);
+    });
+  });
+
+  group('LocationService verification helpers', () {
+    final fix = Position(
+      latitude: -1.286389,
+      longitude: 36.817223,
+      timestamp: DateTime.utc(2026, 11, 7, 9, 30),
+      accuracy: 8.5,
+      altitude: 0,
+      altitudeAccuracy: 0,
+      heading: 0,
+      headingAccuracy: 0,
+      speed: 0,
+      speedAccuracy: 0,
+    );
+
+    tearDown(() => LocationService.getCurrentPositionOverride = null);
+
+    test('verificationPayload carries the fix, its accuracy and capture time', () {
+      expect(LocationService.verificationPayload(fix), {
+        'latitude': -1.286389,
+        'longitude': 36.817223,
+        'accuracyMeters': 8.5,
+        'capturedAtEpochMs': DateTime.utc(2026, 11, 7, 9, 30).millisecondsSinceEpoch,
+      });
+    });
+
+    test('getVerificationPosition uses the test override when one is set', () async {
+      LocationService.getCurrentPositionOverride = () async => fix;
+
+      expect(await LocationService.getVerificationPosition(), same(fix));
+    });
+
+    test('getVerificationPosition resolves to null instead of throwing', () async {
+      // No platform channel in unit tests, same as getCurrentPosition().
+      expect(await LocationService.getVerificationPosition(), isNull);
     });
   });
 }
