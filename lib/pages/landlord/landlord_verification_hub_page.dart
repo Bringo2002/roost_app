@@ -54,7 +54,7 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     if (property.id == null || _busyPropertyIds.contains(property.id)) return;
 
     final messenger = ScaffoldMessenger.of(context);
-    final pos = await LocationService.getCurrentPosition();
+    final pos = await LocationService.getVerificationPosition();
     if (pos == null) {
       messenger.showSnackBar(
         const SnackBar(content: Text('Could not obtain current GPS position. Check location permissions.')),
@@ -65,10 +65,8 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     setState(() => _busyPropertyIds.add(property.id!));
 
     try {
-      final res = await ApiService.post('/api/properties/${property.id}/verify-gps', {
-        'latitude': pos.latitude,
-        'longitude': pos.longitude,
-      });
+      final res = await ApiService.post('/api/properties/${property.id}/verify-gps',
+          LocationService.verificationPayload(pos));
       if (!mounted) return;
       // The endpoint returns the updated listing. Adopt it instead of
       // re-fetching the whole portfolio: the server also recomputes

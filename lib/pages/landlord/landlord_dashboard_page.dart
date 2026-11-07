@@ -366,7 +366,7 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
   Future<void> _verifyGps(Property property) async {
     if (property.id == null || _isBusy(property)) return;
 
-    final position = await LocationService.getCurrentPosition();
+    final position = await LocationService.getVerificationPosition();
     if (position == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -379,10 +379,8 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
 
     setState(() => _busyIds.add(property.id!));
     try {
-      final res = await ApiService.post('/api/properties/${property.id}/verify-gps', {
-        'latitude': position.latitude,
-        'longitude': position.longitude,
-      });
+      final res = await ApiService.post('/api/properties/${property.id}/verify-gps',
+          LocationService.verificationPayload(position));
       if (!mounted) return;
       if (index != -1) {
         // Adopt the server's response instead of guessing which fields

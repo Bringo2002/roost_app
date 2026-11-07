@@ -118,7 +118,12 @@ void main() {
 
     await _tapVerifyGps(tester);
 
-    expect(postedBody, {'latitude': -1.286389, 'longitude': 36.817223});
+    expect(postedBody, {
+      'latitude': -1.286389,
+      'longitude': 36.817223,
+      'accuracyMeters': 5,
+      'capturedAtEpochMs': DateTime(2026).millisecondsSinceEpoch,
+    });
     // The button is only shown `if (!property.gpsVerified)` -- its
     // disappearance is direct evidence the local update applied.
     expect(find.text('Verify GPS On-Site'), findsNothing);
