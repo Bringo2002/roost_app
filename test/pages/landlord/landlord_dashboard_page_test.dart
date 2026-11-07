@@ -310,7 +310,12 @@ void main() {
     await tester.tap(find.text(pillText));
     await tester.pumpAndSettle();
 
-    expect(postedBody, {'latitude': -1.286389, 'longitude': 36.817223});
+    expect(postedBody, {
+      'latitude': -1.286389,
+      'longitude': 36.817223,
+      'accuracyMeters': 5,
+      'capturedAtEpochMs': DateTime(2026).millisecondsSinceEpoch,
+    });
     // The direct proof: _verifiedCount (server-synced, no bucket logic
     // of its own) must reflect the adopted response's `verified` flag,
     // not just the pill disappearing (which only proves gpsVerified).

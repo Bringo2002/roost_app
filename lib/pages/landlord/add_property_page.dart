@@ -437,7 +437,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     if (_checkingGps) return;
     setState(() => _checkingGps = true);
     try {
-      final position = await LocationService.getCurrentPosition();
+      final position = await LocationService.getVerificationPosition();
       if (position == null) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -457,10 +457,8 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       try {
         final id = await _persist(_buildPayload(status: _progressStatus));
         if (id != null) {
-          await ApiService.post('/api/properties/$id/verify-gps', {
-            'latitude': position.latitude,
-            'longitude': position.longitude,
-          });
+          await ApiService.post('/api/properties/$id/verify-gps',
+              LocationService.verificationPayload(position));
           if (mounted) setState(() => _gpsVerified = true);
         }
       } catch (e) {
