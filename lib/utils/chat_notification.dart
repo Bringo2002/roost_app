@@ -14,4 +14,12 @@ class ChatNotification {
     if (id == null || id <= 0) return null;
     return id;
   }
+
+  /// The partner whose `ChatRoomPage` is currently on screen, or null.
+  /// Set by the page itself so a push about a conversation the user is
+  /// already looking at neither pops a banner nor opens a second copy.
+  static int? activePartnerId;
+
+  /// Whether the conversation with [partnerId] is on screen right now.
+  static bool isOpenWith(int partnerId) => activePartnerId == partnerId;
 }

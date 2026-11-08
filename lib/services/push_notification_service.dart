@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:firebase_core/firebase_core.dart';
@@ -6,8 +7,10 @@ import 'package:flutter/material.dart';
 import 'package:roost_app/firebase_options.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/services/chat_navigation.dart';
 import 'package:roost_app/services/navigator_key.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/utils/chat_notification.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Handles FCM messages that arrive while the app is backgrounded or
@@ -131,7 +134,13 @@ class PushNotificationService {
         await registerTokenWithBackend(_fcmToken);
 
         // Token can rotate (reinstall, expiry) -- keep the backend in sync.
-        FirebaseMessaging.instance.onTokenRefresh.listen((newToken) {
+        // initialize() runs every time the home page is built (e.g. after
+        // switching accounts), so drop the previous listener first rather
+        // than stacking a new one on top of it.
+        await _tokenRefreshSub?.cancel();
+        _tokenRefreshSub = FirebaseMessaging.instance.onTokenRefresh.listen((
+          newToken,
+        ) {
           _fcmToken = newToken;
           registerTokenWithBackend(newToken);
         });
@@ -143,7 +152,13 @@ class PushNotificationService {
     // Foreground messages: unlike background/terminated, the OS does NOT
     // auto-display these, so route them through the existing in-app
     // banner + local history.
-    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+    await _foregroundSub?.cancel();
+    _foregroundSub = FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final partnerId = ChatNotification.partnerIdFrom(message.data);
+      // The conversation is already on screen and refreshing itself, so a
+      // banner for it would only be noise.
+      if (partnerId != null && ChatNotification.isOpenWith(partnerId)) return;
+
       final context = navigatorKey.currentContext;
       addNotification(
         title: message.notification?.title ?? 'Roost',
@@ -151,29 +166,43 @@ class PushNotificationService {
         type: message.data['type'] ?? 'system',
         payload: message.data,
         context: (context != null && context.mounted) ? context : null,
+        onTap: partnerId == null
+            ? null
+            : () => ChatNavigation.openChatWith(partnerId),
       );
     });
 
     // User tapped a notification while the app was backgrounded.
-    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      addNotification(
-        title: message.notification?.title ?? 'Roost',
-        body: message.notification?.body ?? '',
-        type: message.data['type'] ?? 'system',
-        payload: message.data,
-      );
-    });
+    await _openedAppSub?.cancel();
+    _openedAppSub = FirebaseMessaging.onMessageOpenedApp.listen(
+      _handleNotificationOpened,
+    );
 
     // App was launched by tapping a notification from a fully terminated
     // state -- record it the same way once history has loaded.
     final initialMessage = await FirebaseMessaging.instance.getInitialMessage();
     if (initialMessage != null) {
-      addNotification(
-        title: initialMessage.notification?.title ?? 'Roost',
-        body: initialMessage.notification?.body ?? '',
-        type: initialMessage.data['type'] ?? 'system',
-        payload: initialMessage.data,
-      );
+      await _handleNotificationOpened(initialMessage);
+    }
+  }
+
+  static StreamSubscription<String>? _tokenRefreshSub;
+  static StreamSubscription<RemoteMessage>? _foregroundSub;
+  static StreamSubscription<RemoteMessage>? _openedAppSub;
+
+  /// Records a notification the user tapped (from the system tray, while
+  /// backgrounded or after a cold start) and, for a chat message, opens
+  /// that conversation.
+  static Future<void> _handleNotificationOpened(RemoteMessage message) async {
+    await addNotification(
+      title: message.notification?.title ?? 'Roost',
+      body: message.notification?.body ?? '',
+      type: message.data['type'] ?? 'system',
+      payload: message.data,
+    );
+    final partnerId = ChatNotification.partnerIdFrom(message.data);
+    if (partnerId != null) {
+      await ChatNavigation.openChatWith(partnerId);
     }
   }
 

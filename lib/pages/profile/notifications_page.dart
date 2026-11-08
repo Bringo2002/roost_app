@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/services/push_notification_service.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/chat_navigation.dart';
+import 'package:roost_app/utils/chat_notification.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
@@ -71,6 +73,11 @@ class _NotificationsPageState extends State<NotificationsPage> {
 
     // Handle deep payload navigation if available
     final payload = item.payload;
+    final partnerId = ChatNotification.partnerIdFrom(payload);
+    if (partnerId != null) {
+      await ChatNavigation.openChatWith(partnerId);
+      return;
+    }
     if (payload != null && payload.containsKey('propertyId')) {
       final propId = payload['propertyId'];
       try {

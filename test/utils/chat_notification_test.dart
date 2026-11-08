@@ -51,4 +51,19 @@ void main() {
       );
     });
   });
+
+  group('ChatNotification.isOpenWith', () {
+    tearDown(() => ChatNotification.activePartnerId = null);
+
+    test('is false when no conversation is on screen', () {
+      expect(ChatNotification.isOpenWith(42), isFalse);
+    });
+
+    test('is true only for the partner whose conversation is on screen', () {
+      ChatNotification.activePartnerId = 42;
+
+      expect(ChatNotification.isOpenWith(42), isTrue);
+      expect(ChatNotification.isOpenWith(43), isFalse);
+    });
+  });
 }
