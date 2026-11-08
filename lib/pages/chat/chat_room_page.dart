@@ -13,6 +13,7 @@ import 'package:roost_app/services/encryption_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 import 'package:roost_app/theme/app_theme.dart';
+import 'package:roost_app/utils/chat_notification.dart';
 import 'package:roost_app/utils/presence_formatter.dart';
 import 'package:roost_app/widgets/chat/message_bubble.dart';
 import 'package:intl/intl.dart';
@@ -62,6 +63,7 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   @override
   void initState() {
     super.initState();
+    ChatNotification.activePartnerId = widget.partner.id;
     _scrollController.addListener(_onScroll);
     _initChat();
   }
@@ -81,6 +83,9 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
 
   @override
   void dispose() {
+    if (ChatNotification.isOpenWith(widget.partner.id)) {
+      ChatNotification.activePartnerId = null;
+    }
     _messageController.dispose();
     _scrollController.removeListener(_onScroll);
     _scrollController.dispose();
