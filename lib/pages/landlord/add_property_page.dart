@@ -14,6 +14,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/utils/gps_verification_message.dart';
 import 'package:roost_app/utils/publication_errors.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/services/api_service.dart';
@@ -468,10 +469,13 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         // fetch above; the user can just retry the confirm action.
         debugPrint('AddPropertyPage: GPS verification failed: $e');
         if (mounted) {
+          // Show the backend's own reason: "make sure you're at the
+          // property" is the wrong advice for an address it couldn't find.
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-                content: Text(
-                    "Couldn't verify your location. Make sure you're at the property, then tap \"Confirm your GPS location\" again.")),
+            SnackBar(
+              content: Text(gpsVerificationFailureMessage(e)),
+              duration: const Duration(seconds: 8),
+            ),
           );
         }
       }
