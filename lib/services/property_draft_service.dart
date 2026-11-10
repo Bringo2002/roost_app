@@ -1,3 +1,4 @@
+import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/services/api_service.dart';
 
 /// Saves a property listing: creates it on the first save and updates it on
@@ -18,18 +19,30 @@ class PropertyDraftService {
       editingStatus ?? 'DRAFT';
 
   /// Persists [payload] and returns the id of the saved property, or null if
-  /// the server did not return one.
+  /// the server did not return one. See [saveDraft] for how it behaves.
+  static Future<int?> save(int? draftId, Map<String, dynamic> payload) async =>
+      (await saveDraft(draftId, payload)).id;
+
+  /// Persists [payload] and reports what the server says about the saved
+  /// listing: its id, and its verification state.
   ///
   /// With a [draftId] the existing property is updated. If the server says
   /// that property no longer exists (for example it was deleted from another
   /// device), a new one is created instead so the landlord's work is not lost.
   /// Any other failure is rethrown.
-  static Future<int?> save(int? draftId, Map<String, dynamic> payload) async {
+  ///
+  /// The verification state matters because a save can clear a verification
+  /// (changing the address or moving the pin does), so the caller has to show
+  /// what the server now says rather than what it remembers.
+  static Future<SavedDraft> saveDraft(
+      int? draftId, Map<String, dynamic> payload) async {
     var currentId = draftId;
     if (currentId != null) {
+      Object? updated;
+      var wasUpdated = false;
       try {
-        await ApiService.put('/api/properties/$currentId', payload);
-        return currentId;
+        updated = await ApiService.put('/api/properties/$currentId', payload);
+        wasUpdated = true;
       } on ApiException catch (e) {
         // Branch on the status, not the message text: any failure whose
         // wording merely mentions "not found" or "404" (a validation error,
@@ -42,9 +55,37 @@ class PropertyDraftService {
       } catch (_) {
         // Fall back to POST if unknown client-side error
       }
+      // Read outside the try above: a malformed verification must surface as
+      // an error, not be mistaken for a failed update and POSTed again as a
+      // duplicate listing.
+      if (wasUpdated) {
+        return SavedDraft(id: currentId, verification: _verificationOf(updated));
+      }
     }
     final result = await ApiService.post('/api/properties', payload);
     final newId = result is Map ? result['id'] as int? : null;
-    return newId ?? currentId;
+    return SavedDraft(
+        id: newId ?? currentId, verification: _verificationOf(result));
   }
+
+  /// The `verification` object of an owner response, or null when the
+  /// response carries none.
+  static PropertyVerification? _verificationOf(Object? response) {
+    if (response is! Map || response['verification'] is! Map) return null;
+    return PropertyVerification.fromJson(
+        Map<String, dynamic>.from(response['verification'] as Map));
+  }
+}
+
+/// What [PropertyDraftService.saveDraft] reports about a saved listing.
+class SavedDraft {
+  /// Creates a result.
+  const SavedDraft({required this.id, this.verification});
+
+  /// The saved property's id, or null if the server did not return one.
+  final int? id;
+
+  /// The backend's verification state for the listing right after the save,
+  /// or null when the response did not carry one.
+  final PropertyVerification? verification;
 }

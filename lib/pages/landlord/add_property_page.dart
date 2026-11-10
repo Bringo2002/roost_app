@@ -14,6 +14,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/utils/gps_verification_message.dart';
 import 'package:roost_app/utils/publication_errors.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
@@ -458,8 +459,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       try {
         final id = await _persist(_buildPayload(status: _progressStatus));
         if (id != null) {
-          await ApiService.post('/api/properties/$id/verify-gps',
+          final verified = await ApiService.post(
+              '/api/properties/$id/verify-gps',
               LocationService.verificationPayload(position));
+          // The response is the full owner view, so take the verification
+          // state from it rather than just flipping a local flag.
+          _adoptVerification(Property.fromJson(
+                  Map<String, dynamic>.from(verified as Map))
+              .verification);
           if (mounted) setState(() => _gpsVerified = true);
         }
       } catch (e) {
@@ -966,8 +973,20 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   Future<int?> _persist(Map<String, dynamic> payload) async {
-    _draftId = await PropertyDraftService.save(_draftId, payload);
+    final saved = await PropertyDraftService.saveDraft(_draftId, payload);
+    _draftId = saved.id;
+    _adoptVerification(saved.verification);
     return _draftId;
+  }
+
+  /// Takes the backend's word for what is verified. Saving can clear a
+  /// verification (editing the address or moving the pin does), and the
+  /// wizard must not keep showing it as done.
+  void _adoptVerification(PropertyVerification? verification) {
+    if (verification == null || !mounted) return;
+    setState(() {
+      _gpsVerified = verification.onSite == OnSiteState.passed;
+    });
   }
 
   void _autosaveDraft() async {
