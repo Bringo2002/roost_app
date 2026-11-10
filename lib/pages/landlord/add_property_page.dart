@@ -14,8 +14,10 @@ import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:video_player/video_player.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/utils/gps_verification_message.dart';
 import 'package:roost_app/utils/publication_errors.dart';
+import 'package:roost_app/utils/verification_checklist.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/cloudinary_service.dart';
@@ -109,6 +111,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   double? _longitude;
   bool _locationConfirmed = false;
   bool _gpsVerified = false;
+
+  /// What the backend says is verified about this listing, as of the last
+  /// save. Null until the listing has been saved at least once.
+  PropertyVerification? _verification;
   bool _checkingGps = false;
 
   // Amenity toggles — keyed by AmenityOption.key
@@ -142,12 +148,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   bool _uploadingDocument = false;
   bool _analyzingDocument = false;
 
-  bool get _hasPhoneVerified => _phoneCtrl.text.trim().isNotEmpty;
-
-  bool get _hasGpsVerified => _gpsVerified;
-
-  bool get _hasDocUploaded => _documentUrls.isNotEmpty;
-
   // Management Role
   String _managerRole = 'LANDLORD'; // 'LANDLORD' | 'CARETAKER' | 'AGENT'
   bool _caretakerLivesOnSite = true;
@@ -157,12 +157,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final _ownerNameCtrl = TextEditingController();
   final _ownerPhoneCtrl = TextEditingController();
 
-  int get _verificationScore =>
-      (_hasPhoneVerified ? 1 : 0) +
-      (_hasGpsVerified ? 1 : 0) +
-      (_hasDocUploaded ? 1 : 0);
+  // The checklist and badge come from what the backend says is verified, not
+  // from the wizard's own flags: a typed phone number is not a verified one,
+  // and an uploaded document is not an accepted one.
+  VerificationChecklist get _checklist => VerificationChecklist(_verification);
 
-  bool get _isEarnedVerified => _verificationScore == 3;
+  int get _verificationScore => _checklist.stepsDone;
+
+  bool get _isEarnedVerified => _checklist.badgeEarned;
 
   final Map<String, String> _errors = {};
 
@@ -221,6 +223,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       _locationConfirmed = true;
     }
     _gpsVerified = p.gpsVerified;
+    _verification = p.verification;
     _amenityState['furnished'] = p.furnished;
     _amenityState['parking'] = p.parking;
     _amenityState['wifi'] = p.wifi;
@@ -458,8 +461,14 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       try {
         final id = await _persist(_buildPayload(status: _progressStatus));
         if (id != null) {
-          await ApiService.post('/api/properties/$id/verify-gps',
+          final verified = await ApiService.post(
+              '/api/properties/$id/verify-gps',
               LocationService.verificationPayload(position));
+          // The response is the full owner view, so take the verification
+          // state from it rather than just flipping a local flag.
+          _adoptVerification(Property.fromJson(
+                  Map<String, dynamic>.from(verified as Map))
+              .verification);
           if (mounted) setState(() => _gpsVerified = true);
         }
       } catch (e) {
@@ -835,7 +844,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         'caretakerPhone': _formatPhone(_caretakerPhoneCtrl.text.trim()),
       'caretakerLivesOnSite': _caretakerLivesOnSite,
       'documentUrls': _documentUrls,
-      'documentVerified': _hasDocUploaded,
       'landlordEndorsed': false,
       if (_ownerNameCtrl.text.trim().isNotEmpty)
         'ownerVerifyName': _ownerNameCtrl.text.trim(),
@@ -906,7 +914,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       verified:
           _isEditing ? widget.editingProperty!.verified : _isEarnedVerified,
       gpsVerified: _gpsVerified,
-      documentVerified: _hasDocUploaded,
+      documentVerified: _verification?.documents == DocumentsState.accepted,
       documentUrls: _documentUrls,
       imageUrl: _imageUrls.isNotEmpty ? _imageUrls.first : null,
       imageUrls: _imageUrls,
@@ -966,8 +974,21 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   }
 
   Future<int?> _persist(Map<String, dynamic> payload) async {
-    _draftId = await PropertyDraftService.save(_draftId, payload);
+    final saved = await PropertyDraftService.saveDraft(_draftId, payload);
+    _draftId = saved.id;
+    _adoptVerification(saved.verification);
     return _draftId;
+  }
+
+  /// Takes the backend's word for what is verified. Saving can clear a
+  /// verification (editing the address or moving the pin does), and the
+  /// wizard must not keep showing it as done.
+  void _adoptVerification(PropertyVerification? verification) {
+    if (verification == null || !mounted) return;
+    setState(() {
+      _verification = verification;
+      _gpsVerified = verification.onSite == OnSiteState.passed;
+    });
   }
 
   void _autosaveDraft() async {
@@ -2074,23 +2095,30 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
           ),
           const SizedBox(height: 16),
           _buildChecklistItem(
-            title: 'Phone Number Authenticated',
-            subtitle: 'Confirmed via SMS OTP code',
-            isComplete: _hasPhoneVerified,
+            title: 'Phone Number Confirmed',
+            subtitle: _checklist.phone.subtitle,
+            isComplete: _checklist.phone.complete,
             icon: Icons.phone_android_rounded,
           ),
           const SizedBox(height: 10),
           _buildChecklistItem(
-            title: 'On-Site GPS Location Confirmed',
-            subtitle: 'Captured live coordinates at listing location',
-            isComplete: _hasGpsVerified,
+            title: 'On-Site Check Passed',
+            subtitle: _checklist.onSite.subtitle,
+            isComplete: _checklist.onSite.complete,
             icon: Icons.my_location_rounded,
           ),
           const SizedBox(height: 10),
           _buildChecklistItem(
-            title: 'Ownership / Utility Proof Uploaded',
-            subtitle: 'Title deed, utility bill or ID photo attached',
-            isComplete: _hasDocUploaded,
+            title: 'Photos Approved',
+            subtitle: _checklist.photos.subtitle,
+            isComplete: _checklist.photos.complete,
+            icon: Icons.photo_library_outlined,
+          ),
+          const SizedBox(height: 10),
+          _buildChecklistItem(
+            title: 'Ownership / Utility Proof (optional)',
+            subtitle: _checklist.documents.subtitle,
+            isComplete: _checklist.documents.complete,
             icon: Icons.description_outlined,
           ),
           const SizedBox(height: 14),
@@ -2123,7 +2151,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
             )
           else
             Text(
-              'Complete all 3 verification checkpoints above to earn top feed placement and the official VERIFIED badge.',
+              'A confirmed phone, a passed on-site check and approved photos earn top feed placement and the official VERIFIED badge.',
               style:
                   TextStyle(color: Colors.grey[400], fontSize: 12, height: 1.3),
             ),

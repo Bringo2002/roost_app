@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/property_draft_service.dart';
@@ -131,6 +132,77 @@ void main() {
       for (final status in ['DRAFT', 'PUBLISHED', 'RENTED']) {
         expect(PropertyDraftService.statusForProgressSave(status), status);
       }
+    });
+  });
+
+  group('PropertyDraftService.saveDraft', () {
+    Map<String, dynamic> verification({String onSite = 'NOT_ATTEMPTED'}) => {
+          'phone': 'VERIFIED',
+          'location': 'CONFIRMED',
+          'onSite': onSite,
+          'photos': 'SUBMITTED',
+          'documents': 'NOT_SUBMITTED',
+          'authority': 'NOT_ESTABLISHED',
+          'badgeEarned': false,
+        };
+
+    test('reports the verification state from an update', () async {
+      stub(put: http.Response(
+          jsonEncode({'id': 7, 'verification': verification(onSite: 'PASSED')}),
+          200));
+
+      final saved = await PropertyDraftService.saveDraft(7, {'title': 'Loft'});
+
+      expect(saved.id, 7);
+      expect(saved.verification!.onSite, OnSiteState.passed);
+      expect(saved.verification!.photos, PhotosState.submitted);
+    });
+
+    test('reports the verification state from a create', () async {
+      stub(post: http.Response(
+          jsonEncode({'id': 41, 'verification': verification()}), 201));
+
+      final saved = await PropertyDraftService.saveDraft(null, {'title': 'Loft'});
+
+      expect(saved.id, 41);
+      expect(saved.verification!.onSite, OnSiteState.notAttempted);
+    });
+
+    test('has no verification when the response carries none', () async {
+      stub(put: http.Response('{"id": 7}', 200));
+
+      final saved = await PropertyDraftService.saveDraft(7, {'title': 'Loft'});
+
+      expect(saved.id, 7);
+      expect(saved.verification, isNull);
+    });
+
+    test('a deleted draft is recreated and the new listing\'s state reported',
+        () async {
+      final requests = stub(
+        put: http.Response('{"error": "Property not found"}', 404),
+        post: http.Response(
+            jsonEncode({'id': 9, 'verification': verification()}), 200),
+      );
+
+      final saved = await PropertyDraftService.saveDraft(7, {'title': 'Loft'});
+
+      expect(calls(requests), ['PUT /api/properties/7', 'POST /api/properties']);
+      expect(saved.id, 9);
+      expect(saved.verification, isNotNull);
+    });
+
+    test('a malformed verification fails loudly and is not POSTed again',
+        () async {
+      final requests = stub(put: http.Response(
+          jsonEncode({'id': 7, 'verification': {'phone': 'NOPE'}}), 200));
+
+      await expectLater(
+        PropertyDraftService.saveDraft(7, {'title': 'Loft'}),
+        throwsA(isA<FormatException>()),
+      );
+      expect(calls(requests), ['PUT /api/properties/7'],
+          reason: 'must not fall back to creating a duplicate listing');
     });
   });
 }
