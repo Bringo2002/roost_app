@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/models/property_verification.dart';
 
 void main() {
   group('Property Utility Breakdown & JSON Tests', () {
@@ -113,6 +114,62 @@ void main() {
       expect(json['deposit_months'], equals(2));
       expect(json['electricityType'], equals('postpaid'));
       expect(json['electricity_type'], equals('postpaid'));
+    });
+  });
+
+  group('Property.verification', () {
+    final base = {
+      'title': 'Sunny 1BR',
+      'description': 'Bright',
+      'location': 'Kilimani, Nairobi',
+      'price': 25000.0,
+      'bedrooms': 1,
+      'type': 'RENTAL',
+      'landlordPhone': '+254712345678',
+      'available': true,
+    };
+
+    test('is parsed from an owner response', () {
+      final property = Property.fromJson({
+        ...base,
+        'verification': {
+          'phone': 'VERIFIED',
+          'location': 'CONFIRMED',
+          'onSite': 'PASSED',
+          'photos': 'SUBMITTED',
+          'documents': 'UPLOADED',
+          'authority': 'NOT_ESTABLISHED',
+          'badgeEarned': false,
+        },
+      });
+
+      expect(property.verification, isNotNull);
+      expect(property.verification!.onSite, OnSiteState.passed);
+      expect(property.verification!.photos, PhotosState.submitted);
+    });
+
+    test('is null for a public response, which carries none', () {
+      expect(Property.fromJson({...base, 'verification': null}).verification,
+          isNull);
+      expect(Property.fromJson(base).verification, isNull);
+    });
+
+    test('copyWith keeps it unless replaced', () {
+      final property = Property.fromJson({
+        ...base,
+        'verification': {
+          'phone': 'UNVERIFIED',
+          'location': 'UNCONFIRMED',
+          'onSite': 'NOT_ATTEMPTED',
+          'photos': 'NOT_SUBMITTED',
+          'documents': 'NOT_SUBMITTED',
+          'authority': 'NOT_ESTABLISHED',
+          'badgeEarned': false,
+        },
+      });
+
+      expect(property.copyWith(title: 'Renamed').verification,
+          same(property.verification));
     });
   });
 }

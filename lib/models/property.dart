@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/models/user.dart';
 
 /// A nearby point of interest (closest mall, hospital, or major road),
@@ -50,6 +51,10 @@ class Property {
   final bool gpsVerified;
   final bool documentVerified;
   final bool communityVerified;
+
+  /// Every trust signal and its state. Only present when the listing's owner
+  /// is looking; null in public views, which carry just the [verified] badge.
+  final PropertyVerification? verification;
   final List<String> riskFlags;
 
   /// "Is this a fair price?" comparison -- only populated when fetched
@@ -155,6 +160,7 @@ class Property {
     this.gpsVerified = false,
     this.documentVerified = false,
     this.communityVerified = false,
+    this.verification,
     this.riskFlags = const [],
     this.priceComparisonAverage,
     this.priceComparisonSampleSize,
@@ -239,6 +245,7 @@ class Property {
     bool? gpsVerified,
     bool? documentVerified,
     bool? communityVerified,
+    PropertyVerification? verification,
     List<String>? riskFlags,
     double? priceComparisonAverage,
     int? priceComparisonSampleSize,
@@ -322,6 +329,7 @@ class Property {
       gpsVerified: gpsVerified ?? this.gpsVerified,
       documentVerified: documentVerified ?? this.documentVerified,
       communityVerified: communityVerified ?? this.communityVerified,
+      verification: verification ?? this.verification,
       riskFlags: riskFlags ?? this.riskFlags,
       priceComparisonAverage: priceComparisonAverage ?? this.priceComparisonAverage,
       priceComparisonSampleSize: priceComparisonSampleSize ?? this.priceComparisonSampleSize,
@@ -408,6 +416,10 @@ class Property {
       gpsVerified: json['gpsVerified'] == true || json['gps_verified'] == true,
       documentVerified: json['documentVerified'] == true || json['document_verified'] == true,
       communityVerified: json['communityVerified'] == true || json['community_verified'] == true,
+      verification: json['verification'] is Map
+          ? PropertyVerification.fromJson(
+              Map<String, dynamic>.from(json['verification'] as Map))
+          : null,
       status: json['status'] ?? 'PUBLISHED',
       latitude: json['latitude'] != null ? _parseNumToDouble(json['latitude']) : (json['lat'] != null ? _parseNumToDouble(json['lat']) : null),
       longitude: json['longitude'] != null ? _parseNumToDouble(json['longitude']) : (json['lng'] != null ? _parseNumToDouble(json['lng']) : null),
