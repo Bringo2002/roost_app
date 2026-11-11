@@ -7,6 +7,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/country_service.dart';
+import 'package:roost_app/services/experiment_service.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/onboarding_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
@@ -50,6 +51,10 @@ class _OnboardingPageState extends State<OnboardingPage>
   bool _previewLoading = false;
   bool _previewFetched = false;
   String? _previewError;
+
+  // A/B experiment variants
+  String _ctaVariant = 'show_my_homes';
+  String _blurVariant = 'heavy_blur';
 
   // Welcome entrance animation
   late final AnimationController _welcomeAnimCtrl;
@@ -153,6 +158,25 @@ class _OnboardingPageState extends State<OnboardingPage>
     } else {
       _welcomeAnimCtrl.value = 1.0;
     }
+
+    // Load A/B experiment variants
+    _loadExperiments();
+  }
+
+  Future<void> _loadExperiments() async {
+    final cta = await ExperimentService.getVariant(ExperimentService.onboardingCtaCopy);
+    final blur = await ExperimentService.getVariant(ExperimentService.onboardingPreviewBlur);
+    if (mounted) {
+      setState(() {
+        _ctaVariant = cta;
+        _blurVariant = blur;
+      });
+    }
+    // Log onboarding started with experiment context
+    ExperimentService.logEvent('onboarding_started', {
+      'initial_step': _step,
+      'country': _selectedCountry.code,
+    });
   }
 
   @override
@@ -207,6 +231,12 @@ class _OnboardingPageState extends State<OnboardingPage>
     }
     if (_step < 6) {
       final nextStep = _step + 1;
+      // Log step completion for A/B funnel analysis
+      ExperimentService.logEvent('onboarding_step_completed', {
+        'step': _step,
+        'next_step': nextStep,
+        'country': _selectedCountry.code,
+      });
       setState(() {
         _previousStep = _step;
         _step = nextStep;
@@ -392,6 +422,14 @@ class _OnboardingPageState extends State<OnboardingPage>
 
   Future<void> _handleAuthResult(AuthResult result) async {
     if (result.success) {
+      // Log the key conversion event for A/B funnel analysis
+      ExperimentService.logEvent('onboarding_auth_completed', {
+        'auth_method': _isLoginMode ? 'login' : 'signup',
+        'country': _selectedCountry.code,
+        'house_type': _houseType,
+        'budget_index': _selectedBudgetIndex,
+        'timeframe': _moveInTimeframe,
+      });
       await CountryService.instance.setCountry(_selectedCountry);
       final dest = await OnboardingService.getPostAuthDestination(
         result,
@@ -481,6 +519,12 @@ class _OnboardingPageState extends State<OnboardingPage>
                 ),
                 const SizedBox(height: 28),
               ],
+              // Announce current step to screen readers
+              Semantics(
+                liveRegion: true,
+                label: 'Onboarding step ${_step + 1} of 7',
+                child: const SizedBox.shrink(),
+              ),
 
               // Step Content
               Expanded(
@@ -528,7 +572,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                           : _step == 1
                               ? (_requestingLocation ? 'Requesting Access...' : 'Allow Location Access')
                               : _step == 5
-                                  ? 'Show My Homes'
+                                  ? _experimentCtaText()
                                   : 'Continue',
                       style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                     ),
@@ -681,7 +725,11 @@ class _OnboardingPageState extends State<OnboardingPage>
               childAspectRatio: 2.2,
               children: CountryConfig.all.map((c) {
                 final isSelected = _selectedCountry.code == c.code;
-                return GestureDetector(
+                return Semantics(
+                  label: '${c.name}, ${c.currencyCode}',
+                  selected: isSelected,
+                  button: true,
+                  child: GestureDetector(
                   onTap: () {
                     HapticFeedback.selectionClick();
                     setState(() {
@@ -737,6 +785,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                       ],
                     ),
                   ),
+                ),
                 );
               }).toList(),
             ),
@@ -807,7 +856,11 @@ class _OnboardingPageState extends State<OnboardingPage>
               final desc = item['desc'] as String;
               final selected = _houseType == value;
 
-              return GestureDetector(
+              return Semantics(
+                label: '$title, $desc',
+                selected: selected,
+                button: true,
+                child: GestureDetector(
                 onTap: () {
                   HapticFeedback.selectionClick();
                   setState(() => _houseType = value);
@@ -858,6 +911,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                     ],
                   ),
                 ),
+              ),
               );
             },
           ),
@@ -889,7 +943,11 @@ class _OnboardingPageState extends State<OnboardingPage>
               final desc = item.desc;
               final selected = _selectedBudgetIndex == index;
 
-              return GestureDetector(
+              return Semantics(
+                label: '$title, $badge, $desc',
+                selected: selected,
+                button: true,
+                child: GestureDetector(
                 onTap: () {
                   HapticFeedback.selectionClick();
                   setState(() => _selectedBudgetIndex = index);
@@ -947,6 +1005,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                     ],
                   ),
                 ),
+              ),
               );
             },
           ),
@@ -977,7 +1036,11 @@ class _OnboardingPageState extends State<OnboardingPage>
               final desc = item['desc'] as String;
               final selected = _moveInTimeframe == title;
 
-              return GestureDetector(
+              return Semantics(
+                label: '$title, $desc',
+                selected: selected,
+                button: true,
+                child: GestureDetector(
                 onTap: () {
                   HapticFeedback.selectionClick();
                   setState(() => _moveInTimeframe = title);
@@ -1027,6 +1090,7 @@ class _OnboardingPageState extends State<OnboardingPage>
                     ],
                   ),
                 ),
+              ),
               );
             },
           ),
@@ -1073,7 +1137,10 @@ class _OnboardingPageState extends State<OnboardingPage>
                 : _previewError != null && _previewProperties.isEmpty
                     ? _buildPreviewFallback(goldAccent)
                     : ImageFiltered(
-                        imageFilter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
+                        imageFilter: ImageFilter.blur(
+                          sigmaX: _blurVariant == 'light_blur' ? 4 : 8,
+                          sigmaY: _blurVariant == 'light_blur' ? 4 : 8,
+                        ),
                         child: ListView(
                           physics: const NeverScrollableScrollPhysics(),
                           children: _previewProperties.isNotEmpty
@@ -1414,13 +1481,17 @@ class _OnboardingPageState extends State<OnboardingPage>
             decoration: _authInputDecoration(
               'Password',
               Icons.lock_outline,
-              suffixIcon: IconButton(
+              suffixIcon: Semantics(
+                label: _obscurePassword ? 'Show password' : 'Hide password',
+                button: true,
+                child: IconButton(
                 icon: Icon(
                   _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                   color: Colors.grey[500],
                   size: 20,
                 ),
                 onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+              ),
               ),
             ),
           ),
@@ -1454,12 +1525,16 @@ class _OnboardingPageState extends State<OnboardingPage>
                 _isLoginMode ? "Don't have an account? " : 'Already have an account? ',
                 style: TextStyle(color: Colors.grey[500], fontSize: 14),
               ),
-              GestureDetector(
+              Semantics(
+                label: _isLoginMode ? 'Switch to Sign Up' : 'Switch to Log In',
+                button: true,
+                child: GestureDetector(
                 onTap: () => setState(() => _isLoginMode = !_isLoginMode),
                 child: Text(
                   _isLoginMode ? 'Sign Up' : 'Log In',
                   style: TextStyle(color: goldAccent, fontWeight: FontWeight.bold, fontSize: 14),
                 ),
+              ),
               ),
             ],
           ),
@@ -1514,5 +1589,20 @@ class _OnboardingPageState extends State<OnboardingPage>
         ),
       ],
     );
+  }
+
+  // ── A/B Experiment Helpers ────────────────────────────────────────
+
+  /// Returns the CTA button text based on the experiment variant.
+  String _experimentCtaText() {
+    switch (_ctaVariant) {
+      case 'unlock_my_feed':
+        return 'Unlock My Feed';
+      case 'see_whats_waiting':
+        return 'See What\'s Waiting';
+      case 'show_my_homes':
+      default:
+        return 'Show My Homes';
+    }
   }
 }

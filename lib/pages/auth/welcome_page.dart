@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:roost_app/pages/auth/login_page.dart';
-import 'package:roost_app/pages/auth/signup_page.dart';
+import 'package:roost_app/pages/onboarding/onboarding_page.dart';
 import 'package:roost_app/widgets/common/roost_logo_icon.dart';
 
 /// The first screen users see after onboarding — the brand hero moment.
@@ -202,10 +202,10 @@ class _WelcomePageState extends State<WelcomePage>
                           height: 56,
                           child: OutlinedButton(
                             onPressed: () {
-                              Navigator.push(
+                              Navigator.pushReplacement(
                                 context,
                                 MaterialPageRoute(
-                                  builder: (_) => const SignupPage(),
+                                  builder: (_) => const OnboardingPage(),
                                 ),
                               );
                             },
