@@ -18,7 +18,7 @@
         android:label="Roost"
         android:name="${applicationName}"
         android:allowBackup="false"
-        android:usesCleartextTraffic="true"
+        android:usesCleartextTraffic="false"
         android:icon="@mipmap/ic_launcher">
         <!-- Populated from android/local.properties (MAPS_API_KEY), never
              committed - see android/app/build.gradle.kts. -->
