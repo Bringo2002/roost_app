@@ -73,16 +73,29 @@ class _SplashPageState extends State<SplashPage> {
     );
     if (!mounted) return;
 
+    // Use a zero-duration route so there's no slide animation that
+    // would reveal the SplashPage scaffold underneath and cause a
+    // logo → logo flash during the transition.
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(builder: (_) => dest.widget),
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) => dest.widget,
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+      ),
     );
 
-    try {
-      FlutterNativeSplash.remove();
-    } catch (_) {
-      // No-op in environments without a real native splash view (e.g.
-      // widget tests) -- never let this block navigation.
-    }
+    // Wait one frame so the destination page's first frame is fully
+    // painted and covers the screen before we lift the native splash.
+    // Without this, there's a 1–2 frame gap where neither the native
+    // splash nor the new page is visible.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      try {
+        FlutterNativeSplash.remove();
+      } catch (_) {
+        // No-op in environments without a real native splash view (e.g.
+        // widget tests) -- never let this block navigation.
+      }
+    });
   }
 
   @override
