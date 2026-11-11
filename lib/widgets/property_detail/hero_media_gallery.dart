@@ -8,6 +8,7 @@ import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
+import 'package:roost_app/widgets/property_detail/full_screen_video_player.dart';
 import 'package:roost_app/widgets/property_detail/glass_icon_button.dart';
 
 const double kHeroMediaHeight = 340;
@@ -337,7 +338,7 @@ class _HeroVideoSlideState extends State<_HeroVideoSlide> {
 
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: _toggleMute,
+      onTap: () => FullScreenVideoPlayer.open(context, widget.url),
       child: Stack(
         fit: StackFit.expand,
         children: [
