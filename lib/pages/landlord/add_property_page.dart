@@ -1928,7 +1928,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 label: 'Bedrooms',
                 value: _bedrooms,
                 min: 0,
-                max: 20,
                 onChanged: (v) => setState(() => _bedrooms = v),
               ),
             ),
@@ -1938,7 +1937,6 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
                 label: 'Bathrooms',
                 value: _bathrooms,
                 min: 0,
-                max: 10,
                 onChanged: (v) => setState(() => _bathrooms = v),
               ),
             ),
@@ -3228,14 +3226,14 @@ class _StepperField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.min,
-    required this.max,
+    this.max,
     required this.onChanged,
   });
 
   final String label;
   final int value;
   final int min;
-  final int max;
+  final int? max;
   final ValueChanged<int> onChanged;
 
   @override
@@ -3285,24 +3283,24 @@ class _StepperField extends StatelessWidget {
                       fontSize: 20,
                       fontWeight: FontWeight.bold)),
               GestureDetector(
-                onTap: value < max ? () => onChanged(value + 1) : null,
+                onTap: max == null || value < max! ? () => onChanged(value + 1) : null,
                 child: Container(
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: value < max
+                    color: max == null || value < max!
                         ? Colors.white.withValues(alpha: 0.1)
                         : Colors.transparent,
                     shape: BoxShape.circle,
                     border: Border.all(
-                      color: value < max
+                      color: max == null || value < max!
                           ? AppColors.surfaceContainerHighest
                           : Colors.white12,
                     ),
                   ),
                   child: Icon(Icons.add,
                       size: 16,
-                      color: value < max ? Colors.white : Colors.white24),
+                      color: max == null || value < max! ? Colors.white : Colors.white24),
                 ),
               ),
             ],
