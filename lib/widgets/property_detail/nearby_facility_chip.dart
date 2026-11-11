@@ -4,25 +4,42 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/utils/maps_navigation.dart';
 
-/// One nearby place (mall / hospital / major road) as a tappable pill:
-/// category icon + "600m from TRM Mall". Tapping opens Google Maps
-/// directions to it. Localized, screen-reader friendly, and safe for long
-/// names (wraps to two lines, then ellipsizes).
+/// One nearby place (supermarket / pharmacy / mall / hospital / school /
+/// bus station / bank / restaurant / police / gas station / major road)
+/// as a tappable pill: category icon + "600m from TRM Mall". Tapping opens
+/// Google Maps directions to it. Localized, screen-reader friendly, and
+/// safe for long names (wraps to two lines, then ellipsizes).
 class NearbyFacilityChip extends StatelessWidget {
   final NearbyFacility facility;
 
   const NearbyFacilityChip({super.key, required this.facility});
 
   static IconData _icon(String category) => switch (category) {
+        'supermarket' => Icons.local_grocery_store_outlined,
+        'pharmacy' => Icons.local_pharmacy_outlined,
         'mall' => Icons.shopping_bag_outlined,
         'hospital' => Icons.local_hospital_outlined,
+        'school' => Icons.school_outlined,
+        'bus_station' => Icons.directions_bus_outlined,
+        'bank' => Icons.account_balance_outlined,
+        'restaurant' => Icons.restaurant_outlined,
+        'police' => Icons.local_police_outlined,
+        'gas_station' => Icons.local_gas_station_outlined,
         'road' => Icons.add_road_outlined,
         _ => Icons.place_outlined,
       };
 
   static String _categoryLabel(AppLocalizations l10n, String category) => switch (category) {
+        'supermarket' => l10n.nearbyFacilityCategorySupermarket,
+        'pharmacy' => l10n.nearbyFacilityCategoryPharmacy,
         'mall' => l10n.nearbyFacilityCategoryMall,
         'hospital' => l10n.nearbyFacilityCategoryHospital,
+        'school' => l10n.nearbyFacilityCategorySchool,
+        'bus_station' => l10n.nearbyFacilityCategoryBusStation,
+        'bank' => l10n.nearbyFacilityCategoryBank,
+        'restaurant' => l10n.nearbyFacilityCategoryRestaurant,
+        'police' => l10n.nearbyFacilityCategoryPolice,
+        'gas_station' => l10n.nearbyFacilityCategoryGasStation,
         'road' => l10n.nearbyFacilityCategoryRoad,
         _ => l10n.nearbyFacilityCategoryOther,
       };

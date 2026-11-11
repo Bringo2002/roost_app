@@ -234,6 +234,38 @@
   "@nearbyFacilityCategoryRoad": {
     "description": "Screen-reader category name for a nearby major road."
   },
+  "nearbyFacilityCategorySupermarket": "Supermarket",
+  "@nearbyFacilityCategorySupermarket": {
+    "description": "Screen-reader category name for a nearby supermarket or grocery store."
+  },
+  "nearbyFacilityCategoryPharmacy": "Pharmacy",
+  "@nearbyFacilityCategoryPharmacy": {
+    "description": "Screen-reader category name for a nearby pharmacy or chemist."
+  },
+  "nearbyFacilityCategorySchool": "School",
+  "@nearbyFacilityCategorySchool": {
+    "description": "Screen-reader category name for a nearby school."
+  },
+  "nearbyFacilityCategoryBusStation": "Bus station",
+  "@nearbyFacilityCategoryBusStation": {
+    "description": "Screen-reader category name for a nearby bus station or matatu stage."
+  },
+  "nearbyFacilityCategoryBank": "Bank",
+  "@nearbyFacilityCategoryBank": {
+    "description": "Screen-reader category name for a nearby bank."
+  },
+  "nearbyFacilityCategoryRestaurant": "Restaurant",
+  "@nearbyFacilityCategoryRestaurant": {
+    "description": "Screen-reader category name for a nearby restaurant."
+  },
+  "nearbyFacilityCategoryPolice": "Police station",
+  "@nearbyFacilityCategoryPolice": {
+    "description": "Screen-reader category name for a nearby police station."
+  },
+  "nearbyFacilityCategoryGasStation": "Petrol station",
+  "@nearbyFacilityCategoryGasStation": {
+    "description": "Screen-reader category name for a nearby petrol/gas station."
+  },
   "nearbyFacilityCategoryOther": "Place",
   "@nearbyFacilityCategoryOther": {
     "description": "Screen-reader category name for a nearby place of unknown type."

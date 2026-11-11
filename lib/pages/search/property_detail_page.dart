@@ -13,6 +13,7 @@ import 'package:roost_app/pages/chat/chat_room_page.dart';
 import 'package:roost_app/pages/search/in_app_map_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/listing_event_service.dart';
+import 'package:roost_app/services/nearby_places_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
@@ -41,6 +42,26 @@ class PropertyDetailPage extends StatefulWidget {
   const PropertyDetailPage({super.key, required this.property});
 
   final Property property;
+
+  /// Builds a [PageRouteBuilder] with a fade transition instead of
+  /// [MaterialPageRoute]'s default slide. The slide fights the Hero flight
+  /// (the destination is a moving target while the page slides in), which
+  /// causes the expand animation to stutter. A fade keeps the page
+  /// stationary so the Hero image can fly smoothly from card to header.
+  static Route<T> route<T>(Property property) {
+    return PageRouteBuilder<T>(
+      pageBuilder: (context, animation, secondaryAnimation) =>
+          PropertyDetailPage(property: property),
+      transitionsBuilder: (context, animation, secondaryAnimation, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(parent: animation, curve: Curves.easeOut),
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 350),
+      reverseTransitionDuration: const Duration(milliseconds: 300),
+    );
+  }
 
   @override
   State<PropertyDetailPage> createState() => _PropertyDetailPageState();
@@ -127,22 +148,55 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
     }
   }
 
-  /// Only runs when the listing arrived without facilities, so listings that
-  /// already have them cost no extra request. Best-effort: any failure just
-  /// leaves the section hidden, exactly as before.
+  /// Populates nearby amenities for the listing. Tries the backend first
+  /// (which fills facilities server-side after GPS verification), then
+  /// falls back to the Google Places API client-side so renters always
+  /// see supermarkets, pharmacies, schools, and other neighbourhood
+  /// amenities that make a listing attractive.
+  ///
+  /// Only runs when the listing arrived without facilities, so listings
+  /// that already have them cost no extra request. Best-effort: any
+  /// failure just leaves the section hidden, exactly as before.
   Future<void> _refreshNearbyFacilities() async {
     final id = widget.property.id;
     if (id == null || widget.property.nearbyFacilities.isNotEmpty) return;
+
+    // 1. Try the backend first — it may have computed facilities after
+    //    GPS verification (mall, hospital, road).
     try {
       final response = await ApiService.get('/api/properties/$id');
-      if (response is! Map) return;
-      final fresh = Property.fromJson(Map<String, dynamic>.from(response));
-      if (!mounted || fresh.nearbyFacilities.isEmpty) return;
+      if (response is Map) {
+        final fresh = Property.fromJson(Map<String, dynamic>.from(response));
+        if (mounted && fresh.nearbyFacilities.isNotEmpty) {
+          setState(() {
+            _refreshed = widget.property.copyWith(
+              nearbyFacilities: fresh.nearbyFacilities,
+            );
+          });
+          return; // Backend had data — done.
+        }
+      }
+    } catch (e) {
+      debugPrint('Backend nearby facilities fetch failed for $id: $e');
+    }
+
+    // 2. Client-side fallback: use Google Places API to find nearby
+    //    amenities from the property's coordinates.
+    final lat = _property.latitude;
+    final lng = _property.longitude;
+    if (lat == null || lng == null || lat == 0 || lng == 0) return;
+
+    try {
+      final places = await NearbyPlacesService.fetch(
+        latitude: lat,
+        longitude: lng,
+      );
+      if (!mounted || places.isEmpty) return;
       setState(() {
-        _refreshed = widget.property.copyWith(nearbyFacilities: fresh.nearbyFacilities);
+        _refreshed = widget.property.copyWith(nearbyFacilities: places);
       });
     } catch (e) {
-      debugPrint('Failed to refresh nearby facilities for property $id: $e');
+      debugPrint('Places API nearby facilities fetch failed for $id: $e');
     }
   }
 
