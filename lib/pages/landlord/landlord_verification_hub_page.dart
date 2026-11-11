@@ -6,6 +6,7 @@ import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/pages/landlord/add_property_page.dart';
 import 'package:roost_app/pages/landlord/endorsement_page.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/utils/proof_tags.dart';
 
 class LandlordVerificationHubPage extends StatefulWidget {
   const LandlordVerificationHubPage({super.key});
@@ -578,13 +579,14 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
                     ),
                     const SizedBox(height: 6),
                     // Mini Proof Status Pills
-                    Row(
+                    // What the backend says about each signal, so an upload
+                    // awaiting review and a rejection don't look like "not done".
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 4,
                       children: [
-                        _buildProofTag('Phone', true),
-                        const SizedBox(width: 6),
-                        _buildProofTag('GPS', property.gpsVerified),
-                        const SizedBox(width: 6),
-                        _buildProofTag('Doc Proof', property.documentVerified),
+                        for (final tag in proofTagsFor(property))
+                          _buildProofTag(tag),
                       ],
                     ),
                   ],
@@ -655,26 +657,40 @@ class _LandlordVerificationHubPageState extends State<LandlordVerificationHubPag
     );
   }
 
-  Widget _buildProofTag(String label, bool active) {
+  Widget _buildProofTag(ProofTag tag) {
+    final (Color background, Color foreground, IconData icon) = switch (tag.tone) {
+      ProofTone.done => (
+          AppColors.verified.withAlpha(25),
+          AppColors.verifiedLight,
+          Icons.check_circle,
+        ),
+      ProofTone.pending => (
+          AppColors.warning.withAlpha(25),
+          AppColors.warning,
+          Icons.schedule,
+        ),
+      ProofTone.problem => (
+          AppColors.error.withAlpha(25),
+          AppColors.error,
+          Icons.error_outline,
+        ),
+      ProofTone.none => (Colors.white10, Colors.white38, Icons.circle_outlined),
+    };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
       decoration: BoxDecoration(
-        color: active ? AppColors.verified.withAlpha(25) : Colors.white10,
+        color: background,
         borderRadius: BorderRadius.circular(6),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            active ? Icons.check_circle : Icons.circle_outlined,
-            size: 10,
-            color: active ? AppColors.verifiedLight : Colors.white38,
-          ),
+          Icon(icon, size: 10, color: foreground),
           const SizedBox(width: 4),
           Text(
-            label,
+            tag.label,
             style: TextStyle(
-              color: active ? AppColors.verifiedLight : Colors.white38,
+              color: foreground,
               fontSize: 10,
               fontWeight: FontWeight.w600,
             ),

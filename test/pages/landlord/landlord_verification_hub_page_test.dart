@@ -19,6 +19,7 @@ Map<String, dynamic> _property({
   String title = 'Listing',
   bool gpsVerified = false,
   bool verified = false,
+  Map<String, dynamic>? verification,
 }) {
   return {
     'id': id,
@@ -34,6 +35,7 @@ Map<String, dynamic> _property({
     'gpsVerified': gpsVerified,
     'documentVerified': false,
     'imageUrls': <String>[],
+    'verification': verification,
   };
 }
 
@@ -93,6 +95,29 @@ void main() {
 
     expect(find.text('Cozy Bedsitter'), findsOneWidget);
     expect(find.text('Verify GPS On-Site'), findsOneWidget);
+  });
+
+  testWidgets('shows what the backend says about phone, photos and documents', (tester) async {
+    ApiService.client = MockClient((request) async {
+      return _json([
+        _property(id: 1, title: 'Cozy Bedsitter', verification: {
+          'phone': 'UNVERIFIED',
+          'location': 'CONFIRMED',
+          'onSite': 'NOT_ATTEMPTED',
+          'photos': 'REJECTED',
+          'documents': 'UPLOADED',
+          'authority': 'NOT_ESTABLISHED',
+          'badgeEarned': false,
+        }),
+      ]);
+    });
+
+    await tester.pumpWidget(wrap(const LandlordVerificationHubPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Phone unverified'), findsOneWidget);
+    expect(find.text('Photos rejected'), findsOneWidget);
+    expect(find.text('Doc pending'), findsOneWidget);
   });
 
   testWidgets('verifying GPS posts the coordinates and updates locally, with no second GET', (tester) async {
