@@ -29,20 +29,27 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
-  void _signInWithGoogle() async {
+  Future<void> _signInWithGoogle() async {
     setState(() => _isLoading = true);
     final result = await AuthService.signInWithGoogle();
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result.success) {
-      final dest = await OnboardingService.getPostAuthDestination(result);
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => dest.widget),
-        (route) => false,
-      );
+      try {
+        final dest = await OnboardingService.getPostAuthDestination(result);
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => dest.widget),
+          (route) => false,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Something went wrong. Please try again.'), duration: Duration(seconds: 4)),
+        );
+      }
     } else if (result.error != null) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text(result.error!), duration: const Duration(seconds: 4)),
@@ -50,20 +57,27 @@ class _LoginPageState extends State<LoginPage> {
     }
   }
 
-  void _signInWithApple() async {
+  Future<void> _signInWithApple() async {
     setState(() => _isLoading = true);
     final result = await AuthService.signInWithApple();
     if (!mounted) return;
     setState(() => _isLoading = false);
 
     if (result.success) {
-      final dest = await OnboardingService.getPostAuthDestination(result);
-      if (!mounted) return;
-      Navigator.pushAndRemoveUntil(
-        context,
-        MaterialPageRoute(builder: (_) => dest.widget),
-        (route) => false,
-      );
+      try {
+        final dest = await OnboardingService.getPostAuthDestination(result);
+        if (!mounted) return;
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(builder: (_) => dest.widget),
+          (route) => false,
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Something went wrong. Please try again.'), duration: Duration(seconds: 4)),
+        );
+      }
     } else if (result.error != null) {
       // error == null means the user dismissed the Apple sheet.
       ScaffoldMessenger.of(context).showSnackBar(

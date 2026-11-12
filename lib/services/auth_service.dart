@@ -204,6 +204,7 @@ class AuthService {
       // method's catch blocks rather than escaping through the returned Future.
       return await _exchangeGoogleToken(firebaseIdToken);
     } on GoogleSignInException catch (e) {
+      debugPrint('Google sign-in GoogleSignInException: code=${e.code}, details=$e');
       if (e.code == GoogleSignInExceptionCode.canceled) {
         // User closed the account picker -- not an error, nothing to show.
         return AuthResult(success: false);
@@ -212,7 +213,8 @@ class AuthService {
         success: false,
         error: 'Google sign-in failed. Please try again.',
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('Google sign-in unexpected error: $e\n$st');
       return AuthResult(
         success: false,
         error: 'Google sign-in failed. Please try again.',
