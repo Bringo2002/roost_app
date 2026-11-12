@@ -584,6 +584,7 @@ class AuthService {
     try {
       await fb_auth.FirebaseAuth.instance.signOut();
       await GoogleSignIn.instance.signOut();
+      _googleSignInReady = false;
     } catch (e) {
       debugPrint('Logout: Firebase/Google sign-out failed: $e');
     }
