@@ -34,7 +34,7 @@ class VerificationBadges extends StatelessWidget {
           _Badge(icon: Icons.verified, label: 'Verified Listing', solid: true, onTap: onTapVerification),
         if (property.gpsVerified && !property.verified)
           _Badge(icon: Icons.my_location, label: 'GPS Confirmed', onTap: onTapVerification),
-        if ((property.documentVerified || property.documentUrls.isNotEmpty) && !property.verified)
+        if ((property.documentVerified || property.hasSubmittedDocuments) && !property.verified)
           _Badge(icon: Icons.description_outlined, label: 'Doc Attached', onTap: onTapVerification),
         if (property.communityVerified)
           const _Badge(icon: Icons.groups_2_outlined, label: 'Community Verified'),

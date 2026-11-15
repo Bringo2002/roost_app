@@ -12,6 +12,7 @@ Property _property({
   bool verified = true,
   bool gpsVerified = false,
   bool documentVerified = false,
+  int documentCount = 0,
 }) {
   return Property(
     id: 1,
@@ -26,6 +27,7 @@ Property _property({
     verified: verified,
     gpsVerified: gpsVerified,
     documentVerified: documentVerified,
+    documentCount: documentCount,
     riskFlags: const [],
     imageUrls: const [],
     bathrooms: 1,
@@ -135,6 +137,22 @@ void main() {
 
       expect(find.bySemanticsLabel('GPS Location, Verified'), findsOneWidget);
       expect(find.bySemanticsLabel('Doc Proof, Pending'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('submitted documents read as verified, as the public payload only carries a count', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(
+        _wrap(
+          TrustVerificationCard(
+            property: _property(verified: false, documentCount: 2),
+          ),
+        ),
+      );
+
+      expect(find.bySemanticsLabel('Doc Proof, Verified'), findsOneWidget);
       handle.dispose();
     });
 
