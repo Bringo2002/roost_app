@@ -3226,14 +3226,12 @@ class _StepperField extends StatelessWidget {
     required this.label,
     required this.value,
     required this.min,
-    this.max,
     required this.onChanged,
   });
 
   final String label;
   final int value;
   final int min;
-  final int? max;
   final ValueChanged<int> onChanged;
 
   @override
@@ -3283,24 +3281,16 @@ class _StepperField extends StatelessWidget {
                       fontSize: 20,
                       fontWeight: FontWeight.bold)),
               GestureDetector(
-                onTap: max == null || value < max! ? () => onChanged(value + 1) : null,
+                onTap: () => onChanged(value + 1),
                 child: Container(
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: max == null || value < max!
-                        ? Colors.white.withValues(alpha: 0.1)
-                        : Colors.transparent,
+                    color: Colors.white.withValues(alpha: 0.1),
                     shape: BoxShape.circle,
-                    border: Border.all(
-                      color: max == null || value < max!
-                          ? AppColors.surfaceContainerHighest
-                          : Colors.white12,
-                    ),
+                    border: Border.all(color: AppColors.surfaceContainerHighest),
                   ),
-                  child: Icon(Icons.add,
-                      size: 16,
-                      color: max == null || value < max! ? Colors.white : Colors.white24),
+                  child: const Icon(Icons.add, size: 16, color: Colors.white),
                 ),
               ),
             ],
