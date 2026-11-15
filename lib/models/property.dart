@@ -71,6 +71,11 @@ class Property {
   final User? owner;
   final List<String> imageUrls;
   final List<String> documentUrls;
+
+  /// How many verification documents the lister submitted. Public listing
+  /// payloads carry only this count (the links are private to the owner and
+  /// admins), so trust signals read it rather than [documentUrls].
+  final int documentCount;
   final double averageRating;
   final int reviewCount;
   final int reportCount;
@@ -172,6 +177,7 @@ class Property {
     this.owner,
     this.imageUrls = const [],
     this.documentUrls = const [],
+    this.documentCount = 0,
     this.averageRating = 0.0,
     this.reviewCount = 0,
     this.reportCount = 0,
@@ -257,6 +263,7 @@ class Property {
     User? owner,
     List<String>? imageUrls,
     List<String>? documentUrls,
+    int? documentCount,
     double? averageRating,
     int? reviewCount,
     int? reportCount,
@@ -341,6 +348,7 @@ class Property {
       owner: owner ?? this.owner,
       imageUrls: imageUrls ?? this.imageUrls,
       documentUrls: documentUrls ?? this.documentUrls,
+      documentCount: documentCount ?? this.documentCount,
       averageRating: averageRating ?? this.averageRating,
       reviewCount: reviewCount ?? this.reviewCount,
       reportCount: reportCount ?? this.reportCount,
@@ -398,6 +406,10 @@ class Property {
     );
   }
 
+  /// True when the lister has submitted verification documents. Uploading
+  /// is not acceptance; see [documentVerified] for that.
+  bool get hasSubmittedDocuments => documentCount > 0 || documentUrls.isNotEmpty;
+
   factory Property.fromJson(Map<String, dynamic> json) {
     // Temporary debug: log JSON keys when buildingName can't be resolved,
     // so we can identify the actual API key. Remove after fixing.
@@ -448,6 +460,9 @@ class Property {
           : (json['document_urls'] is List
               ? (json['document_urls'] as List).map((e) => e.toString()).toList()
               : []),
+      // Absent on slim list items and on listings cached before this field
+      // existed; a present value of the wrong type is a contract break.
+      documentCount: json['documentCount'] == null ? 0 : json['documentCount'] as int,
       averageRating: _parseNumToDouble(json['averageRating'] ?? json['average_rating']),
       reviewCount: _parseNumToInt(json['reviewCount'] ?? json['review_count']),
       reportCount: _parseNumToInt(json['reportCount'] ?? json['report_count']),
@@ -590,6 +605,7 @@ class Property {
       'longitude': longitude,
       'imageUrls': imageUrls,
       'documentUrls': documentUrls,
+      'documentCount': documentCount,
       'videoUrl': videoUrl,
       'houseType': houseType,
       'bathrooms': bathrooms,

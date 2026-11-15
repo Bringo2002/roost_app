@@ -42,7 +42,7 @@ class TrustVerificationCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final avatarUrl = property.owner?.avatarUrl;
     final gpsOk = property.gpsVerified || property.verified;
-    final docOk = property.documentVerified || property.documentUrls.isNotEmpty || property.verified;
+    final docOk = property.documentVerified || property.hasSubmittedDocuments || property.verified;
 
     return Container(
       padding: const EdgeInsets.all(18),
@@ -173,7 +173,7 @@ class TrustVerificationCard extends StatelessWidget {
   /// without those badges needing to hold a reference to this widget.
   static void showDetails(BuildContext context, Property property) {
     final gpsOk = property.gpsVerified || property.verified;
-    final docOk = property.documentVerified || property.documentUrls.isNotEmpty || property.verified;
+    final docOk = property.documentVerified || property.hasSubmittedDocuments || property.verified;
 
     RoostBottomSheet.show(
       context: context,

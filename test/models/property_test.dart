@@ -172,4 +172,59 @@ void main() {
           same(property.verification));
     });
   });
+
+  group('Property document proof', () {
+    Map<String, dynamic> baseJson() => {
+          'title': 'Studio',
+          'description': 'Cozy',
+          'location': 'Kilimani, Nairobi',
+          'price': 45000.0,
+          'bedrooms': 1,
+          'type': 'RENTAL',
+          'landlordPhone': '+254712345678',
+          'available': true,
+        };
+
+    test('reads documentCount from the public listing payload', () {
+      final property = Property.fromJson({
+        ...baseJson(),
+        'documentUrls': <String>[],
+        'documentCount': 2,
+      });
+
+      expect(property.documentCount, equals(2));
+      expect(property.hasSubmittedDocuments, isTrue);
+    });
+
+    test('a payload without documentCount reads as no documents', () {
+      final property = Property.fromJson(baseJson());
+
+      expect(property.documentCount, equals(0));
+      expect(property.hasSubmittedDocuments, isFalse);
+    });
+
+    test('document links alone still count as submitted documents', () {
+      final property = Property.fromJson({
+        ...baseJson(),
+        'documentUrls': ['https://files.example/id-front.jpg'],
+      });
+
+      expect(property.hasSubmittedDocuments, isTrue);
+    });
+
+    test('a documentCount of the wrong type is rejected, not guessed', () {
+      expect(
+        () => Property.fromJson({...baseJson(), 'documentCount': 'two'}),
+        throwsA(isA<TypeError>()),
+      );
+    });
+
+    test('documentCount survives a toJson / fromJson round trip', () {
+      final original = Property.fromJson({...baseJson(), 'documentCount': 3});
+
+      final restored = Property.fromJson(original.toJson());
+
+      expect(restored.documentCount, equals(3));
+    });
+  });
 }
