@@ -25,6 +25,7 @@ import 'package:roost_app/pages/profile/privacy_policy_page.dart';
 import 'package:roost_app/pages/profile/about_page.dart';
 import 'package:roost_app/pages/profile/change_password_page.dart';
 import 'package:roost_app/pages/profile/my_inspections_page.dart';
+import 'package:roost_app/pages/admin/admin_identity_review_page.dart';
 
 class ProfilePage extends StatefulWidget {
   const ProfilePage({super.key});
@@ -542,6 +543,15 @@ class _ProfilePageState extends State<ProfilePage> {
                           trailing: const Icon(Icons.chevron_right, color: Colors.grey),
                           onTap: () {
                             Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminPendingVerificationsPage()));
+                          },
+                        ),
+                        const Divider(height: 1, color: AppColors.divider),
+                        ListTile(
+                          leading: const Icon(Icons.badge_outlined, color: AppColors.white),
+                          title: const Text('Identity Verifications', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                          onTap: () {
+                            Navigator.push(context, MaterialPageRoute(builder: (_) => const AdminIdentityReviewPage()));
                           },
                         ),
                         const Divider(height: 1, color: AppColors.divider),
