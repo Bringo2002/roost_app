@@ -67,17 +67,26 @@ class ApiService {
     };
   }
 
-  static Future<dynamic> _safeRequest(Future<http.Response> Function() request) async {
+  /// Sends a request and turns the response into a value.
+  ///
+  /// [handle] turns a response into the caller's result and throws on
+  /// failure; it defaults to [_handleResponse] (JSON). [timeout] is longer
+  /// for callers that move a large body.
+  static Future<dynamic> _safeRequest(
+    Future<http.Response> Function() request, {
+    dynamic Function(http.Response) handle = _handleResponse,
+    Duration timeout = _timeoutDuration,
+  }) async {
     try {
-      final response = await request().timeout(_timeoutDuration);
+      final response = await request().timeout(timeout);
       if (response.statusCode == 401) {
         final refreshed = await AuthService.refreshToken();
         if (refreshed) {
-          final retryResponse = await request().timeout(_timeoutDuration);
-          return _handleResponse(retryResponse);
+          final retryResponse = await request().timeout(timeout);
+          return handle(retryResponse);
         }
       }
-      return _handleResponse(response);
+      return handle(response);
     } on SocketException {
       throw ApiException('No internet connection');
     } on TimeoutException {
@@ -94,6 +103,28 @@ class ApiService {
       final headers = await _getHeaders();
       return client.get(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers);
     });
+  }
+
+  /// GETs a binary response, such as a stored document, with the signed-in
+  /// token. Failures throw the same [ApiException]s as the JSON calls.
+  ///
+  /// The timeout is longer than for JSON because a document can be several MB.
+  static Future<Uint8List> getBytes(String endpoint) async {
+    final result = await _safeRequest(
+      () async {
+        final headers = await _getHeaders();
+        headers.remove('Content-Type');
+        return client.get(Uri.parse('${AppConfig.baseUrl}$endpoint'), headers: headers);
+      },
+      timeout: const Duration(seconds: 30),
+      handle: (response) {
+        if (response.statusCode >= 200 && response.statusCode < 300) {
+          return response.bodyBytes;
+        }
+        return _handleResponse(response);
+      },
+    );
+    return result as Uint8List;
   }
 
   static Future<dynamic> post(String endpoint, [Map<String, dynamic>? body]) async {
