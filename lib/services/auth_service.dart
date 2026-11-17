@@ -192,7 +192,7 @@ class AuthService {
       );
       final userCredential = await fb_auth.FirebaseAuth.instance
           .signInWithCredential(credential);
-      final firebaseIdToken = await userCredential.user?.getIdToken();
+      final firebaseIdToken = await userCredential.user?.getIdToken(true);
       if (firebaseIdToken == null) {
         return AuthResult(
           success: false,
