@@ -9,6 +9,7 @@ import 'package:firebase_auth/firebase_auth.dart' as fb_auth;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:geolocator/geolocator.dart' show Position;
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:file_picker/file_picker.dart';
@@ -16,6 +17,7 @@ import 'package:video_player/video_player.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/utils/gps_verification_message.dart';
+import 'package:roost_app/utils/neighbourhood_suggestion.dart';
 import 'package:roost_app/utils/publication_errors.dart';
 import 'package:roost_app/utils/verification_checklist.dart';
 import 'package:roost_app/pages/profile/phone_verification_page.dart';
@@ -89,6 +91,22 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
   final _titleCtrl = TextEditingController();
   final _buildingNameCtrl = TextEditingController();
   final _locationCtrl = TextEditingController();
+
+  /// The step index of the Location step in [_stepLabels].
+  static const _locationStep = 2;
+
+  /// The area last suggested from the phone's location and written into the
+  /// location field. Tells an untouched suggestion from text the lister typed.
+  String? _suggestedLocation;
+
+  /// Whether the quiet lookup on arriving at the Location step has run; it
+  /// runs once per visit to the wizard.
+  bool _areaLookupStarted = false;
+
+  /// True while the location field still holds the suggested area unchanged.
+  bool get _showingAreaSuggestion =>
+      _suggestedLocation != null &&
+      _locationCtrl.text.trim() == _suggestedLocation;
   final _priceCtrl = TextEditingController();
   final _depositCtrl = TextEditingController();
   final _descriptionCtrl = TextEditingController();
@@ -190,6 +208,11 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     super.initState();
     if (widget.initialStep != null) {
       _step = widget.initialStep!.clamp(0, _stepLabels.length - 1);
+    }
+    if (_step == _locationStep) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _suggestAreaOnEntry();
+      });
     }
     if (widget.autoPickDocument) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -458,6 +481,10 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _locationConfirmed = true;
         _gpsVerified = false;
       });
+      // Suggest the area before saving: the server checks the listing's
+      // address against this very position, so an empty or unfindable address
+      // would fail verification.
+      await _applyAreaSuggestion(position);
       try {
         final id = await _persist(_buildPayload(status: _progressStatus));
         if (id != null) {
@@ -491,6 +518,42 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
     } finally {
       if (mounted) setState(() => _checkingGps = false);
     }
+  }
+
+  // ── Area suggestion ───────────────────────────────────────────────────
+
+  /// On arriving at the Location step, suggests the area from the phone's
+  /// position, but only when location is already allowed (it never asks for
+  /// permission here; the "use my location" button does that) and the field is
+  /// still empty.
+  Future<void> _suggestAreaOnEntry() async {
+    if (_areaLookupStarted || _locationCtrl.text.trim().isNotEmpty) return;
+    _areaLookupStarted = true;
+    final status = await LocationService.checkPermissionStatus();
+    if (status != LocationPermissionStatus.granted) return;
+    final position = await LocationService.getCurrentPosition()
+        .timeout(const Duration(seconds: 10), onTimeout: () => null);
+    if (position == null || !mounted) return;
+    await _applyAreaSuggestion(position);
+  }
+
+  /// Writes the area at [position] into the location field when that is safe
+  /// (see [shouldApplyAreaSuggestion]); the lister can edit it freely.
+  Future<void> _applyAreaSuggestion(Position position) async {
+    final area = await LocationService.listingAreaAt(position);
+    if (area == null || !mounted) return;
+    if (!shouldApplyAreaSuggestion(
+      currentText: _locationCtrl.text,
+      previousSuggestion: _suggestedLocation,
+    )) {
+      return;
+    }
+    setState(() {
+      _suggestedLocation = area;
+      _locationCtrl.text = area;
+      _locationCtrl.selection = TextSelection.collapsed(offset: area.length);
+      _errors.remove('locationText');
+    });
   }
 
   // ── Photos / Video ────────────────────────────────────────────────────
@@ -1140,6 +1203,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _movingForward = true;
         _step++;
       });
+      if (_step == _locationStep) _suggestAreaOnEntry();
     } else {
       _submitProperty();
     }
@@ -1152,6 +1216,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
         _movingForward = false;
         _step--;
       });
+      if (_step == _locationStep) _suggestAreaOnEntry();
     }
   }
 
@@ -1161,6 +1226,7 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
       _movingForward = false;
       _step = step;
     });
+    if (_step == _locationStep) _suggestAreaOnEntry();
   }
 
   Future<void> _saveDraft() async {
@@ -1995,8 +2061,30 @@ class _AddPropertyPageState extends State<AddPropertyPage> {
               errorText: _errors['locationText'],
               prefixIcon: const Icon(Icons.location_on_outlined,
                   color: Colors.white38, size: 18)),
-          onChanged: (_) => _clearError('locationText'),
+          onChanged: (_) {
+            _clearError('locationText');
+            // Rebuild so the "suggested" note goes away as soon as it's edited.
+            if (_suggestedLocation != null) setState(() {});
+          },
         ),
+        if (_showingAreaSuggestion)
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: Row(
+              children: [
+                const Icon(Icons.near_me_outlined,
+                    size: 13, color: Colors.white54),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text(
+                    'Suggested from your location. Edit it if the property '
+                    'is somewhere else.',
+                    style: TextStyle(color: Colors.grey[400], fontSize: 11),
+                  ),
+                ),
+              ],
+            ),
+          ),
         const SizedBox(height: 20),
         if (!_locationConfirmed)
           _GpsPromptCard(
