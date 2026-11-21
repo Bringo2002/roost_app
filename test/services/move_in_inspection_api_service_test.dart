@@ -41,7 +41,13 @@ void main() {
     final requests = <http.Request>[];
     ApiService.client = MockClient((request) async {
       requests.add(request);
-      return http.Response(jsonEncode(echo.toJson()), 200);
+      // The room icons are emoji, so the body must be declared UTF-8; without
+      // a charset http.Response encodes as Latin-1 and throws.
+      return http.Response(
+        jsonEncode(echo.toJson()),
+        200,
+        headers: {'content-type': 'application/json; charset=utf-8'},
+      );
     });
     return requests;
   }
