@@ -80,8 +80,8 @@ enum AuthorityState implements _WireValue {
 /// backend, the one place the states and the Verified badge are defined: the
 /// app shows these instead of working them out from its own flags.
 ///
-/// Not sent to anyone but the owner, so a `Property` from a public endpoint
-/// has none.
+/// Sent to the owner and to admins reviewing verifications, so a `Property`
+/// from a public endpoint has none.
 class PropertyVerification {
   /// Creates a verification snapshot.
   const PropertyVerification({

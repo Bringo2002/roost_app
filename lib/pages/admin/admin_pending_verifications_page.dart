@@ -2,9 +2,11 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/utils/proof_tags.dart';
 import 'package:shimmer/shimmer.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -104,7 +106,7 @@ class _AdminPendingVerificationsPageState
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       setState(() => _pending.removeWhere((p) => p.id == id));
-      _showSnack('🎉 Verification & Proofs Approved!', AppColors.verified);
+      _showSnack('Photos approved for "${property.title}"', AppColors.verified);
     } catch (e) {
       if (!mounted) return;
       HapticFeedback.heavyImpact();
@@ -123,7 +125,7 @@ class _AdminPendingVerificationsPageState
       if (!mounted) return;
       HapticFeedback.mediumImpact();
       setState(() => _pending.removeWhere((p) => p.id == id));
-      _showSnack('Verification rejected for "${property.title}"');
+      _showSnack('Photos rejected for "${property.title}"');
     } catch (e) {
       if (!mounted) return;
       HapticFeedback.heavyImpact();
@@ -572,16 +574,15 @@ class _AuditCard extends StatelessWidget {
       spacing: 6,
       runSpacing: 6,
       children: [
-        const _ProofBadge(
-          label: 'Phone SMS',
-          isDone: true,
-          icon: Icons.phone_android,
-        ),
-        _ProofBadge(
-          label: 'GPS Location',
-          isDone: property.gpsVerified,
-          icon: Icons.my_location,
-        ),
+        // What the backend says has been checked. A listing with no
+        // verification record shows only the GPS flag, never a phone check
+        // that nobody confirmed.
+        for (final tag in _reviewTags(property))
+          _ProofBadge(
+            label: tag.label,
+            isDone: tag.tone == ProofTone.done,
+            icon: _iconForTag(tag),
+          ),
         _ProofBadge(
           label: docCount > 0 ? '$docCount Docs Attached' : 'No Docs',
           isDone: docCount > 0,
@@ -799,7 +800,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                   controller: scrollController,
                   physics: const BouncingScrollPhysics(),
                   children: [
-                    _staggered(2, _buildAISummary(docs)),
+                    _staggered(2, _buildScreeningCard()),
                     _staggered(3, _buildDocsSection(context, docs)),
                     const SizedBox(height: 20),
                     _staggered(4, _buildPhotosSection(photos)),
@@ -881,6 +882,11 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
   }
 
   Widget _buildLandlordCard() {
+    final phone = widget.property.landlordPhone;
+    // Phone and on-site checks, from the backend's verification record.
+    final checks = _reviewTags(widget.property)
+        .where((t) => !t.label.startsWith('Photos'))
+        .toList();
     return Container(
       padding: const EdgeInsets.all(_kInnerRadius),
       decoration: BoxDecoration(
@@ -888,57 +894,63 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
         borderRadius: BorderRadius.circular(_kInnerRadius),
         border: Border.all(color: Colors.white10),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const CircleAvatar(
-            backgroundColor: AppColors.verified,
-            child: Icon(Icons.person, color: Colors.white),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  widget.property.landlordName ?? 'Landlord User',
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  'Phone: ${widget.property.landlordPhone.isNotEmpty ? widget.property.landlordPhone : 'SMS Verified'}',
-                  style: const TextStyle(color: Colors.white54, fontSize: 12),
-                ),
-              ],
-            ),
-          ),
-          if (widget.property.gpsVerified)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: AppColors.verified.withAlpha(30),
-                borderRadius: BorderRadius.circular(8),
+          Row(
+            children: [
+              const CircleAvatar(
+                backgroundColor: AppColors.verified,
+                child: Icon(Icons.person, color: Colors.white),
               ),
-              child: const Text(
-                'GPS Matched',
-                style: TextStyle(
-                  color: AppColors.verifiedLight,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      widget.property.landlordName ?? 'Landlord User',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      phone.isNotEmpty
+                          ? 'Phone: $phone'
+                          : 'No phone number on file',
+                      style: const TextStyle(
+                          color: Colors.white54, fontSize: 12),
+                    ),
+                  ],
                 ),
               ),
+            ],
+          ),
+          if (checks.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [for (final tag in checks) _StateChip(tag: tag)],
             ),
+          ],
         ],
       ),
     );
   }
 
-  // ── AI Summary ──────────────────────────────────────────────────────────
+  // ── Automated screening ─────────────────────────────────────────────────
 
-  Widget _buildAISummary(List<String> docs) {
+  /// This used to show fixed PASSED / ANALYSED / CHECKED rows for any listing
+  /// with a document, whatever the real result was. No screening result is
+  /// stored for listing documents (the checks run at upload and are not
+  /// persisted, and the admin payload carries none), so the card says so
+  /// rather than implying one. It becomes a per-document result once the
+  /// backend records it.
+  Widget _buildScreeningCard() {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(_kInnerRadius),
@@ -954,50 +966,47 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Row(
+          Row(
             children: [
-              Icon(Icons.psychology_outlined,
+              const Icon(Icons.fact_check_outlined,
                   color: AppColors.indigoLight, size: 16),
-              SizedBox(width: 6),
-              Text(
-                'AI VERIFICATION SIGNALS',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1,
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'AUTOMATED SCREENING',
+                  style: TextStyle(
+                    color: Colors.white70,
+                    fontSize: 11,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1,
+                  ),
+                ),
+              ),
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: Colors.white10,
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Text(
+                  'NOT RECORDED',
+                  style: TextStyle(
+                    color: Colors.white54,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 10),
-          _AICheckRow(
-            label: 'Tier 1 Checks',
-            detail: 'File size, MIME type, EXIF date, duplicate hash',
-            status: docs.isNotEmpty ? 'passed' : 'skipped',
+          const SizedBox(height: 8),
+          const Text(
+            'No screening result is stored for listing documents, so none '
+            'can be shown. Open each document yourself and confirm that the '
+            'name and property match.',
+            style: TextStyle(color: Colors.white54, fontSize: 12),
           ),
-          const SizedBox(height: 6),
-          _AICheckRow(
-            label: 'Tier 2 Gemini AI',
-            detail: 'Doc classification, authenticity & name extraction',
-            status: docs.isNotEmpty ? 'analysed' : 'skipped',
-          ),
-          const SizedBox(height: 6),
-          _AICheckRow(
-            label: 'Name Cross-Reference',
-            detail: 'Extracted name matched against landlord account',
-            status: docs.isNotEmpty ? 'checked' : 'skipped',
-          ),
-          if (docs.isNotEmpty) ...[
-            const SizedBox(height: 8),
-            const Divider(color: Colors.white10, height: 1),
-            const SizedBox(height: 8),
-            Text(
-              '${docs.length} document${docs.length > 1 ? 's' : ''} submitted. '
-              'AI pre-screened — human review required below.',
-              style: const TextStyle(color: Colors.white54, fontSize: 11),
-            ),
-          ],
         ],
       ),
     );
@@ -1015,6 +1024,13 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
           title: 'ATTACHED OWNERSHIP PROOFS (${docs.length})',
         ),
         const SizedBox(height: 10),
+        if (docs.isNotEmpty) ...[
+          Text(
+            _documentsCaption(widget.property.verification?.documents),
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
+          ),
+          const SizedBox(height: 10),
+        ],
         if (docs.isEmpty)
           _buildEmptyNotice(
             icon: Icons.info_outline,
@@ -1152,7 +1168,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
           child: OutlinedButton.icon(
             onPressed: widget.busy ? null : () => _showRejectDialog(context),
             icon: const Icon(Icons.cancel_outlined, size: 16),
-            label: const Text('Reject Proofs'),
+            label: const Text('Reject photos'),
             style: OutlinedButton.styleFrom(
               foregroundColor: AppColors.destructive,
               side: const BorderSide(color: AppColors.destructive),
@@ -1189,7 +1205,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                     )
                   : const Icon(Icons.verified, size: 16),
               label: Text(
-                widget.busy ? 'Processing...' : 'Grant VERIFIED',
+                widget.busy ? 'Processing...' : 'Approve photos',
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               style: ElevatedButton.styleFrom(
@@ -1209,6 +1225,22 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
 
   // ── Approve confirmation dialog ───────────────────────────────────────
 
+  /// What the reviewer is about to approve, with the checks the backend has
+  /// recorded so far. The badge is the backend's decision, so this only
+  /// describes the rule and shows the states.
+  String _approvalMessage() {
+    final property = widget.property;
+    final v = property.verification;
+    final facts = <String>[
+      if (v != null) 'Owner phone: ${_phoneText(v.phone)}',
+      'On-site GPS: ${_onSiteText(v?.onSite, property.gpsVerified)}',
+    ];
+    return 'Approve the photos for "${property.title}"?\n\n'
+        '${facts.join('\n')}\n\n'
+        'The Verified badge is awarded once the owner phone, on-site and '
+        'photo checks have all passed.';
+  }
+
   void _showApproveConfirmation(BuildContext context) {
     HapticFeedback.lightImpact();
     showDialog(
@@ -1223,15 +1255,13 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
             Icon(Icons.verified, color: AppColors.verified, size: 22),
             SizedBox(width: 8),
             Text(
-              'Confirm Verification',
+              'Approve photos',
               style: TextStyle(color: Colors.white, fontSize: 16),
             ),
           ],
         ),
         content: Text(
-          'Grant VERIFIED status to "${widget.property.title}"?\n\n'
-          'This action marks the listing as authentic and displays '
-          'a verified badge to all users.',
+          _approvalMessage(),
           style: const TextStyle(color: Colors.white70, fontSize: 13),
         ),
         actions: [
@@ -1279,14 +1309,14 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                 borderRadius: BorderRadius.circular(16),
               ),
               title: const Text(
-                'Reject Verification',
+                'Reject photos',
                 style: TextStyle(color: Colors.white),
               ),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'Specify why the verification proof was rejected:',
+                    'Tell the lister why the photos were rejected:',
                     style: TextStyle(color: Colors.white70, fontSize: 13),
                   ),
                   const SizedBox(height: 12),
@@ -1295,7 +1325,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                     style: const TextStyle(color: Colors.white),
                     decoration: const InputDecoration(
                       hintText:
-                          'e.g. Unclear title deed copy / Invalid utility bill',
+                          'e.g. Blurry or misleading photos',
                       hintStyle: TextStyle(color: Colors.white38, fontSize: 12),
                       enabledBorder: UnderlineInputBorder(
                         borderSide: BorderSide(color: Colors.white24),
@@ -1323,7 +1353,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                   onPressed: () {
                     HapticFeedback.mediumImpact();
                     final reason = controller.text.trim().isEmpty
-                        ? 'Invalid document proof'
+                        ? 'Photos did not meet our guidelines'
                         : controller.text.trim();
                     Navigator.pop(ctx);
                     widget.onReject(reason);
@@ -1450,77 +1480,6 @@ class _FullScreenGalleryState extends State<_FullScreenGallery> {
 // Shared leaf widgets used inside the audit sheet
 // ──────────────────────────────────────────────────────────────────────────────
 
-class _AICheckRow extends StatelessWidget {
-  const _AICheckRow({
-    required this.label,
-    required this.detail,
-    required this.status,
-  });
-
-  final String label;
-  final String detail;
-  final String status;
-
-  @override
-  Widget build(BuildContext context) {
-    final isDone = status != 'skipped';
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Container(
-          width: 18,
-          height: 18,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: isDone ? AppColors.verified.withAlpha(30) : Colors.white12,
-          ),
-          child: Icon(
-            isDone ? Icons.check_rounded : Icons.remove_rounded,
-            size: 11,
-            color: isDone ? AppColors.verified : Colors.white38,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                label,
-                style: TextStyle(
-                  color: isDone ? Colors.white : Colors.white38,
-                  fontSize: 11,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              Text(
-                detail,
-                style: const TextStyle(color: Colors.white38, fontSize: 10),
-              ),
-            ],
-          ),
-        ),
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-          decoration: BoxDecoration(
-            color: isDone ? AppColors.verified.withAlpha(20) : Colors.white10,
-            borderRadius: BorderRadius.circular(6),
-          ),
-          child: Text(
-            status.toUpperCase(),
-            style: TextStyle(
-              color: isDone ? AppColors.verifiedLight : Colors.white38,
-              fontSize: 9,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 0.5,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _DocumentPreview extends StatelessWidget {
   const _DocumentPreview({
     required this.url,
@@ -1626,4 +1585,110 @@ String _formatRelativeTime(String? isoDate) {
   if (diff.inHours < 24) return 'Submitted ${diff.inHours} hr ago';
   if (diff.inDays == 1) return 'Submitted yesterday';
   return 'Submitted ${diff.inDays} days ago';
+}
+
+// ─────────────────────────────────────────────────────────────────────────
+// Verification states shown to the reviewer
+// ─────────────────────────────────────────────────────────────────────────
+
+/// The phone, on-site and photo checks for [property], from the backend's
+/// verification record (see [proofTagsFor]). The documents tag is left out:
+/// the sheet shows the documents themselves.
+List<ProofTag> _reviewTags(Property property) {
+  return proofTagsFor(property)
+      .where((t) => !t.label.startsWith('Doc'))
+      .toList();
+}
+
+IconData _iconForTag(ProofTag tag) {
+  if (tag.label.startsWith('Phone')) return Icons.phone_android;
+  if (tag.label.startsWith('GPS')) return Icons.my_location;
+  return Icons.photo_library_outlined;
+}
+
+String _phoneText(PhoneState state) => switch (state) {
+      PhoneState.verified => 'verified',
+      PhoneState.pending => 'code sent, not confirmed',
+      PhoneState.unverified => 'not verified',
+    };
+
+/// [state] is null when the backend sent no verification record, in which
+/// case the GPS flag it does send is all there is to go on.
+String _onSiteText(OnSiteState? state, bool gpsVerified) {
+  return switch (state) {
+    OnSiteState.passed => 'passed',
+    OnSiteState.pending => 'pending',
+    OnSiteState.failed => 'failed',
+    OnSiteState.notAttempted => 'not checked',
+    null => gpsVerified ? 'passed' : 'not checked',
+  };
+}
+
+/// The line under the documents header. Approving photos never accepts
+/// documents, and this screen cannot decide them yet, so it says so.
+String _documentsCaption(DocumentsState? state) {
+  const note = 'Approving photos does not accept documents.';
+  return switch (state) {
+    DocumentsState.accepted => 'Documents accepted. $note',
+    DocumentsState.rejected => 'Documents rejected. $note',
+    DocumentsState.underReview => 'Documents under review. $note',
+    DocumentsState.uploaded => 'Documents not yet reviewed. $note',
+    DocumentsState.notSubmitted || null => note,
+  };
+}
+
+/// A small status chip for one check, e.g. "Phone" (done) or "GPS" (none).
+/// The icon repeats what the colour says, so colour is not the only signal.
+class _StateChip extends StatelessWidget {
+  const _StateChip({required this.tag});
+
+  final ProofTag tag;
+
+  @override
+  Widget build(BuildContext context) {
+    final (Color fg, Color bg, IconData icon) = switch (tag.tone) {
+      ProofTone.done => (
+          AppColors.verifiedLight,
+          AppColors.verified.withAlpha(30),
+          Icons.check_circle,
+        ),
+      ProofTone.pending => (
+          AppColors.warning,
+          AppColors.warning.withAlpha(30),
+          Icons.schedule,
+        ),
+      ProofTone.problem => (
+          AppColors.destructive,
+          AppColors.destructive.withAlpha(30),
+          Icons.error_outline,
+        ),
+      ProofTone.none => (
+          Colors.white54,
+          Colors.white10,
+          Icons.remove_circle_outline,
+        ),
+    };
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: fg),
+          const SizedBox(width: 4),
+          Text(
+            tag.label,
+            style: TextStyle(
+              color: fg,
+              fontSize: 11,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
