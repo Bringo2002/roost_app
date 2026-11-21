@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/widgets/property_detail/hero_media_gallery.dart';
 
 import '../../helpers/offline_images.dart';
@@ -47,6 +48,16 @@ Future<void> _pumpGallery(WidgetTester tester, Property property) async {
   );
   await tester.pumpAndSettle();
 }
+
+/// Swipes the pager under [pager] one slide forward and settles.
+Future<void> _swipeToNext(WidgetTester tester, Finder pager) async {
+  await tester.fling(pager, const Offset(-300, 0), 1000);
+  await tester.pumpAndSettle();
+}
+
+/// The photo viewer's own pager, as opposed to the gallery's underneath it.
+Finder _viewerPager() =>
+    find.descendant(of: find.byType(FullScreenImageGallery), matching: find.byType(PageView));
 
 void main() {
   setUp(useOfflineImages);
@@ -105,6 +116,55 @@ void main() {
       );
 
       handle.dispose();
+    });
+  });
+
+  group('HeroMediaGallery and the full-screen viewer', () {
+    testWidgets('tapping a photo opens the viewer on that photo', (tester) async {
+      await _pumpGallery(tester, _property(imageUrls: [_photoA, _photoB, _photoC]));
+      await _swipeToNext(tester, find.byType(PageView));
+
+      await tester.tap(find.byType(PageView));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FullScreenImageGallery), findsOneWidget);
+      expect(find.descendant(of: find.byType(FullScreenImageGallery), matching: find.text('2 / 3')), findsOneWidget);
+    });
+
+    testWidgets('closing the viewer leaves the gallery on the photo the viewer ended on', (tester) async {
+      await _pumpGallery(tester, _property(imageUrls: [_photoA, _photoB, _photoC]));
+
+      await tester.tap(find.byType(PageView));
+      await tester.pumpAndSettle();
+      await _swipeToNext(tester, _viewerPager());
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FullScreenImageGallery), findsNothing);
+      expect(find.text('2 / 3'), findsOneWidget);
+    });
+
+    testWidgets('with a video in slide 0, the gallery follows the viewer to the matching photo slide', (tester) async {
+      await _pumpGallery(
+        tester,
+        _property(imageUrls: [_photoA, _photoB, _photoC], videoUrl: 'https://example.test/tour.mp4'),
+      );
+      // Slide 0 is the video; slide 1 is the first photo.
+      await _swipeToNext(tester, find.byType(PageView));
+      expect(find.text('2 / 4'), findsOneWidget);
+
+      await tester.tap(find.byType(PageView));
+      await tester.pumpAndSettle();
+      // The viewer counts photos only, so it opens on photo 1 of 3.
+      expect(find.descendant(of: find.byType(FullScreenImageGallery), matching: find.text('1 / 3')), findsOneWidget);
+
+      await _swipeToNext(tester, _viewerPager());
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      // Photo 2 of 3 sits on slide 3 of 4, behind the video.
+      expect(find.byType(FullScreenImageGallery), findsNothing);
+      expect(find.text('3 / 4'), findsOneWidget);
     });
   });
 }
