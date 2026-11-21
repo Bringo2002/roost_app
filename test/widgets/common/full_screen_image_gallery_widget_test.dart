@@ -83,4 +83,45 @@ void main() {
       expect(harness.changedPhotos, [1]);
     });
   });
+
+  group('FullScreenImageGallery drag to dismiss', () {
+    testWidgets('a long drag down carries the photo away, then pops once', (tester) async {
+      final harness = await _openViewer(tester);
+
+      await tester.drag(find.byType(PageView), const Offset(0, 300));
+
+      // The exit animation has not run yet; the route is popped only after it.
+      expect(harness.pops, 0);
+
+      await tester.pumpAndSettle();
+
+      expect(harness.pops, 1);
+      expect(find.byType(FullScreenImageGallery), findsNothing);
+    });
+
+    testWidgets('a short, slow drag snaps back to rest without popping', (tester) async {
+      final harness = await _openViewer(tester);
+
+      // 60px over a full second: well under the distance threshold, and far
+      // below the fling velocity that would dismiss on its own.
+      await tester.timedDrag(find.byType(PageView), const Offset(0, 60), const Duration(seconds: 1));
+      await tester.pumpAndSettle();
+
+      expect(harness.pops, 0);
+      expect(find.byType(FullScreenImageGallery), findsOneWidget);
+      expect(tester.getTopLeft(find.byType(PageView)), Offset.zero);
+    });
+
+    testWidgets('with reduced motion the drag pops immediately, without an exit animation', (tester) async {
+      final harness = await _openViewer(tester, reduceMotion: true);
+
+      await tester.drag(find.byType(PageView), const Offset(0, 300));
+
+      expect(harness.pops, 1);
+
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FullScreenImageGallery), findsNothing);
+    });
+  });
 }
