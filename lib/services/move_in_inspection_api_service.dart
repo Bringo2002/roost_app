@@ -37,11 +37,32 @@ class MoveInInspectionApiService {
     if (meterElectricity != null) body['meterElectricity'] = meterElectricity;
     if (meterWater != null) body['meterWater'] = meterWater;
     if (tenantSignature != null) body['tenantSignature'] = tenantSignature;
-    if (landlordSignature != null) body['landlordSignature'] = landlordSignature;
+    if (landlordSignature != null)
+      body['landlordSignature'] = landlordSignature;
     if (markComplete) body['markComplete'] = true;
 
     final response = await ApiService.put('/api/inspections/$id', body);
     return MoveInInspection.fromJson(response as Map<String, dynamic>);
+  }
+
+  /// Persists everything the tenant has captured so far. Rooms and any
+  /// signatures are sent on every save, so a signature survives leaving the
+  /// wizard and is visible to the landlord. Meter readings and completion are
+  /// sent only when [markComplete] is true.
+  static Future<MoveInInspection> saveProgress(
+    String id,
+    MoveInInspection inspection, {
+    bool markComplete = false,
+  }) {
+    return update(
+      id,
+      rooms: inspection.rooms,
+      tenantSignature: inspection.tenantSignature,
+      landlordSignature: inspection.landlordSignature,
+      meterElectricity: markComplete ? inspection.meterElectricity : null,
+      meterWater: markComplete ? inspection.meterWater : null,
+      markComplete: markComplete,
+    );
   }
 
   static Future<MoveInInspection> get(String id) async {
@@ -55,14 +76,19 @@ class MoveInInspectionApiService {
   /// silently starting a duplicate.
   static Future<List<MoveInInspection>> mine() async {
     final response = await ApiService.get('/api/inspections/mine');
-    return (response as List).map((e) => MoveInInspection.fromJson(e as Map<String, dynamic>)).toList();
+    return (response as List)
+        .map((e) => MoveInInspection.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 
   /// Landlord's view of every inspection filed for one of their
   /// properties. Throws if the caller isn't that property's owner --
   /// enforced server-side, not just hidden client-side.
   static Future<List<MoveInInspection>> forProperty(int propertyId) async {
-    final response = await ApiService.get('/api/inspections/property/$propertyId');
-    return (response as List).map((e) => MoveInInspection.fromJson(e as Map<String, dynamic>)).toList();
+    final response =
+        await ApiService.get('/api/inspections/property/$propertyId');
+    return (response as List)
+        .map((e) => MoveInInspection.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }

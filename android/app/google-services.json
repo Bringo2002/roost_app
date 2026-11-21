@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "1085731102031-u38lbgg99hosqmuhgrrtda8v5lhs5p78.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.roost.app",
+            "certificate_hash": "beb80c5923c61fea174f4651640eaf2321c38399"
+          }
+        },
+        {
           "client_id": "1085731102031-c9285g1rff9qcm67tcep7ie0146ple5u.apps.googleusercontent.com",
           "client_type": 3
         }

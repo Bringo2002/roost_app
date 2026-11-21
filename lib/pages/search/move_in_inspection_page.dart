@@ -132,7 +132,7 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     final id = _inspection.id;
     if (id == null) return;
     try {
-      await MoveInInspectionApiService.update(id, rooms: _inspection.rooms);
+      await MoveInInspectionApiService.saveProgress(id, _inspection);
       if (mounted && _saveFailed) setState(() => _saveFailed = false);
     } catch (_) {
       if (mounted) setState(() => _saveFailed = true);
@@ -294,16 +294,26 @@ class _MoveInInspectionPageState extends State<MoveInInspectionPage> {
     final id = _inspection.id;
     if (id != null) {
       try {
-        await MoveInInspectionApiService.update(
+        await MoveInInspectionApiService.saveProgress(
           id,
-          rooms: _inspection.rooms,
-          meterElectricity: _inspection.meterElectricity,
-          meterWater: _inspection.meterWater,
+          _inspection,
           markComplete: true,
         );
       } catch (_) {
         // Still generate the report locally even if the final save
-        // failed — the tenant's evidence is valuable regardless.
+        // failed — the tenant's evidence is valuable regardless — but
+        // tell them it was not recorded.
+        if (mounted) {
+          setState(() => _saveFailed = true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                "Report ready, but your inspection couldn't be saved. "
+                'Check your connection.',
+              ),
+            ),
+          );
+        }
       }
     }
 
