@@ -95,6 +95,16 @@ void main() {
       expect(find.text('2 / 3'), findsOneWidget);
       expect(harness.changedPhotos, [1]);
     });
+
+    testWidgets('the close button pops the viewer exactly once', (tester) async {
+      final harness = await _openViewer(tester);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(harness.pops, 1);
+      expect(find.byType(FullScreenImageGallery), findsNothing);
+    });
   });
 
   group('FullScreenImageGallery drag to dismiss', () {
