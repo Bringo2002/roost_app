@@ -37,8 +37,9 @@ class MoveInInspectionApiService {
     if (meterElectricity != null) body['meterElectricity'] = meterElectricity;
     if (meterWater != null) body['meterWater'] = meterWater;
     if (tenantSignature != null) body['tenantSignature'] = tenantSignature;
-    if (landlordSignature != null)
+    if (landlordSignature != null) {
       body['landlordSignature'] = landlordSignature;
+    }
     if (markComplete) body['markComplete'] = true;
 
     final response = await ApiService.put('/api/inspections/$id', body);
