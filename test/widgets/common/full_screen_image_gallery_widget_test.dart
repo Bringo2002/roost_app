@@ -31,8 +31,12 @@ class _Harness {
 /// Pumps an app with an "open" button, taps it, and settles on the viewer.
 ///
 /// [reduceMotion] sets the OS "remove animations" flag the viewer reads via
-/// `MediaQuery.disableAnimationsOf`.
-Future<_Harness> _openViewer(WidgetTester tester, {bool reduceMotion = false}) async {
+/// `MediaQuery.disableAnimationsOf`. [heroTagFor] is passed through to the viewer.
+Future<_Harness> _openViewer(
+  WidgetTester tester, {
+  bool reduceMotion = false,
+  Object Function(int index)? heroTagFor,
+}) async {
   final harness = _Harness();
   await tester.pumpWidget(
     MaterialApp(
@@ -45,7 +49,12 @@ Future<_Harness> _openViewer(WidgetTester tester, {bool reduceMotion = false}) a
         builder: (context) => Scaffold(
           body: Center(
             child: ElevatedButton(
-              onPressed: () => FullScreenImageGallery.open(context, _urls, onPhotoChanged: harness.changedPhotos.add),
+              onPressed: () => FullScreenImageGallery.open(
+                context,
+                _urls,
+                onPhotoChanged: harness.changedPhotos.add,
+                heroTagFor: heroTagFor,
+              ),
               child: const Text('open'),
             ),
           ),
@@ -57,6 +66,10 @@ Future<_Harness> _openViewer(WidgetTester tester, {bool reduceMotion = false}) a
   await tester.pumpAndSettle();
   return harness;
 }
+
+/// The tags of every [Hero] currently built.
+Set<Object> _heroTags(WidgetTester tester) =>
+    tester.widgetList<Hero>(find.byType(Hero)).map((hero) => hero.tag).toSet();
 
 void main() {
   setUp(useOfflineImages);
@@ -122,6 +135,29 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.byType(FullScreenImageGallery), findsNothing);
+    });
+  });
+
+  group('FullScreenImageGallery hero', () {
+    testWidgets('wraps the photo in a Hero with the caller\'s tag', (tester) async {
+      await _openViewer(tester, heroTagFor: (index) => 'photo-$index');
+
+      expect(_heroTags(tester), contains('photo-0'));
+    });
+
+    testWidgets('the photo shown after a swipe carries its own tag', (tester) async {
+      await _openViewer(tester, heroTagFor: (index) => 'photo-$index');
+
+      await tester.fling(find.byType(PageView), const Offset(-300, 0), 1000);
+      await tester.pumpAndSettle();
+
+      expect(_heroTags(tester), contains('photo-1'));
+    });
+
+    testWidgets('builds no Hero when the caller gives no tags', (tester) async {
+      await _openViewer(tester);
+
+      expect(find.byType(Hero), findsNothing);
     });
   });
 }
