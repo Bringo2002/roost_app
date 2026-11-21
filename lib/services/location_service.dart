@@ -129,6 +129,52 @@ class LocationService {
     }
   }
 
+  /// Test seam for the reverse-geocoding lookup behind [listingAreaAt].
+  /// Reset to `null` in `tearDown`.
+  @visibleForTesting
+  static Future<List<Placemark>> Function(double latitude, double longitude)?
+      placemarksOverride;
+
+  /// The "Neighbourhood, Town" a listing's address should suggest, e.g.
+  /// "Kayole, Nairobi", from [place]. Null when the placemark names neither.
+  ///
+  /// The town is included because the server checks the address by looking it
+  /// up on the map and asks for "neighbourhood and town"; a bare
+  /// neighbourhood name can be ambiguous or not found.
+  static String? listingAreaFromPlacemark(Placemark place) {
+    String? clean(String? value) {
+      final trimmed = value?.trim();
+      return (trimmed == null || trimmed.isEmpty) ? null : trimmed;
+    }
+
+    final area = clean(place.subLocality);
+    final town = clean(place.locality) ?? clean(place.subAdministrativeArea);
+    if (area != null &&
+        town != null &&
+        area.toLowerCase() != town.toLowerCase()) {
+      return '$area, $town';
+    }
+    return area ?? town;
+  }
+
+  /// The listing area at [position], or null when it can't be worked out.
+  ///
+  /// Unlike [getNeighborhoodName] this is never cached: a lister can be at a
+  /// different place from wherever the feed last looked, and a stale answer
+  /// here would put the wrong area on a listing. Never throws.
+  static Future<String?> listingAreaAt(Position position) async {
+    try {
+      final Future<List<Placemark>> Function(double, double) lookup =
+          placemarksOverride ?? placemarkFromCoordinates;
+      final placemarks = await lookup(position.latitude, position.longitude)
+          .timeout(const Duration(seconds: 4));
+      if (placemarks.isEmpty) return null;
+      return listingAreaFromPlacemark(placemarks.first);
+    } catch (_) {
+      return null;
+    }
+  }
+
   /// Test seam for [getCurrentPosition]: when set, it replaces the
   /// Geolocator calls entirely so widget tests can supply a fixed position
   /// (or `null`) without platform channels. Reset to `null` in `tearDown`
