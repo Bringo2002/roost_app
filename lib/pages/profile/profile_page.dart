@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:roost_app/services/account_deletion_service.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/avatar_upload_helper.dart';
@@ -24,6 +25,9 @@ import 'package:roost_app/pages/profile/notifications_page.dart';
 import 'package:roost_app/pages/profile/privacy_policy_page.dart';
 import 'package:roost_app/pages/profile/about_page.dart';
 import 'package:roost_app/pages/profile/change_password_page.dart';
+import 'package:roost_app/pages/profile/delete_account_page.dart';
+import 'package:roost_app/utils/server_time.dart';
+import 'package:roost_app/widgets/profile/deletion_scheduled_banner.dart';
 import 'package:roost_app/pages/profile/my_inspections_page.dart';
 import 'package:roost_app/pages/admin/admin_identity_review_page.dart';
 
@@ -40,6 +44,7 @@ class _ProfilePageState extends State<ProfilePage> {
   String? _error;
   bool _notificationsEnabled = true;
   bool _isUploadingAvatar = false;
+  bool _cancellingDeletion = false;
 
   @override
   void initState() {
@@ -219,6 +224,46 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  /// Opens the delete-account screen. It pops with `true` once the user has
+  /// scheduled the deletion and tapped Done, which signs them out. Any other
+  /// way back reloads the profile so the scheduled-deletion banner shows.
+  Future<void> _openDeleteAccount() async {
+    final deleted = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder: (_) => DeleteAccountPage(
+          email: _user?['email']?.toString() ?? '',
+          // Without the flag, assume a password account: the backend ignores
+          // the password for social-login accounts, so asking is the safe default.
+          requiresPassword: _user?['emailVerified'] != true,
+        ),
+      ),
+    );
+    if (!mounted) return;
+    if (deleted == true) {
+      _logout();
+    } else {
+      _loadProfile();
+    }
+  }
+
+  Future<void> _cancelDeletion() async {
+    setState(() => _cancellingDeletion = true);
+    try {
+      await AccountDeletionService.cancel();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Account deletion cancelled')),
+      );
+      await _loadProfile();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _cancellingDeletion = false);
+    }
+  }
+
   void _logout() async {
     await AuthService.logout();
     if (mounted) {
@@ -318,6 +363,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final isLandlord = role.toString().toUpperCase() == 'LANDLORD';
     final isAdmin = role.toString().toUpperCase() == 'ADMIN';
     final avatarUrl = _user?['avatarUrl']?.toString();
+    final deletionScheduledAt = parseServerDateTime(_user?['deletionScheduledAt']?.toString());
     final initials = name.isNotEmpty
         ? name.split(' ').map((w) => w.isNotEmpty ? w[0] : '').take(2).join().toUpperCase()
         : 'R';
@@ -422,6 +468,15 @@ class _ProfilePageState extends State<ProfilePage> {
 
                 const SizedBox(height: 24),
 
+                if (deletionScheduledAt != null) ...[
+                  DeletionScheduledBanner(
+                    scheduledAt: deletionScheduledAt,
+                    cancelling: _cancellingDeletion,
+                    onCancel: _cancelDeletion,
+                  ),
+                  const SizedBox(height: 24),
+                ],
+
                 // ── Group 1: Account & Public Profile ───────────────────────
                 const Text(
                   'ACCOUNT SETTINGS',
@@ -477,6 +532,15 @@ class _ProfilePageState extends State<ProfilePage> {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangePasswordPage()));
                         },
                       ),
+                      if (deletionScheduledAt == null) ...[
+                        const Divider(height: 1, color: AppColors.divider),
+                        ListTile(
+                          leading: const Icon(Icons.delete_outline_rounded, color: AppColors.grey400),
+                          title: const Text('Delete Account', style: TextStyle(color: AppColors.grey400, fontSize: 15, fontWeight: FontWeight.w600)),
+                          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                          onTap: _openDeleteAccount,
+                        ),
+                      ],
                     ],
                   ),
                 ),
