@@ -168,9 +168,9 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               key: const Key('delete-submit-button'),
               onPressed: _submitting ? null : _submit,
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                disabledBackgroundColor: Colors.grey[800],
+                backgroundColor: AppColors.destructive,
+                foregroundColor: Colors.white,
+                disabledBackgroundColor: AppColors.destructive.withValues(alpha: 0.4),
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
@@ -178,7 +178,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
                   ? const SizedBox(
                       width: 24,
                       height: 24,
-                      child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2.5),
+                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                     )
                   : const Text(
                       'Delete My Account',
@@ -302,11 +302,11 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       decoration: BoxDecoration(
         color: AppColors.surfaceContainer,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.grey600),
+        border: Border.all(color: AppColors.destructive.withValues(alpha: 0.6)),
       ),
       child: Row(
         children: [
-          const Icon(Icons.error_outline_rounded, color: Colors.white, size: 20),
+          const Icon(Icons.error_outline_rounded, color: AppColors.destructive, size: 20),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
@@ -348,13 +348,13 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: AppColors.grey400),
+        borderSide: const BorderSide(color: AppColors.destructive),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(14),
-        borderSide: const BorderSide(color: Colors.white, width: 1.5),
+        borderSide: const BorderSide(color: AppColors.destructive, width: 1.5),
       ),
-      errorStyle: const TextStyle(color: AppColors.grey300),
+      errorStyle: const TextStyle(color: AppColors.error),
     );
   }
 }

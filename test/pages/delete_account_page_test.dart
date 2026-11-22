@@ -7,6 +7,7 @@ import 'package:http/testing.dart';
 import 'package:roost_app/pages/profile/delete_account_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/theme/app_colors.dart';
 
 /// HTTP is stubbed through [ApiService.client] and the token through
 /// [AuthService.getTokenOverride], the same seams the other page tests use.
@@ -134,6 +135,36 @@ void main() {
     expect(find.text('Password is incorrect'), findsOneWidget);
     expect(find.text('Deletion scheduled'), findsNothing);
     expect(find.byKey(const Key('delete-submit-button')), findsOneWidget);
+  });
+
+  testWidgets('the confirm button uses the destructive red', (tester) async {
+    await pumpPage(tester, requiresPassword: false);
+
+    final button = tester.widget<ElevatedButton>(find.byKey(const Key('delete-submit-button')));
+
+    expect(button.style!.backgroundColor!.resolve(<WidgetState>{}), AppColors.destructive);
+  });
+
+  testWidgets('validation errors are shown in the error red', (tester) async {
+    await pumpPage(tester, requiresPassword: false);
+
+    await tester.enterText(find.byKey(const Key('delete-email-field')), 'someone@else.com');
+    await submit(tester);
+
+    final error = tester.widget<Text>(find.text('This does not match your account email'));
+    expect(error.style?.color, AppColors.error);
+  });
+
+  testWidgets('a refused request is flagged with the destructive red', (tester) async {
+    stub(400, '{"error":"Password is incorrect"}');
+    await pumpPage(tester, requiresPassword: true);
+
+    await tester.enterText(find.byKey(const Key('delete-email-field')), accountEmail);
+    await tester.enterText(find.byKey(const Key('delete-password-field')), 'wrong');
+    await submit(tester);
+
+    final icon = tester.widget<Icon>(find.byIcon(Icons.error_outline_rounded));
+    expect(icon.color, AppColors.destructive);
   });
 
   testWidgets('Done hands back true so the caller can sign the user out', (tester) async {
