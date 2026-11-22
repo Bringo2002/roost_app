@@ -532,15 +532,6 @@ class _ProfilePageState extends State<ProfilePage> {
                           Navigator.push(context, MaterialPageRoute(builder: (_) => const ChangePasswordPage()));
                         },
                       ),
-                      if (deletionScheduledAt == null) ...[
-                        const Divider(height: 1, color: AppColors.divider),
-                        ListTile(
-                          leading: const Icon(Icons.delete_outline_rounded, color: AppColors.grey400),
-                          title: const Text('Delete Account', style: TextStyle(color: AppColors.grey400, fontSize: 15, fontWeight: FontWeight.w600)),
-                          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                          onTap: _openDeleteAccount,
-                        ),
-                      ],
                     ],
                   ),
                 ),
@@ -746,6 +737,19 @@ class _ProfilePageState extends State<ProfilePage> {
                     ),
                   ),
                 ),
+
+                // Last-in-page entry point in the destructive red, so it is easy to find but hard to hit by accident.
+                // While a deletion is scheduled the banner above offers Cancel instead.
+                if (deletionScheduledAt == null)
+                  Center(
+                    child: TextButton(
+                      onPressed: _openDeleteAccount,
+                      child: const Text(
+                        'Delete Account',
+                        style: TextStyle(color: AppColors.destructive, fontSize: 14, fontWeight: FontWeight.w600),
+                      ),
+                    ),
+                  ),
 
                 const SizedBox(height: 110), // Padding for floating switcher pill
               ],
