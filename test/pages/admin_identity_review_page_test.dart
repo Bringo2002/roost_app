@@ -165,6 +165,19 @@ void main() {
       expect(fetched.any((p) => p.endsWith('/documents/12/file')), isTrue);
     });
 
+    testWidgets('labels each document image with the document it is', (tester) async {
+      stubServer();
+
+      await tester.pumpWidget(launcher(review(), (_) {}));
+      await openDetail(tester);
+
+      Finder labelledImage(String label) => find.byWidgetPredicate(
+            (widget) => widget is Semantics && widget.properties.image == true && widget.properties.label == label,
+          );
+      expect(labelledImage('National ID (front)'), findsOneWidget);
+      expect(labelledImage('National ID (back)'), findsOneWidget);
+    });
+
     testWidgets('warns about a document that was rejected earlier and not replaced', (tester) async {
       stubServer();
       final rejected = review(documents: const [
