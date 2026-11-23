@@ -332,5 +332,9 @@
         "type": "String"
       }
     }
+  },
+  "auditSheetClose": "Close",
+  "@auditSheetClose": {
+    "description": "Tooltip and screen-reader label for the X button at the top of the admin audit sheet that dismisses it."
   }
 }
