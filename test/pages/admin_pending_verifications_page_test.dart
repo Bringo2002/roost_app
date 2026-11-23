@@ -1,27 +1,35 @@
 import 'dart:convert';
 
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/pages/admin/admin_pending_verifications_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
+import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
+
+import '../helpers/offline_images.dart';
 
 /// The pending-verifications queue and its audit sheet. HTTP is stubbed
 /// through [ApiService.client] and the token through
 /// [AuthService.getTokenOverride]; both are process-wide statics, so they are
 /// reset in tearDown.
 ///
-/// The properties carry no document or photo URLs on purpose: those tiles
-/// load through CachedNetworkImage, which needs platform plugins a widget
-/// test does not have. That leaves the documents caption untested here.
+/// Most properties carry no document or photo URLs, so those tiles stay out
+/// of the way. The photo-viewer tests give one property photos and install
+/// [useOfflineImages], which fails every image load without the platform
+/// plugins a widget test does not have. That leaves the documents caption
+/// untested here.
 void main() {
   late List<http.Request> posts;
 
   setUp(() {
     posts = [];
     AuthService.getTokenOverride = () async => 'test-token';
+    useOfflineImages();
   });
 
   tearDown(() {
@@ -47,6 +55,7 @@ void main() {
     Map<String, dynamic>? verification,
     bool gpsVerified = true,
     String landlordPhone = '+254700000001',
+    List<String> imageUrls = const [],
   }) =>
       {
         'id': 5,
@@ -61,7 +70,7 @@ void main() {
         'status': 'PENDING_VERIFICATION',
         'gpsVerified': gpsVerified,
         'verification': verification,
-        'imageUrls': <String>[],
+        'imageUrls': imageUrls,
         'documentUrls': <String>[],
         'listedAt':
             DateTime.now().subtract(const Duration(hours: 3)).toIso8601String(),
@@ -89,6 +98,8 @@ void main() {
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(const MaterialApp(
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       home: AdminPendingVerificationsPage(),
     ));
     await tester.pumpAndSettle();
@@ -251,6 +262,71 @@ void main() {
 
       expect(jsonDecode(posts.single.body),
           {'reason': 'Photos did not meet our guidelines'});
+    });
+  });
+
+  group('listing photos', () {
+    const photos = [
+      'https://example.test/a.jpg',
+      'https://example.test/b.jpg',
+      'https://example.test/c.jpg',
+    ];
+
+    Finder gridPhoto(int index) => find
+        .descendant(
+          of: find.byType(GridView),
+          matching: find.byType(CachedNetworkImage),
+        )
+        .at(index);
+
+    Future<void> openPhoto(WidgetTester tester, int index) async {
+      stubQueue(pendingJson(verification: verification(), imageUrls: photos));
+      await openSheet(tester);
+      await tester.ensureVisible(gridPhoto(index));
+      await tester.pumpAndSettle();
+      await tester.tap(gridPhoto(index));
+      await tester.pumpAndSettle();
+    }
+
+    Finder viewerText(String text) => find.descendant(
+          of: find.byType(FullScreenImageGallery),
+          matching: find.text(text),
+        );
+
+    testWidgets('tapping a photo opens the shared viewer on that photo',
+        (tester) async {
+      await openPhoto(tester, 1);
+
+      expect(find.byType(FullScreenImageGallery), findsOneWidget);
+      expect(viewerText('2 / 3'), findsOneWidget);
+    });
+
+    testWidgets('the viewer\'s close button returns to the audit sheet',
+        (tester) async {
+      await openPhoto(tester, 0);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FullScreenImageGallery), findsNothing);
+      expect(find.byType(DraggableScrollableSheet), findsOneWidget);
+    });
+
+    testWidgets('dragging the photo down dismisses the viewer, not the sheet',
+        (tester) async {
+      await openPhoto(tester, 0);
+
+      await tester.drag(
+        find.descendant(
+          of: find.byType(FullScreenImageGallery),
+          matching: find.byType(PageView),
+        ),
+        const Offset(0, 300),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byType(FullScreenImageGallery), findsNothing);
+      expect(find.byType(DraggableScrollableSheet), findsOneWidget);
     });
   });
 }

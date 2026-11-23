@@ -7,6 +7,7 @@ import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/utils/proof_tags.dart';
+import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:shimmer/shimmer.dart';
 
 // ──────────────────────────────────────────────────────────────────────────────
@@ -1089,7 +1090,11 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
             itemCount: photos.length,
             itemBuilder: (_, idx) {
               return GestureDetector(
-                onTap: () => _pushGallery(context, photos, idx),
+                onTap: () => FullScreenImageGallery.open(
+                  context,
+                  photos,
+                  initialIndex: idx,
+                ),
                 child: ClipRRect(
                   borderRadius: BorderRadius.circular(10),
                   child: CachedNetworkImage(
@@ -1372,111 +1377,6 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Full-screen swipeable gallery
-// ──────────────────────────────────────────────────────────────────────────────
-
-class _FullScreenGallery extends StatefulWidget {
-  const _FullScreenGallery({required this.urls, required this.initialIndex});
-
-  final List<String> urls;
-  final int initialIndex;
-
-  @override
-  State<_FullScreenGallery> createState() => _FullScreenGalleryState();
-}
-
-class _FullScreenGalleryState extends State<_FullScreenGallery> {
-  late final PageController _pageController;
-  late int _currentPage;
-
-  @override
-  void initState() {
-    super.initState();
-    _currentPage = widget.initialIndex;
-    _pageController = PageController(initialPage: widget.initialIndex);
-  }
-
-  @override
-  void dispose() {
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.transparent,
-      body: Stack(
-        children: [
-          // Dismiss on background tap
-          GestureDetector(
-            behavior: HitTestBehavior.opaque,
-            onTap: () => Navigator.pop(context),
-            child: const SizedBox.expand(),
-          ),
-          // Swipeable pages
-          PageView.builder(
-            controller: _pageController,
-            itemCount: widget.urls.length,
-            onPageChanged: (i) => setState(() => _currentPage = i),
-            itemBuilder: (_, i) => Center(
-              child: InteractiveViewer(
-                minScale: 0.5,
-                maxScale: 4.0,
-                child: CachedNetworkImage(
-                  imageUrl: widget.urls[i],
-                  fit: BoxFit.contain,
-                  placeholder: (_, __) => const Center(
-                    child: CircularProgressIndicator(color: AppColors.verified),
-                  ),
-                  errorWidget: (_, __, ___) => const Center(
-                    child: Icon(Icons.broken_image, color: Colors.white38, size: 48),
-                  ),
-                ),
-              ),
-            ),
-          ),
-          // Close button
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 12,
-            child: IconButton(
-              icon: const Icon(Icons.close, color: Colors.white, size: 28),
-              onPressed: () => Navigator.pop(context),
-            ),
-          ),
-          // Page indicator
-          if (widget.urls.length > 1)
-            Positioned(
-              bottom: MediaQuery.viewPaddingOf(context).bottom + 24,
-              left: 0,
-              right: 0,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(
-                  widget.urls.length,
-                  (i) => AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    width: i == _currentPage ? 24 : 8,
-                    height: 8,
-                    decoration: BoxDecoration(
-                      color: i == _currentPage
-                          ? AppColors.verified
-                          : Colors.white38,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
 // Shared leaf widgets used inside the audit sheet
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -1543,30 +1443,8 @@ class _DocumentPreview extends StatelessWidget {
   }
 
   void _openGallery(BuildContext context) {
-    _pushGallery(context, allUrls, docNumber - 1);
+    FullScreenImageGallery.open(context, allUrls, initialIndex: docNumber - 1);
   }
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// Shared gallery launcher
-// ──────────────────────────────────────────────────────────────────────────────
-
-/// Opens the [_FullScreenGallery] with a fade transition.
-///
-/// Shared by both the photo grid and document preview widgets to avoid
-/// duplicating the [PageRouteBuilder] boilerplate.
-void _pushGallery(BuildContext context, List<String> urls, int initialIndex) {
-  Navigator.of(context).push(
-    PageRouteBuilder(
-      opaque: false,
-      barrierColor: Colors.black87,
-      barrierDismissible: true,
-      pageBuilder: (_, __, ___) =>
-          _FullScreenGallery(urls: urls, initialIndex: initialIndex),
-      transitionsBuilder: (_, anim, __, child) =>
-          FadeTransition(opacity: anim, child: child),
-    ),
-  );
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
