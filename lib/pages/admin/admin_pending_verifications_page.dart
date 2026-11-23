@@ -1,6 +1,7 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/services/api_service.dart';
@@ -875,6 +876,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
           ),
         ),
         IconButton(
+          tooltip: AppLocalizations.of(context)!.auditSheetClose,
           icon: const Icon(Icons.close, color: Colors.white54),
           onPressed: () => Navigator.pop(context),
         ),

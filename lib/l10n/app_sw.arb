@@ -66,5 +66,6 @@
   "propertyDetailStatusPending": "Inasubiri",
   "propertyDetailMapPreviewLabel": "Ramani inayoonyesha mali hii ilipo",
   "propertyDetailMapPreviewHint": "Hufungua ramani kwenye skrini nzima",
-  "roostSheetSubmitting": "{label}, inatuma"
+  "roostSheetSubmitting": "{label}, inatuma",
+  "auditSheetClose": "Funga"
 }
