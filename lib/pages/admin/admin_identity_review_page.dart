@@ -421,15 +421,19 @@ class _DocumentCardState extends State<_DocumentCard> {
       );
     }
     if (document.isImage) {
-      return SizedBox(
-        height: _kImageHeight,
-        width: double.infinity,
-        child: InteractiveViewer(
-          child: Image.memory(
-            bytes,
-            fit: BoxFit.contain,
-            errorBuilder: (context, error, stackTrace) => const Center(
-              child: Text('This image could not be shown.', style: TextStyle(color: Colors.white70)),
+      return Semantics(
+        image: true,
+        label: document.label,
+        child: SizedBox(
+          height: _kImageHeight,
+          width: double.infinity,
+          child: InteractiveViewer(
+            child: Image.memory(
+              bytes,
+              fit: BoxFit.contain,
+              errorBuilder: (context, error, stackTrace) => const Center(
+                child: Text('This image could not be shown.', style: TextStyle(color: Colors.white70)),
+              ),
             ),
           ),
         ),
