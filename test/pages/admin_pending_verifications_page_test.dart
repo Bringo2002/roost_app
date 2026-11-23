@@ -191,6 +191,19 @@ void main() {
       expect(find.text('Reject Proofs'), findsNothing);
     });
 
+    testWidgets('names the close button and dismisses the sheet with it',
+        (tester) async {
+      stubQueue(pendingJson(verification: verification()));
+      await openSheet(tester);
+
+      expect(inSheet(find.byTooltip('Close')), findsOneWidget);
+
+      await tester.tap(find.byTooltip('Close'));
+      await tester.pumpAndSettle();
+
+      expect(find.byType(DraggableScrollableSheet), findsNothing);
+    });
+
     testWidgets('approving shows the recorded checks, then posts the approval',
         (tester) async {
       stubQueue(pendingJson(verification: verification(phone: 'UNVERIFIED')));
