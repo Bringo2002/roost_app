@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'package:flutter/foundation.dart';
 
 import 'package:roost_app/models/property_verification.dart';
 import 'package:roost_app/models/user.dart';
@@ -411,14 +410,6 @@ class Property {
   bool get hasSubmittedDocuments => documentCount > 0 || documentUrls.isNotEmpty;
 
   factory Property.fromJson(Map<String, dynamic> json) {
-    // Temporary debug: log JSON keys when buildingName can't be resolved,
-    // so we can identify the actual API key. Remove after fixing.
-    final bn = json['buildingName'] ?? json['building_name']
-        ?? json['apartmentName'] ?? json['apartment_name']
-        ?? json['propertyName'] ?? json['property_name'];
-    if (bn == null) {
-      debugPrint('[Property.fromJson] buildingName=null, keys: ${json.keys.toList()}');
-    }
     return Property(
       id: _parseNumToInt(json['id']),
       title: json['title'] ?? '',
