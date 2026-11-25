@@ -3,7 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:roost_app/config.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
+import 'package:roost_app/services/user_safety_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
+import 'package:roost_app/widgets/chat/block_user_dialog.dart';
+import 'package:roost_app/widgets/chat/report_user_sheet.dart';
 import 'package:roost_app/widgets/common/full_screen_image_gallery.dart';
 import 'package:roost_app/widgets/property/property_card.dart';
 import 'package:share_plus/share_plus.dart';
@@ -22,6 +25,7 @@ class PublicHostProfilePage extends StatefulWidget {
     this.isTitleDeedVerified = true,
     this.isPhoneVerified = true,
     this.isOwnerEndorsed = false,
+    this.showSafetyActions = true,
   });
 
   final String hostId;
@@ -34,6 +38,10 @@ class PublicHostProfilePage extends StatefulWidget {
   final bool isTitleDeedVerified;
   final bool isPhoneVerified;
   final bool isOwnerEndorsed;
+
+  /// Whether the Report and Block menu is offered. Turned off when someone
+  /// previews their own profile, where there is nobody to report.
+  final bool showSafetyActions;
 
   @override
   State<PublicHostProfilePage> createState() => _PublicHostProfilePageState();
@@ -122,6 +130,42 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
     }
   }
 
+  /// The host's numeric user id, or null when [PublicHostProfilePage.hostId]
+  /// is not one (a listing without a known owner), in which case there is
+  /// nobody to report or block.
+  int? get _hostUserId => int.tryParse(widget.hostId);
+
+  Future<void> _openReportSheet(int userId) async {
+    final sent = await ReportUserSheet.show(
+      context,
+      userName: widget.hostName,
+      onSubmit: (reason, note) => UserSafetyService.report(userId, reason, note: note),
+    );
+    if (!mounted || sent != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Thanks for letting us know. Our team will review your report.')),
+    );
+  }
+
+  Future<void> _confirmBlock(int userId) async {
+    if (!await confirmBlockUser(context, widget.hostName)) return;
+    if (!mounted) return;
+
+    try {
+      await UserSafetyService.block(userId);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toUserMessage('Could not block this user. Please try again.'))),
+      );
+      return;
+    }
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('${widget.hostName} blocked')),
+    );
+  }
+
   void _shareHostProfile() {
     final isLandlord = widget.hostRole.toUpperCase() == 'LANDLORD';
     final roleTitle = isLandlord ? 'Verified Landlord' : 'Authorized Agent';
@@ -176,6 +220,28 @@ class _PublicHostProfilePageState extends State<PublicHostProfilePage> {
             icon: const Icon(Icons.share_outlined, color: Colors.white, size: 20),
             onPressed: _shareHostProfile,
           ),
+          if (widget.showSafetyActions && _hostUserId != null)
+            PopupMenuButton<String>(
+              key: const Key('host-safety-menu'),
+              icon: const Icon(Icons.more_vert, color: Colors.white),
+              color: AppColors.surfaceContainer,
+              onSelected: (value) {
+                final userId = _hostUserId;
+                if (userId == null) return;
+                if (value == 'report') _openReportSheet(userId);
+                if (value == 'block') _confirmBlock(userId);
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(
+                  value: 'report',
+                  child: Text('Report user', style: TextStyle(color: Colors.white)),
+                ),
+                PopupMenuItem(
+                  value: 'block',
+                  child: Text('Block user', style: TextStyle(color: AppColors.destructive)),
+                ),
+              ],
+            ),
         ],
       ),
       body: _loading

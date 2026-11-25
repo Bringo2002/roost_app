@@ -323,6 +323,7 @@ class _ProfilePageState extends State<ProfilePage> {
           isTitleDeedVerified: true,
           isPhoneVerified: true,
           isOwnerEndorsed: true,
+          showSafetyActions: false,
         ),
       ),
     );
