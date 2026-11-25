@@ -18,6 +18,7 @@ import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/utils/chat_notification.dart';
 import 'package:roost_app/utils/chat_send_error.dart';
 import 'package:roost_app/utils/presence_formatter.dart';
+import 'package:roost_app/widgets/chat/block_user_dialog.dart';
 import 'package:roost_app/widgets/chat/message_bubble.dart';
 import 'package:roost_app/widgets/chat/report_user_sheet.dart';
 import 'package:intl/intl.dart';
@@ -551,30 +552,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
   }
 
   Future<void> _confirmBlock() async {
-    final bool? confirm = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surfaceContainer,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: Text('Block ${widget.partner.name}?', style: const TextStyle(color: Colors.white, fontSize: 18)),
-        content: const Text(
-          'They won\'t be able to message you, and you won\'t see their messages. '
-          'You can unblock them any time from Profile > Blocked users.',
-          style: TextStyle(color: Colors.grey, fontSize: 14),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Block', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
-          ),
-        ],
-      ),
-    );
-    if (confirm != true) return;
+    if (!await confirmBlockUser(context, widget.partner.name)) return;
+    if (!mounted) return;
 
     try {
       await UserSafetyService.block(widget.partner.id);
