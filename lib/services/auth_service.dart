@@ -180,7 +180,6 @@ class AuthService {
         scopeHint: ['email'],
       );
       final googleIdToken = googleUser.authentication.idToken;
-      debugPrint('Google sign-in: googleIdToken length=${googleIdToken?.length}, prefix=${googleIdToken?.substring(0, 20)}...');
       if (googleIdToken == null) {
         return AuthResult(
           success: false,
@@ -194,7 +193,6 @@ class AuthService {
       final userCredential = await fb_auth.FirebaseAuth.instance
           .signInWithCredential(credential);
       final firebaseIdToken = await userCredential.user?.getIdToken(true);
-      debugPrint('Google sign-in: firebaseIdToken length=${firebaseIdToken?.length}, isJWT=${firebaseIdToken != null && firebaseIdToken.split(".").length == 3}');
       if (firebaseIdToken == null) {
         return AuthResult(
           success: false,
@@ -250,7 +248,6 @@ class AuthService {
           )
           .timeout(const Duration(seconds: 30));
 
-      debugPrint('Google sign-in: backend response status=${response.statusCode}, body=${response.body.substring(0, response.body.length.clamp(0, 200))}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         await _saveToken(data['token']);
