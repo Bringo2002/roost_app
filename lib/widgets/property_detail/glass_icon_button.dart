@@ -9,6 +9,10 @@ import 'package:roost_app/theme/app_colors.dart';
 /// the video slide). Reads clearly over both a dark night photo and a
 /// bright daylight one, which a flat `Colors.black45` circle doesn't
 /// always manage.
+///
+/// The button is [size] logical pixels square, the minimum comfortable touch
+/// target. Its parent must not constrain it below that: an app bar's `leading`
+/// slot is 56 wide, so it needs at most 6 of padding per side, not 8.
 class GlassIconButton extends StatelessWidget {
   const GlassIconButton({
     super.key,
@@ -18,6 +22,9 @@ class GlassIconButton extends StatelessWidget {
     this.child,
     this.tooltip,
   });
+
+  /// Width and height of the button, and so of its touch target.
+  static const double size = 44;
 
   final IconData icon;
   final VoidCallback onTap;
@@ -37,8 +44,8 @@ class GlassIconButton extends StatelessWidget {
       child: BackdropFilter(
         filter: ImageFilter.blur(sigmaX: 12, sigmaY: 12),
         child: Container(
-          width: 40,
-          height: 40,
+          width: size,
+          height: size,
           decoration: BoxDecoration(
             color: AppColors.glassFill,
             shape: BoxShape.circle,

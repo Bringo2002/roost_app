@@ -310,8 +310,10 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
             backgroundColor: AppColors.background,
             elevation: 0,
             title: Text(_property.title, style: AppTextStyles.title),
+            // The leading slot is 56 wide; 6 of padding leaves the button its
+            // full 44 (8 would squeeze it to 40, below the touch-target minimum).
             leading: Padding(
-              padding: const EdgeInsets.all(8.0),
+              padding: const EdgeInsets.all(6),
               child: GlassIconButton(
                 icon: Icons.arrow_back,
                 tooltip: MaterialLocalizations.of(context).backButtonTooltip,
@@ -447,7 +449,9 @@ class _PropertyDetailPageState extends State<PropertyDetailPage> with SingleTick
               );
             },
           ),
-          const SizedBox(height: 16),
+          // 8, not 16: each badge now sits in a 44px-tall touch slot, which
+          // already adds 8 above the 28px pill. Keeps the pills where they were.
+          const SizedBox(height: 8),
           VerificationBadges(property: p, onTapVerification: _showVerificationDetails),
           FairPriceIndicator(property: p),
           if (p.riskFlags.isNotEmpty) ...[

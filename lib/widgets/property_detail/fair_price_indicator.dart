@@ -37,22 +37,36 @@ class FairPriceIndicator extends StatelessWidget {
     // Convert to 0.0 -> 1.0 (0.0 is -50%, 1.0 is +50%)
     final alignment = (clampedDiff + 50) / 100;
 
-    return GestureDetector(
-      onTap: () {
-        HapticFeedback.lightImpact();
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(
-              'Based on $sampleSize similar listings nearby. Average rent: ${property.priceComparisonAverage!.round()}.',
-              style: const TextStyle(fontSize: 13),
-            ),
-            duration: const Duration(seconds: 3),
-            behavior: SnackBarBehavior.floating,
+    void showDetails() {
+      HapticFeedback.lightImpact();
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Based on $sampleSize similar listings nearby. Average rent: ${avg.round()}.',
+            style: const TextStyle(fontSize: 13),
           ),
-        );
-      },
-      child: Padding(
-        padding: const EdgeInsets.only(top: 8),
+          duration: const Duration(seconds: 3),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+
+    // One button for a screen reader, announcing the same sentence a sighted
+    // user reads. The gradient bar, its marker and the "Cheaper / More
+    // expensive" end labels only illustrate that sentence, so they are
+    // excluded rather than read out as three disconnected fragments.
+    //
+    // There is no top padding: the badge row above already ends in 8px of
+    // touch-target slack, which supplies the gap this padding used to.
+    return Semantics(
+      container: true,
+      button: true,
+      excludeSemantics: true,
+      label: label,
+      onTap: showDetails,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: showDetails,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
