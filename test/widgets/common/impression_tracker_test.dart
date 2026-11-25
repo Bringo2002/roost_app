@@ -1,25 +1,39 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:roost_app/services/listing_event_service.dart';
 import 'package:roost_app/widgets/common/impression_tracker.dart';
 
 void main() {
   late List<int> reported;
+  late List<ListingEventSource?> sources;
 
-  Widget host({required int? id, bool mounted = true, Key? key}) {
+  Widget host({
+    required int? id,
+    bool mounted = true,
+    Key? key,
+    ListingEventSource? source,
+  }) {
     return Directionality(
       textDirection: TextDirection.ltr,
       child: mounted
           ? ImpressionTracker(
               key: key,
               propertyId: id,
-              onImpression: (id, _) => reported.add(id),
+              source: source,
+              onImpression: (id, source) {
+                reported.add(id);
+                sources.add(source);
+              },
               child: const SizedBox(),
             )
           : const SizedBox(),
     );
   }
 
-  setUp(() => reported = []);
+  setUp(() {
+    reported = [];
+    sources = [];
+  });
 
   testWidgets('reports once after the dwell time, not before', (tester) async {
     await tester.pumpWidget(host(id: 7));
@@ -63,5 +77,27 @@ void main() {
 
     await tester.pump(const Duration(milliseconds: 300));
     expect(reported, [2], reason: 'listing 1 never reached its dwell time');
+  });
+
+  testWidgets('reports the feed the card belongs to', (tester) async {
+    await tester.pumpWidget(host(id: 7, source: ListingEventSource.search));
+
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(sources, [ListingEventSource.search]);
+  });
+
+  testWidgets('the same listing moving to another feed is a new impression', (tester) async {
+    const key = ValueKey('slot');
+    await tester.pumpWidget(host(id: 7, key: key, source: ListingEventSource.search));
+    await tester.pump(const Duration(seconds: 2));
+
+    await tester.pumpWidget(
+        host(id: 7, key: key, source: ListingEventSource.searchRecommended));
+    await tester.pump(const Duration(seconds: 2));
+
+    expect(reported, [7, 7]);
+    expect(sources,
+        [ListingEventSource.search, ListingEventSource.searchRecommended]);
   });
 }
