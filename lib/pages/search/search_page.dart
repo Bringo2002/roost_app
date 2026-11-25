@@ -6,6 +6,7 @@ import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
+import 'package:roost_app/services/listing_event_service.dart';
 import 'package:roost_app/services/search_intent_api_service.dart';
 import 'package:roost_app/utils/feed_diagnostics.dart';
 import 'package:roost_app/utils/property_sorter.dart';
@@ -1315,6 +1316,9 @@ class _SearchPageState extends State<SearchPage>
                               final km = _distanceKmTo(property);
                               return ImpressionTracker(
                                 propertyId: property.id,
+                                source: _sortRecommended
+                                    ? ListingEventSource.searchRecommended
+                                    : ListingEventSource.search,
                                 child: PropertyCard(
                                   key: ValueKey(property.id ??
                                       identityHashCode(property)),

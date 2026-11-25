@@ -18,6 +18,7 @@ import 'package:roost_app/pages/search/search_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/favorites_service.dart';
+import 'package:roost_app/services/listing_event_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:roost_app/services/location_service.dart';
 import 'package:roost_app/services/country_service.dart';
@@ -967,6 +968,7 @@ class _PropertyFeedPageState extends State<_PropertyFeedPage>
                             index: index,
                             child: ImpressionTracker(
                               propertyId: property.id,
+                              source: ListingEventSource.homeNearby,
                               child: PropertyCard(
                                 key: ValueKey(
                                     property.id ?? identityHashCode(property)),

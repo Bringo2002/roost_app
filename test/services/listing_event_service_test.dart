@@ -85,6 +85,63 @@ void main() {
       expect(eventsOf(bodies.single).map((e) => e['type']), ['CLICK', 'IMPRESSION']);
     });
 
+    test('sends the source with the backend wire name, and leaves it out when there is none', () async {
+      final service = build();
+
+      service.track(1, ListingEventType.impression,
+          source: ListingEventSource.searchRecommended);
+      service.track(2, ListingEventType.impression);
+      await service.flush();
+
+      expect(eventsOf(bodies.single), [
+        {'propertyId': 1, 'type': 'IMPRESSION', 'source': 'SEARCH_RECOMMENDED'},
+        {'propertyId': 2, 'type': 'IMPRESSION'},
+      ]);
+    });
+
+    test('the same listing seen in two feeds is one impression per feed', () async {
+      final service = build();
+
+      service.track(1, ListingEventType.impression,
+          source: ListingEventSource.homeNearby);
+      service.track(1, ListingEventType.impression,
+          source: ListingEventSource.homeNearby);
+      service.track(1, ListingEventType.impression,
+          source: ListingEventSource.search);
+      await service.flush();
+
+      expect(eventsOf(bodies.single).map((e) => e['source']),
+          ['HOME_NEARBY', 'SEARCH']);
+    });
+
+    test('a later event with no source takes the last feed that showed the listing', () async {
+      final service = build();
+
+      service.track(1, ListingEventType.impression,
+          source: ListingEventSource.homeNearby);
+      service.track(1, ListingEventType.impression,
+          source: ListingEventSource.search);
+      service.track(1, ListingEventType.click);
+      service.track(2, ListingEventType.click);
+      await service.flush();
+
+      final events = eventsOf(bodies.single);
+      expect(events[2], {'propertyId': 1, 'type': 'CLICK', 'source': 'SEARCH'});
+      expect(events[3], {'propertyId': 2, 'type': 'CLICK'},
+          reason: 'a listing never shown in a feed has no source to inherit');
+    });
+
+    test('an explicit source wins over the remembered one', () async {
+      final service = build();
+
+      service.track(1, ListingEventType.impression,
+          source: ListingEventSource.homeNearby);
+      service.track(1, ListingEventType.save, source: ListingEventSource.search);
+      await service.flush();
+
+      expect(eventsOf(bodies.single).last['source'], 'SEARCH');
+    });
+
     test('flush with nothing queued sends nothing', () async {
       final service = build();
 

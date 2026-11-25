@@ -19,18 +19,42 @@ enum ListingEventType {
   final String wireName;
 }
 
+/// The feed surface that showed a listing. [wireName] is the exact enum
+/// name `POST /api/events/listings` expects in an item's `source`.
+enum ListingEventSource {
+  /// The home feed (distance-sorted when location is known, else newest).
+  homeNearby('HOME_NEARBY'),
+
+  /// Search results in the default order.
+  search('SEARCH'),
+
+  /// Search results with the "Recommended Order" switch on.
+  searchRecommended('SEARCH_RECOMMENDED');
+
+  const ListingEventSource(this.wireName);
+
+  final String wireName;
+}
+
 typedef EventPoster = Future<dynamic> Function(
     String endpoint, Map<String, dynamic> body);
 typedef SignedInCheck = Future<bool> Function();
 
 class _QueuedEvent {
-  const _QueuedEvent(this.propertyId, this.type);
+  const _QueuedEvent(this.propertyId, this.type, this.source);
 
   final int propertyId;
   final ListingEventType type;
+  final ListingEventSource? source;
 
-  Map<String, dynamic> toJson() =>
-      {'propertyId': propertyId, 'type': type.wireName};
+  Map<String, dynamic> toJson() {
+    final source = this.source;
+    return {
+      'propertyId': propertyId,
+      'type': type.wireName,
+      if (source != null) 'source': source.wireName,
+    };
+  }
 }
 
 Future<bool> _defaultSignedIn() async => (await AuthService.getToken()) != null;
@@ -51,6 +75,13 @@ Future<dynamic> _defaultPost(String endpoint, Map<String, dynamic> body) =>
 /// worth knowing: events still queued when the app is killed are lost
 /// (the queue flushes after [flushDelay], or sooner once [maxBatchSize]
 /// events are waiting), and a batch that fails to upload is not retried.
+///
+/// Each event can carry the [ListingEventSource] that showed the listing.
+/// Only the feed cards know their surface, so a source passed to [track]
+/// is remembered for that listing and used for its later events that
+/// carry none (a click, save or chat started after seeing it): they are
+/// attributed to the last feed surface that showed the listing in this
+/// session, and sent without a source if it was never shown in one.
 ///
 /// The backend only accepts events from signed-in users, so while signed
 /// out the queue is discarded instead of sending requests that would
@@ -79,20 +110,30 @@ class ListingEventService {
   final SignedInCheck _isSignedIn;
 
   final ListQueue<_QueuedEvent> _queue = ListQueue<_QueuedEvent>();
-  final Set<int> _impressed = <int>{};
+  // Keyed by listing and source: the same listing seen in two feeds is two
+  // impressions, one for each.
+  final Set<String> _impressed = <String>{};
+  final Map<int, ListingEventSource> _lastSource = <int, ListingEventSource>{};
   Timer? _timer;
   bool _flushing = false;
 
-  /// Queues one interaction. Impressions are counted once per listing per
-  /// app session; every other type is recorded each time it happens.
-  void track(int propertyId, ListingEventType type) {
-    if (type == ListingEventType.impression && !_impressed.add(propertyId)) {
+  /// Queues one interaction. Impressions are counted once per listing and
+  /// source per app session; every other type is recorded each time it
+  /// happens. See the class comment for how [source] is attributed.
+  void track(int propertyId, ListingEventType type,
+      {ListingEventSource? source}) {
+    if (source != null) {
+      _lastSource[propertyId] = source;
+    }
+    final effectiveSource = source ?? _lastSource[propertyId];
+    if (type == ListingEventType.impression &&
+        !_impressed.add('$propertyId:${effectiveSource?.wireName}')) {
       return;
     }
     if (_queue.length >= maxQueueLength) {
       _queue.removeFirst();
     }
-    _queue.add(_QueuedEvent(propertyId, type));
+    _queue.add(_QueuedEvent(propertyId, type, effectiveSource));
 
     if (_queue.length >= maxBatchSize) {
       unawaited(flush());
