@@ -67,5 +67,6 @@
   "propertyDetailMapPreviewLabel": "Ramani inayoonyesha mali hii ilipo",
   "propertyDetailMapPreviewHint": "Hufungua ramani kwenye skrini nzima",
   "roostSheetSubmitting": "{label}, inatuma",
-  "auditSheetClose": "Funga"
+  "auditSheetClose": "Funga",
+  "marketPriceGaugeSemantics": "Nafasi ya bei: asilimia {percent} ya mali zinazofanana zina bei sawa au chini ya hii."
 }

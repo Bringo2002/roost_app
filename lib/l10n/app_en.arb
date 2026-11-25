@@ -336,5 +336,14 @@
   "auditSheetClose": "Close",
   "@auditSheetClose": {
     "description": "Tooltip and screen-reader label for the X button at the top of the admin audit sheet that dismisses it."
+  },
+  "marketPriceGaugeSemantics": "Price position: {percent}% of comparable listings are priced at or below this one.",
+  "@marketPriceGaugeSemantics": {
+    "description": "Screen-reader label for the price-position gauge on the market price card. percent is the whole-number share (0-100) of comparable listings whose price is at or below this listing's price.",
+    "placeholders": {
+      "percent": {
+        "type": "int"
+      }
+    }
   }
 }

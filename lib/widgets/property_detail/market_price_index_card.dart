@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:shimmer/shimmer.dart';
+import 'package:roost_app/l10n/generated/app_localizations.dart';
 import 'package:roost_app/models/property.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/rent_estimator_service.dart';
@@ -10,9 +11,17 @@ import 'package:roost_app/theme/app_colors.dart';
 /// showing where the listing price falls relative to comparable rentals in
 /// the same area and house type.
 class MarketPriceIndexCard extends StatefulWidget {
-  const MarketPriceIndexCard({super.key, required this.property});
+  const MarketPriceIndexCard({
+    super.key,
+    required this.property,
+    this.estimator = RentEstimatorService.estimate,
+  });
 
   final Property property;
+
+  /// Loads the estimate. Defaults to the live service; tests pass a stub so
+  /// the card can be rendered without the network.
+  final Future<RentEstimate?> Function(Property property) estimator;
 
   @override
   State<MarketPriceIndexCard> createState() => _MarketPriceIndexCardState();
@@ -52,7 +61,7 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
       _failed = false;
     });
     try {
-      final est = await RentEstimatorService.estimate(widget.property);
+      final est = await widget.estimator(widget.property);
       if (!mounted) return;
       setState(() {
         _estimate = est;
@@ -129,16 +138,22 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
   Widget _buildFailed() {
     return Column(
       children: [
-        const Row(
+        Row(
           children: [
-            Icon(Icons.analytics_outlined, color: AppColors.grey500, size: 22),
-            SizedBox(width: 8),
-            Text(
-              'Market Price Analysis',
-              style: TextStyle(
-                color: AppColors.grey400,
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
+            const Icon(Icons.analytics_outlined, color: AppColors.grey500, size: 22),
+            const SizedBox(width: 8),
+            Semantics(
+              container: true,
+              header: true,
+              label: 'Market Price Analysis',
+              excludeSemantics: true,
+              child: const Text(
+                'Market Price Analysis',
+                style: TextStyle(
+                  color: AppColors.grey400,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
           ],
@@ -179,16 +194,22 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            const Row(
+            Row(
               children: [
-                Icon(Icons.analytics_outlined, color: AppColors.white, size: 22),
-                SizedBox(width: 8),
-                Text(
-                  'Market Price Analysis',
-                  style: TextStyle(
-                    color: AppColors.textPrimary,
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
+                const Icon(Icons.analytics_outlined, color: AppColors.white, size: 22),
+                const SizedBox(width: 8),
+                Semantics(
+                  container: true,
+                  header: true,
+                  label: 'Market Price Analysis',
+                  excludeSemantics: true,
+                  child: const Text(
+                    'Market Price Analysis',
+                    style: TextStyle(
+                      color: AppColors.textPrimary,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
               ],
@@ -228,7 +249,12 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
           ),
           child: Row(
             children: [
-              Text(est.rating.emoji, style: const TextStyle(fontSize: 28)),
+              // Decorative: the rating label next to it says the same thing, and
+              // a screen reader would otherwise announce "fire" or "chart
+              // increasing" first.
+              ExcludeSemantics(
+                child: Text(est.rating.emoji, style: const TextStyle(fontSize: 28)),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -257,9 +283,20 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         const SizedBox(height: 18),
 
         // ── Price Gauge Bar ─────────────────────────────────────────────────
-        AnimatedBuilder(
-          animation: _gaugeCurve,
-          builder: (context, _) => _buildPriceGauge(est),
+        // The gauge is a picture of one fact, so a screen reader gets that fact
+        // as a sentence instead of the pin text ("73th"), a bare track and the
+        // "Lower / Neighborhood Average / Higher" end labels as separate stops.
+        // `percentile` is the share of comparables priced at or below this
+        // listing (RentEstimateService: atOrBelow / size), and the label says
+        // exactly that. It uses the final value, not the animated one.
+        Semantics(
+          container: true,
+          excludeSemantics: true,
+          label: AppLocalizations.of(context)!.marketPriceGaugeSemantics((est.percentile * 100).round()),
+          child: AnimatedBuilder(
+            animation: _gaugeCurve,
+            builder: (context, _) => _buildPriceGauge(est),
+          ),
         ),
 
         const SizedBox(height: 20),
@@ -278,13 +315,19 @@ class _MarketPriceIndexCardState extends State<MarketPriceIndexCard>
         // ── Value Drivers ──────────────────────────────────────────────────
         if (est.valueDrivers.isNotEmpty) ...[
           const SizedBox(height: 20),
-          const Text(
-            'VALUE DRIVERS',
-            style: TextStyle(
-              color: AppColors.grey500,
-              fontSize: 11,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
+          Semantics(
+            container: true,
+            header: true,
+            label: 'VALUE DRIVERS',
+            excludeSemantics: true,
+            child: const Text(
+              'VALUE DRIVERS',
+              style: TextStyle(
+                color: AppColors.grey500,
+                fontSize: 11,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
+              ),
             ),
           ),
           const SizedBox(height: 10),
@@ -411,38 +454,42 @@ class _StatChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Merged so a screen reader says "Low, KES 30,000" as one item instead of
+    // stopping on the bare word "Low" and again on the number.
     return Expanded(
-      child: Container(
-        padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: AppColors.black,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(
-                color: AppColors.grey400,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-                letterSpacing: 0.5,
+      child: MergeSemantics(
+        child: Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppColors.black,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(
+                  color: AppColors.grey400,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
               ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              value,
-              style: const TextStyle(
-                color: AppColors.white,
-                fontSize: 12,
-                fontWeight: FontWeight.bold,
+              const SizedBox(height: 4),
+              Text(
+                value,
+                style: const TextStyle(
+                  color: AppColors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
               ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -460,41 +507,46 @@ class _DriverRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(6),
-            decoration: BoxDecoration(
-              color: driver.isPositive ? AppColors.grey800 : AppColors.surface,
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              driver.isPositive ? Icons.trending_up : Icons.trending_down,
-              color: driver.isPositive ? AppColors.white : AppColors.grey500,
-              size: 14,
-            ),
-          ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              driver.label,
-              style: const TextStyle(
-                color: AppColors.textPrimary,
-                fontSize: 13,
+    // Merged so the label and its impact read as one item. The impact string
+    // carries its own sign ("+5-10%", "-5-8%"), so the up/down arrow icon, which
+    // has no label of its own, adds nothing a screen reader user is missing.
+    return MergeSemantics(
+      child: Padding(
+        padding: const EdgeInsets.only(bottom: 8),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(6),
+              decoration: BoxDecoration(
+                color: driver.isPositive ? AppColors.grey800 : AppColors.surface,
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                driver.isPositive ? Icons.trending_up : Icons.trending_down,
+                color: driver.isPositive ? AppColors.white : AppColors.grey500,
+                size: 14,
               ),
             ),
-          ),
-          Text(
-            driver.impact,
-            style: TextStyle(
-              color: driver.isPositive ? AppColors.white : AppColors.grey500,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                driver.label,
+                style: const TextStyle(
+                  color: AppColors.textPrimary,
+                  fontSize: 13,
+                ),
+              ),
             ),
-          ),
-        ],
+            Text(
+              driver.impact,
+              style: TextStyle(
+                color: driver.isPositive ? AppColors.white : AppColors.grey500,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
