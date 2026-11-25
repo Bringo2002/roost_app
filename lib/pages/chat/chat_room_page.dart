@@ -7,15 +7,19 @@ import 'package:path_provider/path_provider.dart';
 import 'package:record/record.dart';
 import 'package:roost_app/models/user.dart';
 import 'package:roost_app/models/message.dart';
+import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/chat_service.dart';
+import 'package:roost_app/services/user_safety_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/encryption_service.dart';
 import 'package:roost_app/theme/app_colors.dart';
 import 'package:roost_app/theme/app_text_styles.dart';
 import 'package:roost_app/theme/app_theme.dart';
 import 'package:roost_app/utils/chat_notification.dart';
+import 'package:roost_app/utils/chat_send_error.dart';
 import 'package:roost_app/utils/presence_formatter.dart';
 import 'package:roost_app/widgets/chat/message_bubble.dart';
+import 'package:roost_app/widgets/chat/report_user_sheet.dart';
 import 'package:intl/intl.dart';
 
 class ChatRoomPage extends StatefulWidget {
@@ -396,11 +400,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
       }
     } catch (e) {
       if (!mounted) return;
-      final message = (e is RecipientKeyUnavailableException || e is SecureMessagingSetupException)
-          ? e.toString()
-          : 'Failed to send message. Please check your connection and try again.';
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message)),
+        SnackBar(content: Text(chatSendErrorMessage(e))),
       );
     } finally {
       if (mounted) setState(() => _sending = false);
@@ -535,6 +536,62 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
         const SnackBar(content: Text('Failed to delete chat. Please try again.')),
       );
     }
+  }
+
+  Future<void> _openReportSheet() async {
+    final sent = await ReportUserSheet.show(
+      context,
+      userName: widget.partner.name,
+      onSubmit: (reason, note) => UserSafetyService.report(widget.partner.id, reason, note: note),
+    );
+    if (!mounted || sent != true) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Thanks for letting us know. Our team will review your report.')),
+    );
+  }
+
+  Future<void> _confirmBlock() async {
+    final bool? confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('Block ${widget.partner.name}?', style: const TextStyle(color: Colors.white, fontSize: 18)),
+        content: const Text(
+          'They won\'t be able to message you, and you won\'t see their messages. '
+          'You can unblock them any time from Profile > Blocked users.',
+          style: TextStyle(color: Colors.grey, fontSize: 14),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Block', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await UserSafetyService.block(widget.partner.id);
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(e.toUserMessage('Could not block this user. Please try again.'))),
+      );
+      return;
+    }
+    if (!mounted) return;
+    // Take the messenger before leaving: this page's context is gone after the pop.
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.pop(context); // back to the chat list, which reloads
+    messenger.showSnackBar(
+      SnackBar(content: Text('${widget.partner.name} blocked')),
+    );
   }
 
   void _showForwardSheet(Message message) async {
@@ -988,6 +1045,8 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
               onSelected: (value) {
                 if (value == 'clear') _confirmClearChat();
                 if (value == 'delete') _confirmDeleteChat();
+                if (value == 'report') _openReportSheet();
+                if (value == 'block') _confirmBlock();
               },
               itemBuilder: (context) => [
                 const PopupMenuItem(
@@ -997,6 +1056,14 @@ class _ChatRoomPageState extends State<ChatRoomPage> {
                 const PopupMenuItem(
                   value: 'delete',
                   child: Text('Delete chat', style: TextStyle(color: AppColors.destructive)),
+                ),
+                const PopupMenuItem(
+                  value: 'report',
+                  child: Text('Report user', style: TextStyle(color: Colors.white)),
+                ),
+                const PopupMenuItem(
+                  value: 'block',
+                  child: Text('Block user', style: TextStyle(color: AppColors.destructive)),
                 ),
               ],
             ),
