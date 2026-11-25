@@ -15,23 +15,28 @@ import 'package:roost_app/services/listing_event_service.dart';
 /// matter, replace the timer start with a real visibility signal here and
 /// no call site changes.
 ///
-/// A null [propertyId] (an unsaved draft or preview) is never reported.
+/// [source] says which feed the card belongs to and is reported with the
+/// impression. A null [propertyId] (an unsaved draft or preview) is never
+/// reported.
 class ImpressionTracker extends StatefulWidget {
   const ImpressionTracker({
     super.key,
     required this.propertyId,
     required this.child,
+    this.source,
     this.dwell = const Duration(seconds: 1),
     this.onImpression,
   });
 
   final int? propertyId;
   final Widget child;
+  final ListingEventSource? source;
   final Duration dwell;
 
   /// Replaces the default report to [ListingEventService.instance]; used
   /// by tests so they need no network or singleton.
-  final void Function(int propertyId)? onImpression;
+  final void Function(int propertyId, ListingEventSource? source)?
+      onImpression;
 
   @override
   State<ImpressionTracker> createState() => _ImpressionTrackerState();
@@ -50,8 +55,11 @@ class _ImpressionTrackerState extends State<ImpressionTracker> {
   void didUpdateWidget(ImpressionTracker oldWidget) {
     super.didUpdateWidget(oldWidget);
     // A recycled element now showing a different listing starts a fresh
-    // dwell; it must not inherit time spent on the previous one.
-    if (oldWidget.propertyId != widget.propertyId) {
+    // dwell; it must not inherit time spent on the previous one. The same
+    // goes for the same listing moving to a different feed (for example the
+    // search order being switched): that is a new impression.
+    if (oldWidget.propertyId != widget.propertyId ||
+        oldWidget.source != widget.source) {
       _timer?.cancel();
       _start();
     }
@@ -62,9 +70,9 @@ class _ImpressionTrackerState extends State<ImpressionTracker> {
     if (id == null) return;
     _timer = Timer(widget.dwell, () {
       final report = widget.onImpression ??
-          (int id) => ListingEventService.instance
-              .track(id, ListingEventType.impression);
-      report(id);
+          (int id, ListingEventSource? source) => ListingEventService.instance
+              .track(id, ListingEventType.impression, source: source);
+      report(id, widget.source);
     });
   }
 

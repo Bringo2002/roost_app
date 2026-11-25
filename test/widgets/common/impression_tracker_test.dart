@@ -12,7 +12,7 @@ void main() {
           ? ImpressionTracker(
               key: key,
               propertyId: id,
-              onImpression: reported.add,
+              onImpression: (id, _) => reported.add(id),
               child: const SizedBox(),
             )
           : const SizedBox(),
