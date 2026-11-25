@@ -24,6 +24,7 @@ import 'package:roost_app/services/push_notification_service.dart';
 import 'package:roost_app/pages/profile/notifications_page.dart';
 import 'package:roost_app/pages/profile/privacy_policy_page.dart';
 import 'package:roost_app/pages/profile/about_page.dart';
+import 'package:roost_app/pages/profile/blocked_users_page.dart';
 import 'package:roost_app/pages/profile/change_password_page.dart';
 import 'package:roost_app/pages/profile/delete_account_page.dart';
 import 'package:roost_app/utils/server_time.dart';
@@ -700,6 +701,15 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   child: Column(
                     children: [
+                      ListTile(
+                        leading: const Icon(Icons.block_outlined, color: Colors.white),
+                        title: const Text('Blocked users', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
+                        trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                        onTap: () {
+                          Navigator.push(context, MaterialPageRoute(builder: (_) => const BlockedUsersPage()));
+                        },
+                      ),
+                      const Divider(height: 1, color: AppColors.divider),
                       ListTile(
                         leading: const Icon(Icons.privacy_tip_outlined, color: Colors.white),
                         title: const Text('Privacy Policy', style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600)),
