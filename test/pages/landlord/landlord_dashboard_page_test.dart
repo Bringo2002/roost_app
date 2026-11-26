@@ -148,6 +148,27 @@ void main() {
     expect(find.widgetWithText(ElevatedButton, 'Retry'), findsOneWidget);
   });
 
+  testWidgets('missing counts surfaces the retry error state', (tester) async {
+    // No `counts` object is a contract break. The strict model must surface
+    // it as a failed load, not render a dashboard of silent zeros.
+    ApiService.client = MockClient((request) async {
+      return _json({
+        'items': [_item(id: 1, title: 'Should Not Render')],
+        'page': 0,
+        'size': 20,
+        'hasNext': false,
+      });
+    });
+
+    await tester.pumpWidget(wrap(const LandlordDashboardPage()));
+    await tester.pumpAndSettle();
+
+    expect(find.text("Couldn't load your listings"), findsOneWidget);
+    expect(find.widgetWithText(ElevatedButton, 'Retry'), findsOneWidget);
+    // Nothing from the half-valid response is applied.
+    expect(find.text('Should Not Render'), findsNothing);
+  });
+
   testWidgets('tapping Retry reloads after a failed first page', (tester) async {
     var callCount = 0;
     ApiService.client = MockClient((request) async {

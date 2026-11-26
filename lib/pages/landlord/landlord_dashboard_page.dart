@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:shimmer/shimmer.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/models/property.dart';
+import 'package:roost_app/models/my_listings_page.dart';
 import 'package:roost_app/models/publication_violation.dart';
 import 'package:roost_app/services/country_service.dart';
 import 'package:roost_app/services/location_service.dart';
@@ -135,24 +136,22 @@ class _LandlordDashboardPageState extends State<LandlordDashboardPage> {
         '/api/v2/properties/my-listings?page=$page&size=$_pageSize&filter=$_selectedFilter',
       );
       if (!mounted) return;
-      final body = json as Map<String, dynamic>;
-      final items = (body['items'] as List)
-          .map((j) => Property.fromJson(j as Map<String, dynamic>))
-          .toList();
-      final counts = body['counts'] as Map<String, dynamic>? ?? const {};
+      // A malformed envelope throws here and falls into the catch below,
+      // which shows the retry state, instead of rendering silent zeros.
+      final result = MyListingsPage.fromJson(json as Map<String, dynamic>);
       setState(() {
         if (isFirstPage) {
-          _myListings = items;
+          _myListings = List.of(result.items);
         } else {
-          _myListings.addAll(items);
+          _myListings.addAll(result.items);
         }
         _nextPage = page + 1;
-        _hasNext = body['hasNext'] == true;
-        _totalCount = (counts['total'] as num?)?.toInt() ?? 0;
-        _draftsCount = (counts['drafts'] as num?)?.toInt() ?? 0;
-        _availableCount = (counts['available'] as num?)?.toInt() ?? 0;
-        _rentedCount = (counts['rented'] as num?)?.toInt() ?? 0;
-        _verifiedCount = (counts['verified'] as num?)?.toInt() ?? 0;
+        _hasNext = result.hasNext;
+        _totalCount = result.counts.total;
+        _draftsCount = result.counts.drafts;
+        _availableCount = result.counts.available;
+        _rentedCount = result.counts.rented;
+        _verifiedCount = result.counts.verified;
         _loading = false;
         _loadingMore = false;
       });
