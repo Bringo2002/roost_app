@@ -68,5 +68,16 @@
   "propertyDetailMapPreviewHint": "Hufungua ramani kwenye skrini nzima",
   "roostSheetSubmitting": "{label}, inatuma",
   "auditSheetClose": "Funga",
+  "auditLandlordFallbackName": "Mwenye nyumba",
+  "auditLandlordPhone": "Simu: {phone}",
+  "auditLandlordNoPhone": "Hakuna namba ya simu iliyohifadhiwa",
+  "auditScreeningTitle": "UKAGUZI WA KIOTOMATIKI",
+  "auditScreeningNotRecorded": "HAIJAREKODIWA",
+  "auditScreeningExplanation": "Hakuna matokeo ya ukaguzi yaliyohifadhiwa kwa hati za tangazo, kwa hivyo hakuna yanayoweza kuonyeshwa. Fungua kila hati mwenyewe na uthibitishe kwamba jina na mali vinalingana.",
+  "auditDocsTitle": "NYARAKA ZA UMILIKI ZILIZOAMBATISHWA ({count})",
+  "auditDocsEmpty": "Hakuna hati ya umiliki wa ardhi wala ya huduma iliyoambatishwa kwenye ombi hili.",
+  "auditPhotosTitle": "PICHA ZA TANGAZO ({count})",
+  "auditPhotosEmpty": "Hakuna picha za tangazo zilizopakiwa kwa mali hii.",
+  "auditDocProofLabel": "Uthibitisho wa Hati #{number}",
   "marketPriceGaugeSemantics": "Nafasi ya bei: asilimia {percent} ya mali zinazofanana zina bei sawa au chini ya hii."
 }

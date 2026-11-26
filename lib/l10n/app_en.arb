@@ -337,6 +337,70 @@
   "@auditSheetClose": {
     "description": "Tooltip and screen-reader label for the X button at the top of the admin audit sheet that dismisses it."
   },
+  "auditLandlordFallbackName": "Landlord User",
+  "@auditLandlordFallbackName": {
+    "description": "Name shown on the admin audit sheet's landlord card when the listing has no landlord name."
+  },
+  "auditLandlordPhone": "Phone: {phone}",
+  "@auditLandlordPhone": {
+    "description": "Landlord phone line on the admin audit sheet.",
+    "placeholders": {
+      "phone": {
+        "type": "String"
+      }
+    }
+  },
+  "auditLandlordNoPhone": "No phone number on file",
+  "@auditLandlordNoPhone": {
+    "description": "Shown in place of the phone line on the admin audit sheet when the landlord has no phone number."
+  },
+  "auditScreeningTitle": "AUTOMATED SCREENING",
+  "@auditScreeningTitle": {
+    "description": "Heading of the admin audit sheet's automated-screening card."
+  },
+  "auditScreeningNotRecorded": "NOT RECORDED",
+  "@auditScreeningNotRecorded": {
+    "description": "Badge on the automated-screening card saying no screening result is stored."
+  },
+  "auditScreeningExplanation": "No screening result is stored for listing documents, so none can be shown. Open each document yourself and confirm that the name and property match.",
+  "@auditScreeningExplanation": {
+    "description": "Explains why the automated-screening card shows no result, and tells the reviewer to check each document by hand."
+  },
+  "auditDocsTitle": "ATTACHED OWNERSHIP PROOFS ({count})",
+  "@auditDocsTitle": {
+    "description": "Section heading above the ownership documents on the admin audit sheet. count is how many are attached.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "auditDocsEmpty": "No title deed or utility documents attached to this submission.",
+  "@auditDocsEmpty": {
+    "description": "Notice shown on the admin audit sheet when a submission has no ownership documents."
+  },
+  "auditPhotosTitle": "LISTING PHOTOS ({count})",
+  "@auditPhotosTitle": {
+    "description": "Section heading above the listing photos on the admin audit sheet. count is how many there are.",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "auditPhotosEmpty": "No listing photos have been uploaded for this property.",
+  "@auditPhotosEmpty": {
+    "description": "Notice shown on the admin audit sheet when a listing has no photos."
+  },
+  "auditDocProofLabel": "Doc Proof #{number}",
+  "@auditDocProofLabel": {
+    "description": "Caption under each ownership document thumbnail on the admin audit sheet. number counts from 1.",
+    "placeholders": {
+      "number": {
+        "type": "int"
+      }
+    }
+  },
   "marketPriceGaugeSemantics": "Price position: {percent}% of comparable listings are priced at or below this one.",
   "@marketPriceGaugeSemantics": {
     "description": "Screen-reader label for the price-position gauge on the market price card. percent is the whole-number share (0-100) of comparable listings whose price is at or below this listing's price.",

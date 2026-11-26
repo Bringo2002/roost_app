@@ -885,6 +885,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
   }
 
   Widget _buildLandlordCard() {
+    final l10n = AppLocalizations.of(context)!;
     final phone = widget.property.landlordPhone;
     // Phone and on-site checks, from the backend's verification record.
     final checks = _reviewTags(widget.property)
@@ -912,7 +913,8 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      widget.property.landlordName ?? 'Landlord User',
+                      widget.property.landlordName ??
+                          l10n.auditLandlordFallbackName,
                       style: const TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -922,8 +924,8 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                     const SizedBox(height: 2),
                     Text(
                       phone.isNotEmpty
-                          ? 'Phone: $phone'
-                          : 'No phone number on file',
+                          ? l10n.auditLandlordPhone(phone)
+                          : l10n.auditLandlordNoPhone,
                       style: const TextStyle(
                           color: Colors.white54, fontSize: 12),
                     ),
@@ -954,6 +956,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
   /// rather than implying one. It becomes a per-document result once the
   /// backend records it.
   Widget _buildScreeningCard() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       padding: const EdgeInsets.all(_kInnerRadius),
@@ -974,10 +977,10 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
               const Icon(Icons.fact_check_outlined,
                   color: AppColors.indigoLight, size: 16),
               const SizedBox(width: 6),
-              const Expanded(
+              Expanded(
                 child: Text(
-                  'AUTOMATED SCREENING',
-                  style: TextStyle(
+                  l10n.auditScreeningTitle,
+                  style: const TextStyle(
                     color: Colors.white70,
                     fontSize: 11,
                     fontWeight: FontWeight.bold,
@@ -992,9 +995,9 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
                   color: Colors.white10,
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Text(
-                  'NOT RECORDED',
-                  style: TextStyle(
+                child: Text(
+                  l10n.auditScreeningNotRecorded,
+                  style: const TextStyle(
                     color: Colors.white54,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
@@ -1004,11 +1007,9 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
             ],
           ),
           const SizedBox(height: 8),
-          const Text(
-            'No screening result is stored for listing documents, so none '
-            'can be shown. Open each document yourself and confirm that the '
-            'name and property match.',
-            style: TextStyle(color: Colors.white54, fontSize: 12),
+          Text(
+            l10n.auditScreeningExplanation,
+            style: const TextStyle(color: Colors.white54, fontSize: 12),
           ),
         ],
       ),
@@ -1018,13 +1019,14 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
   // ── Documents ─────────────────────────────────────────────────────────
 
   Widget _buildDocsSection(BuildContext context, List<String> docs) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(
           icon: Icons.description,
           color: AppColors.skyBlue,
-          title: 'ATTACHED OWNERSHIP PROOFS (${docs.length})',
+          title: l10n.auditDocsTitle(docs.length),
         ),
         const SizedBox(height: 10),
         if (docs.isNotEmpty) ...[
@@ -1038,8 +1040,7 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
           _buildEmptyNotice(
             icon: Icons.info_outline,
             color: AppColors.warning,
-            text:
-                'No title deed or utility documents attached to this submission.',
+            text: l10n.auditDocsEmpty,
           )
         else
           GridView.builder(
@@ -1065,20 +1066,21 @@ class _AuditDocumentSheetState extends State<_AuditDocumentSheet>
   // ── Photos ────────────────────────────────────────────────────────────
 
   Widget _buildPhotosSection(List<String> photos) {
+    final l10n = AppLocalizations.of(context)!;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _buildSectionHeader(
           icon: Icons.photo_library,
           color: AppColors.warning,
-          title: 'LISTING PHOTOS (${photos.length})',
+          title: l10n.auditPhotosTitle(photos.length),
         ),
         const SizedBox(height: 10),
         if (photos.isEmpty)
           _buildEmptyNotice(
             icon: Icons.image_not_supported_outlined,
             color: Colors.white38,
-            text: 'No listing photos have been uploaded for this property.',
+            text: l10n.auditPhotosEmpty,
           )
         else
           GridView.builder(
@@ -1430,7 +1432,7 @@ class _DocumentPreview extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.symmetric(vertical: 6),
               child: Text(
-                'Doc Proof #$docNumber',
+                AppLocalizations.of(context)!.auditDocProofLabel(docNumber),
                 style: const TextStyle(
                   color: Colors.white70,
                   fontSize: 11,
