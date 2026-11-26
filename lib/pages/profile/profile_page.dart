@@ -234,9 +234,10 @@ class _ProfilePageState extends State<ProfilePage> {
       MaterialPageRoute(
         builder: (_) => DeleteAccountPage(
           email: _user?['email']?.toString() ?? '',
-          // Without the flag, assume a password account: the backend ignores
-          // the password for social-login accounts, so asking is the safe default.
-          requiresPassword: _user?['emailVerified'] != true,
+          // Use the explicit hasPassword flag from the backend. Falls back
+          // to true (ask for password) when the flag is absent, which is
+          // the safer default.
+          requiresPassword: _user?['hasPassword'] == true,
         ),
       ),
     );
@@ -249,6 +250,35 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Future<void> _cancelDeletion() async {
+    // Confirmation dialog to prevent accidental cancellations
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Keep your account?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'Your scheduled deletion will be cancelled and your '
+          'listings will remain active.',
+          style: TextStyle(color: Colors.grey, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Go Back', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Keep Account', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     setState(() => _cancellingDeletion = true);
     try {
       await AccountDeletionService.cancel();
@@ -260,6 +290,11 @@ class _ProfilePageState extends State<ProfilePage> {
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Something went wrong. Please try again.')),
+      );
     } finally {
       if (mounted) setState(() => _cancellingDeletion = false);
     }

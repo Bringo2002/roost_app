@@ -50,6 +50,35 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
     setState(() => _errorMessage = null);
     if (!_formKey.currentState!.validate()) return;
 
+    // FAANG-standard: secondary confirmation barrier
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppColors.surfaceContainer,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Are you sure?',
+          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+        ),
+        content: const Text(
+          'This will schedule your account for permanent deletion. '
+          'You can still cancel during the grace period.',
+          style: TextStyle(color: Colors.grey, height: 1.5),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Go Back', style: TextStyle(color: Colors.white)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Delete', style: TextStyle(color: AppColors.destructive, fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+
     setState(() => _submitting = true);
     try {
       final status = await AccountDeletionService.request(
@@ -146,6 +175,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               decoration: _inputDecoration(
                 hint: 'Your password',
                 suffix: IconButton(
+                  tooltip: _obscurePassword ? 'Show password' : 'Hide password',
                   icon: Icon(
                     _obscurePassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
                     color: Colors.grey[500],
@@ -233,7 +263,7 @@ class _DeleteAccountPageState extends State<DeleteAccountPage> {
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
               elevation: 0,
             ),
-            child: const Text('Done', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+            child: const Text('Done & Log Out', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
           ),
         ),
       ],
