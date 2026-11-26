@@ -3,7 +3,10 @@ import 'package:roost_app/models/my_listings_page.dart';
 
 /// One PropertyListItemDto exactly as Roost serializes it (field names
 /// from PropertyListItemDto.java).
-Map<String, dynamic> _slimItem({required int id, String title = 'Cozy Bedsitter', String status = 'PUBLISHED'}) {
+Map<String, dynamic> _slimItem(
+    {required int id,
+    String title = 'Cozy Bedsitter',
+    String status = 'PUBLISHED'}) {
   return {
     'id': id,
     'title': title,
@@ -29,19 +32,29 @@ Map<String, dynamic> _slimItem({required int id, String title = 'Cozy Bedsitter'
 /// names from MyListingsPageResponse.java).
 Map<String, dynamic> _envelope() {
   return {
-    'items': [_slimItem(id: 1), _slimItem(id: 2, title: 'Second', status: 'DRAFT')],
+    'items': [
+      _slimItem(id: 1),
+      _slimItem(id: 2, title: 'Second', status: 'DRAFT')
+    ],
     'page': 1,
     'size': 20,
     'hasNext': true,
     // Explicit type: an untyped literal here is inferred as Map<String, int>,
     // which would make the tests below that assign a String or null into it
     // fail with a TypeError inside the test itself, never reaching the parser.
-    'counts': <String, dynamic>{'total': 42, 'drafts': 3, 'available': 30, 'rented': 9, 'verified': 25},
+    'counts': <String, dynamic>{
+      'total': 42,
+      'drafts': 3,
+      'available': 30,
+      'rented': 9,
+      'verified': 25
+    },
   };
 }
 
 Matcher _formatErrorMentioning(String fragment) =>
-    throwsA(isA<FormatException>().having((e) => e.message, 'message', contains(fragment)));
+    throwsA(isA<FormatException>()
+        .having((e) => e.message, 'message', contains(fragment)));
 
 void main() {
   group('MyListingsPage.fromJson', () {
@@ -77,26 +90,30 @@ void main() {
       test("throws, naming the field, when '$key' is missing", () {
         final json = _envelope()..remove(key);
 
-        expect(() => MyListingsPage.fromJson(json), _formatErrorMentioning("'response.$key'"));
+        expect(() => MyListingsPage.fromJson(json),
+            _formatErrorMentioning("'response.$key'"));
       });
     }
 
     test("throws when 'hasNext' is a string instead of a bool", () {
       final json = _envelope()..['hasNext'] = 'true';
 
-      expect(() => MyListingsPage.fromJson(json), _formatErrorMentioning("'response.hasNext'"));
+      expect(() => MyListingsPage.fromJson(json),
+          _formatErrorMentioning("'response.hasNext'"));
     });
 
     test("throws when 'items' is not a list", () {
       final json = _envelope()..['items'] = {'id': 1};
 
-      expect(() => MyListingsPage.fromJson(json), _formatErrorMentioning("'response.items'"));
+      expect(() => MyListingsPage.fromJson(json),
+          _formatErrorMentioning("'response.items'"));
     });
 
     test('throws, naming the index, when an item is not an object', () {
       final json = _envelope()..['items'] = [_slimItem(id: 1), 'not-an-object'];
 
-      expect(() => MyListingsPage.fromJson(json), _formatErrorMentioning("'items[1]'"));
+      expect(() => MyListingsPage.fromJson(json),
+          _formatErrorMentioning("'items[1]'"));
     });
   });
 
@@ -106,7 +123,8 @@ void main() {
         final json = _envelope();
         (json['counts'] as Map<String, dynamic>).remove(key);
 
-        expect(() => MyListingsPage.fromJson(json), _formatErrorMentioning("'counts.$key'"));
+        expect(() => MyListingsPage.fromJson(json),
+            _formatErrorMentioning("'counts.$key'"));
       });
     }
 
@@ -114,14 +132,16 @@ void main() {
       final json = _envelope();
       (json['counts'] as Map<String, dynamic>)['total'] = '42';
 
-      expect(() => MyListingsPage.fromJson(json), _formatErrorMentioning("'counts.total'"));
+      expect(() => MyListingsPage.fromJson(json),
+          _formatErrorMentioning("'counts.total'"));
     });
 
     test('throws when a count is null', () {
       final json = _envelope();
       (json['counts'] as Map<String, dynamic>)['verified'] = null;
 
-      expect(() => MyListingsPage.fromJson(json), _formatErrorMentioning("'counts.verified'"));
+      expect(() => MyListingsPage.fromJson(json),
+          _formatErrorMentioning("'counts.verified'"));
     });
   });
 }
