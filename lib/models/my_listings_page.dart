@@ -74,7 +74,8 @@ class MyListingsPage {
     for (var i = 0; i < rawItems.length; i++) {
       final raw = rawItems[i];
       if (raw is! Map<String, dynamic>) {
-        throw FormatException("my-listings response: 'items[$i]' must be an object, got ${raw.runtimeType}");
+        throw FormatException(
+            "my-listings response: 'items[$i]' must be an object, got ${raw.runtimeType}");
       }
       items.add(Property.fromJson(raw));
     }
@@ -89,8 +90,10 @@ class MyListingsPage {
 }
 
 Never _fail(String where, String key, String expected, Object? actual) {
-  final got = actual == null ? 'missing or null' : actual.runtimeType.toString();
-  throw FormatException("my-listings response: '$where.$key' must be $expected, got $got");
+  final got =
+      actual == null ? 'missing or null' : actual.runtimeType.toString();
+  throw FormatException(
+      "my-listings response: '$where.$key' must be $expected, got $got");
 }
 
 int _requireInt(Map<String, dynamic> json, String key, String where) {
@@ -105,13 +108,15 @@ bool _requireBool(Map<String, dynamic> json, String key, String where) {
   _fail(where, key, 'a bool', value);
 }
 
-List<dynamic> _requireList(Map<String, dynamic> json, String key, String where) {
+List<dynamic> _requireList(
+    Map<String, dynamic> json, String key, String where) {
   final value = json[key];
   if (value is List) return value;
   _fail(where, key, 'a list', value);
 }
 
-Map<String, dynamic> _requireMap(Map<String, dynamic> json, String key, String where) {
+Map<String, dynamic> _requireMap(
+    Map<String, dynamic> json, String key, String where) {
   final value = json[key];
   if (value is Map<String, dynamic>) return value;
   _fail(where, key, 'an object', value);
