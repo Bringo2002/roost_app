@@ -269,6 +269,72 @@ class _NotificationsPageState extends State<NotificationsPage> {
         icon = Icons.chat_bubble_outline_rounded;
         iconBg = AppColors.notificationChat;
         break;
+      // --- Photo & document verification ---
+      case 'photo_approved':
+      case 'documents_approved':
+        icon = Icons.verified_rounded;
+        iconBg = AppColors.notificationBooking; // green
+        break;
+      case 'photo_rejected':
+        icon = Icons.photo_library_outlined;
+        iconBg = AppColors.notificationListing; // orange
+        break;
+      // --- Identity verification ---
+      case 'identity_verified':
+        icon = Icons.verified_user_rounded;
+        iconBg = AppColors.notificationBooking; // green
+        break;
+      case 'identity_rejected':
+        icon = Icons.person_off_outlined;
+        iconBg = AppColors.notificationListing; // orange
+        break;
+      // --- Listing status ---
+      case 'listing_under_review':
+      case 'listing_kept_hidden':
+        icon = Icons.visibility_off_outlined;
+        iconBg = AppColors.notificationListing; // orange
+        break;
+      case 'listing_restored':
+        icon = Icons.check_circle_outline_rounded;
+        iconBg = AppColors.notificationBooking; // green
+        break;
+      case 'listing_needs_changes':
+        icon = Icons.edit_note_rounded;
+        iconBg = AppColors.notificationListing; // orange
+        break;
+      case 'listing_marked_rented':
+        icon = Icons.home_work_outlined;
+        iconBg = AppColors.notificationBooking; // green
+        break;
+      // --- Availability ---
+      case 'availability_check':
+        icon = Icons.schedule_rounded;
+        iconBg = AppColors.notificationChat; // blue
+        break;
+      case 'availability_confirmed':
+        icon = Icons.thumb_up_alt_outlined;
+        iconBg = AppColors.notificationBooking; // green
+        break;
+      case 'availability_expired':
+        icon = Icons.timer_off_outlined;
+        iconBg = AppColors.notificationListing; // orange
+        break;
+      // --- Applications ---
+      case 'application_received':
+        icon = Icons.description_outlined;
+        iconBg = AppColors.notificationChat; // blue
+        break;
+      case 'application_status_update':
+        icon = Icons.assignment_turned_in_outlined;
+        iconBg = AppColors.notificationBooking; // green
+        break;
+      // --- Account ---
+      case 'account_disabled':
+      case 'account_locked':
+        icon = Icons.lock_outline_rounded;
+        iconBg = AppColors.destructive;
+        break;
+      // --- Legacy / fallback ---
       case 'booking':
         icon = Icons.calendar_today_rounded;
         iconBg = AppColors.notificationBooking;
