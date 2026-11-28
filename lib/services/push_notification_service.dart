@@ -5,6 +5,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:roost_app/firebase_options.dart';
+import 'package:roost_app/models/property.dart';
+import 'package:roost_app/pages/search/property_detail_page.dart';
 import 'package:roost_app/services/api_service.dart';
 import 'package:roost_app/services/auth_service.dart';
 import 'package:roost_app/services/chat_navigation.dart';
@@ -166,9 +168,7 @@ class PushNotificationService {
         type: message.data['type'] ?? 'system',
         payload: message.data,
         context: (context != null && context.mounted) ? context : null,
-        onTap: partnerId == null
-            ? null
-            : () => ChatNavigation.openChatWith(partnerId),
+        onTap: () => _navigateForPayload(message.data),
       );
     });
 
@@ -191,8 +191,8 @@ class PushNotificationService {
   static StreamSubscription<RemoteMessage>? _openedAppSub;
 
   /// Records a notification the user tapped (from the system tray, while
-  /// backgrounded or after a cold start) and, for a chat message, opens
-  /// that conversation.
+  /// backgrounded or after a cold start) and navigates to the relevant
+  /// screen based on the notification type.
   static Future<void> _handleNotificationOpened(RemoteMessage message) async {
     await addNotification(
       title: message.notification?.title ?? 'Roost',
@@ -200,9 +200,52 @@ class PushNotificationService {
       type: message.data['type'] ?? 'system',
       payload: message.data,
     );
-    final partnerId = ChatNotification.partnerIdFrom(message.data);
+    _navigateForPayload(message.data);
+  }
+
+  /// Central routing logic: decides which screen to open based on the
+  /// notification's data payload. Called from both tap-to-open and
+  /// foreground banner "VIEW" actions.
+  static void _navigateForPayload(Map<String, dynamic> data) {
+    // Chat messages → open conversation
+    final partnerId = ChatNotification.partnerIdFrom(data);
     if (partnerId != null) {
-      await ChatNavigation.openChatWith(partnerId);
+      ChatNavigation.openChatWith(partnerId);
+      return;
+    }
+
+    final type = data['type'] as String? ?? '';
+    final propertyId = data['propertyId'] as String?;
+
+    // Property-related notifications → open listing detail
+    const propertyTypes = {
+      'photo_approved', 'photo_rejected', 'documents_approved',
+      'listing_under_review', 'listing_kept_hidden', 'listing_restored',
+      'listing_needs_changes', 'listing_marked_rented',
+      'availability_check', 'availability_confirmed', 'availability_expired',
+      'application_received',
+    };
+
+    if (propertyTypes.contains(type) && propertyId != null) {
+      _openPropertyDetail(propertyId);
+      return;
+    }
+  }
+
+  /// Fetches a property by ID and navigates to its detail page.
+  static Future<void> _openPropertyDetail(String propertyId) async {
+    try {
+      final context = navigatorKey.currentContext;
+      final res = await ApiService.get('/api/properties/$propertyId');
+      final property = Property.fromJson(res);
+      if (context != null && context.mounted) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(builder: (_) => PropertyDetailPage(property: property)),
+        );
+      }
+    } catch (e) {
+      debugPrint('PushNotificationService: failed to open property $propertyId: $e');
     }
   }
 
